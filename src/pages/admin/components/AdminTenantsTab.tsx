@@ -1,9 +1,10 @@
+import type { Situacao } from "../../../lib/situacaoEmpresa";
+import { apiFetch } from "../../../lib/apiClient";
 import { useState, useEffect, useMemo } from "react";
-import { Search, Server, Plus, Settings, ShieldCheck, CheckCircle2, RefreshCw, Building2, Pencil, Trash2, KeyRound, Layers, LayoutGrid, ListFilter, Filter, X } from "lucide-react";
+import { Search, Server, Plus, Settings, ShieldCheck, RefreshCw, Building2, Pencil, Trash2, Ban, RotateCcw, KeyRound, Layers, LayoutGrid, ListFilter, Filter, X } from "lucide-react";
 import {
   fetchTenantsDetailed,
   updateTenantInfo,
-  deactivateTenant,
   fetchTenantAdminUser,
   updateTenantUserCredentials,
   PLUPPEX_TENANT_ID,
@@ -42,6 +43,19 @@ interface AdminTenantsTabProps {
   reloadTrigger?: number;
 }
 
+/** Selo da situação: o que o servidor calculou; sem a consulta, cai no status gravado. */
+function SeloSituacao({ situacao, status }: { situacao?: Situacao; status?: string }) {
+  const estado = situacao?.estado ?? (status === "Inactive" || status === "Deleted" ? "desabilitada" : "ativa");
+  const [cor, texto] = estado === "aviso"
+    ? ["bg-amber-500/10 border-amber-500/20 text-amber-500", `Em atraso · ${situacao?.diasAtraso}d`]
+    : estado === "desabilitada"
+      ? ["bg-rose-500/10 border-rose-500/20 text-rose-500", situacao?.motivo === "pagamento" ? "Desabilitada · atraso" : "Desabilitada"]
+      : estado === "excluir"
+        ? ["bg-rose-600 border-rose-600 text-white", `Pronta p/ excluir · ${situacao?.diasAtraso}d`]
+        : ["bg-emerald-500/10 border-emerald-500/20 text-emerald-400", "Ativo"];
+  return <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[9px] font-black uppercase tracking-wider border whitespace-nowrap ${cor}`}>{texto}</span>;
+}
+
 export function AdminTenantsTab({
   onConfigureModules,
   onOpenNewTenant,
@@ -65,8 +79,18 @@ export function AdminTenantsTab({
   const [loadingAdmin, setLoadingAdmin] = useState(false);
   const [savingEdit, setSavingEdit] = useState(false);
 
+  // Situação de cada empresa (em dia, em atraso, desabilitada, pronta para exclusão), calculada no servidor.
+  const [situacoes, setSituacoes] = useState<Record<string, Situacao>>({});
+  const loadSituacoes = async () => {
+    try {
+      const r = await apiFetch("/api/admin/empresas/situacoes");
+      if (r.ok) setSituacoes((await r.json()).situacoes || {});
+    } catch { /* sem a consulta, a lista mostra só o status gravado */ }
+  };
+
   const loadTenants = async () => {
     setLoading(true);
+    void loadSituacoes();
     try {
       const data = await fetchTenantsDetailed();
       if (data && data.length > 0) {
@@ -168,28 +192,21 @@ export function AdminTenantsTab({
     }
   };
 
-  const handleDeactivate = async (tenant: TenantItem) => {
-    if (tenant.id === PLUPPEX_TENANT_ID) {
-      toast.error("Esta é a instância master (Pluppex, raiz do sistema) e não pode ser desativada.");
+  const mudarAcesso = async (tenant: TenantItem, acao: "desabilitar" | "reativar") => {
+    if (acao === "desabilitar" && tenant.id === PLUPPEX_TENANT_ID) {
+      toast.error("Esta é a instância master (Pluppex, raiz do sistema) e não pode ser desabilitada.");
       return;
     }
-
-    const confirmed = await confirmDialog({
-      title: `Desativar empresa "${tenant.name}"?`,
-      description: "A empresa terá seus acessos suspensos imediatamente. Os dados permanecem isolados e seguros no banco de dados.",
-      confirmText: "Confirmar Desativação",
-    });
-
+    const confirmed = await confirmDialog(acao === "desabilitar"
+      ? { title: `Desabilitar a empresa "${tenant.name}"?`, description: "Os usuários dela deixam de entrar a partir de agora. Os dados continuam guardados e você pode reativar quando quiser. Nada é excluído.", confirmText: "Desabilitar" }
+      : { title: `Reativar a empresa "${tenant.name}"?`, description: "Os usuários dela voltam a entrar. Se a mensalidade estiver atrasada há mais de 15 dias, ela continua bloqueada até o pagamento ser registrado.", confirmText: "Reativar", variant: "success" });
     if (!confirmed) return;
-
     try {
-      const res = await deactivateTenant(tenant.id);
-      if (res.success) {
-        toast.success(`Empresa "${tenant.name}" desativada.`);
-        await loadTenants();
-      } else {
-        toast.error(res.error || "Erro ao desativar empresa.");
-      }
+      const r = await apiFetch(`/api/admin/empresas/${tenant.id}/${acao}`, { method: "POST" });
+      const j = await r.json().catch(() => ({}));
+      if (!r.ok) { toast.error(j?.error || "Não foi possível alterar a empresa."); return; }
+      toast.success(acao === "desabilitar" ? `Empresa "${tenant.name}" desabilitada.` : `Empresa "${tenant.name}" reativada.`);
+      await loadTenants();
     } catch (err: any) {
       toast.error(err?.message || "Erro na conexão.");
     }
@@ -398,9 +415,7 @@ export function AdminTenantsTab({
                       </div>
                     </div>
 
-                    <span className="flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[9px] font-black uppercase tracking-wider bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 shrink-0">
-                      <CheckCircle2 className="w-2.5 h-2.5" /> Ativo
-                    </span>
+                    <SeloSituacao situacao={situacoes[tenant.id]} status={tenant.status} />
                   </div>
 
                   {/* Attributes Badges */}
@@ -461,16 +476,17 @@ export function AdminTenantsTab({
                     <Pencil className="w-3.5 h-3.5 text-[var(--color-primary-blue)]" />
                   </button>
 
-                  {!isMaster && (
-                    <button
-                      type="button"
-                      onClick={() => handleDeactivate(tenant)}
-                      title="Desativar instância parceira"
-                      className="p-2 bg-[var(--color-surface-sunken)] hover:bg-rose-500/10 border border-[var(--color-border-default)] hover:border-rose-500/30 text-[var(--color-text-muted)] hover:text-rose-500 rounded-xl transition-all cursor-pointer"
-                    >
-                      <Trash2 className="w-3.5 h-3.5" />
+                  {!isMaster && (tenant.status === "Inactive" || tenant.status === "Deleted" ? (
+                    <button type="button" onClick={() => mudarAcesso(tenant, "reativar")} title="Reativar empresa" aria-label={`Reativar ${tenant.name}`}
+                      className="p-2 bg-[var(--color-surface-sunken)] hover:bg-emerald-500/10 border border-[var(--color-border-default)] hover:border-emerald-500/30 text-[var(--color-text-muted)] hover:text-emerald-500 rounded-xl transition-all cursor-pointer">
+                      <RotateCcw className="w-3.5 h-3.5" />
                     </button>
-                  )}
+                  ) : (
+                    <button type="button" onClick={() => mudarAcesso(tenant, "desabilitar")} title="Desabilitar empresa" aria-label={`Desabilitar ${tenant.name}`}
+                      className="p-2 bg-[var(--color-surface-sunken)] hover:bg-rose-500/10 border border-[var(--color-border-default)] hover:border-rose-500/30 text-[var(--color-text-muted)] hover:text-rose-500 rounded-xl transition-all cursor-pointer">
+                      <Ban className="w-3.5 h-3.5" />
+                    </button>
+                  ))}
                 </div>
               </div>
             );
@@ -488,7 +504,7 @@ export function AdminTenantsTab({
                   <th className="py-3 px-4">Módulos Ativos</th>
                   <th className="py-3 px-4">Segurança & RLS</th>
                   <th className="py-3 px-4">Status</th>
-                  <th className="py-3 px-4 text-right"><span className="inline-flex items-center gap-1">Ações<HelpTip label="O que cada botão faz">Editar Dados: altera o cadastro e as credenciais administrativas da empresa. Desativar: suspende os acessos da empresa, mantendo os dados guardados.</HelpTip></span></th>
+                  <th className="py-3 px-4 text-right"><span className="inline-flex items-center gap-1">Ações<HelpTip label="O que cada botão faz">Editar Dados: altera o cadastro e as credenciais administrativas da empresa. Desabilitar: os usuários da empresa deixam de entrar, os dados ficam guardados. Reativar: volta a liberar. Nada é excluído.</HelpTip></span></th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-[var(--color-border-subtle)]">
@@ -539,9 +555,7 @@ export function AdminTenantsTab({
                         </span>
                       </td>
                       <td className="py-3.5 px-4">
-                        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[9px] font-black uppercase tracking-wider bg-emerald-500/10 border border-emerald-500/20 text-emerald-400">
-                          <CheckCircle2 className="w-2.5 h-2.5" /> Ativo
-                        </span>
+                        <SeloSituacao situacao={situacoes[tenant.id]} status={tenant.status} />
                       </td>
                       <td className="py-3.5 px-4 text-right">
                         <div className="flex items-center justify-end gap-1.5">
@@ -560,16 +574,17 @@ export function AdminTenantsTab({
                           >
                             <Pencil className="w-3.5 h-3.5 text-[var(--color-primary-blue)]" />
                           </button>
-                          {!isMaster && (
-                            <button
-                              type="button"
-                              onClick={() => handleDeactivate(tenant)}
-                              title="Desativar"
-                              className="p-1.5 bg-[var(--color-surface-sunken)] hover:bg-rose-500/10 border border-[var(--color-border-default)] text-[var(--color-text-muted)] hover:text-rose-500 rounded-lg transition-all cursor-pointer"
-                            >
-                              <Trash2 className="w-3.5 h-3.5" />
+                          {!isMaster && (tenant.status === "Inactive" || tenant.status === "Deleted" ? (
+                            <button type="button" onClick={() => mudarAcesso(tenant, "reativar")} title="Reativar" aria-label={`Reativar ${tenant.name}`}
+                              className="p-1.5 bg-[var(--color-surface-sunken)] hover:bg-emerald-500/10 border border-[var(--color-border-default)] text-[var(--color-text-muted)] hover:text-emerald-500 rounded-lg transition-all cursor-pointer">
+                              <RotateCcw className="w-3.5 h-3.5" />
                             </button>
-                          )}
+                          ) : (
+                            <button type="button" onClick={() => mudarAcesso(tenant, "desabilitar")} title="Desabilitar" aria-label={`Desabilitar ${tenant.name}`}
+                              className="p-1.5 bg-[var(--color-surface-sunken)] hover:bg-rose-500/10 border border-[var(--color-border-default)] text-[var(--color-text-muted)] hover:text-rose-500 rounded-lg transition-all cursor-pointer">
+                              <Ban className="w-3.5 h-3.5" />
+                            </button>
+                          ))}
                         </div>
                       </td>
                     </tr>

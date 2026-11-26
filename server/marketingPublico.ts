@@ -10,6 +10,7 @@
 import express, { type Express, type Request, type Response, type NextFunction, type RequestHandler } from "express";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { upsertLead } from "./leadUpsert.js";
+import { registrarAprovacaoConteudo } from "./aprovacaoConteudo.js";
 import { CAMPOS_PADRAO, normalizarCampos, telefoneBrValido, validarRespostas } from "../src/lib/formularioCampos.js";
 import { normalizarConteudoLP } from "../src/lib/paginaLP.js";
 import { sanitizarUtm } from "../src/lib/canalAquisicao.js";
@@ -73,6 +74,9 @@ export const corsPublicoMarketing: RequestHandler = (req: Request, res: Response
 interface Deps { supabaseService: SupabaseClient | null; limiter: RequestHandler; /** Limite mais folgado só para os beacons de visita/clique/conversão (um clique rápido não pode gastar a cota da conversão). */ trackLimiter?: RequestHandler }
 
 export function registerMarketingPublicRoutes(app: Express, { supabaseService: db, limiter, trackLimiter }: Deps) {
+  // Aprovação de conteúdo pelo cliente (link público /aprovar/:token).
+  registrarAprovacaoConteudo(app, db);
+
   const lerCorpo = (req: any): any => {
     const b = req.body;
     if (typeof b === "string") { try { return JSON.parse(b); } catch { return {}; } }

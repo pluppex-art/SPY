@@ -1,6 +1,8 @@
 import { apiFetch } from "./apiClient";
 import { formatBRLCentavos, lerCentavos } from "./dinheiro";
 
+import type { Situacao } from "./situacaoEmpresa";
+
 export type Plan = {
   id: string; code: string; name: string; price_cents: number; billing_interval: "monthly" | "yearly";
   trial_days: number; limits: Record<string, any>; features: string[]; active: boolean;
@@ -16,6 +18,7 @@ export type Subscription = {
   plan?: Plan | null;
 };
 export type BillingStatus = {
+  situacao?: Situacao | null;
   tenantId: string; subscription: Subscription | null; usage?: Record<string, { used: number; limit: number }>; effectiveStatus: Subscription["status"] | "none"; blocked: boolean;
   ai: { used: number; limit: number | null; warnPct: number; hardStop: boolean };
 };

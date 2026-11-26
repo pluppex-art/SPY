@@ -50,6 +50,7 @@ import { registerApisBrasilRoutes } from "./server/apisBrasil.js";
 import { registerEmissaoJaRoutes } from "./server/emissaoja.js";
 import { urlWebhookInterno, temWebhookInterno, comWebhookInterno, grupoCadastradoNaEmpresa } from "./server/sessaoAgentes.js";
 import { isVendedorColab } from "./src/lib/sellers.js";
+import { criarSituacaoEmpresa } from "./server/situacaoEmpresa.js";
 import { registerAgenteInternoGruposRoutes } from "./server/agenteInternoGrupos.js";
 import { registerFaturaPdfRoutes } from "./server/faturaPdf.js";
 import { registerKommoRoutes } from "./server/kommoSync.js";
@@ -568,6 +569,9 @@ registerProspeccaoCnaeRoutes(app, { requireUser, limiter: rateLimit({ windowMs: 
 registerApisBrasilRoutes(app, { requireUser, limiter: rateLimit({ windowMs: 60_000, limit: 60, standardHeaders: true, legacyHeaders: false }) });
 // Emissão de NFS-e (emissaoja.com.br): a chave de cada empresa fica no servidor (app_settings), nunca no navegador.
 registerEmissaoJaRoutes(app, { requireUser, requireTenantAdmin, resolveRequestedTenantId, supabaseService, limiter: rateLimit({ windowMs: 60_000, limit: 30, standardHeaders: true, legacyHeaders: false }) });
+// Empresa desabilitada (pagamento em atraso há mais de 15 dias, ou desativada pelo master): trava em requireUser e rotas do master.
+const situacaoEmpresa = criarSituacaoEmpresa({ supabaseService, tenantRaiz: "27ef95ee-84dd-499e-9f25-cd9baecb5fe4" });
+situacaoEmpresa.registrar(app, { requireUser, requireMaster, limiter: rateLimit({ windowMs: 60_000, limit: 60, standardHeaders: true, legacyHeaders: false }) });
 registerAgenteInternoGruposRoutes(app, { requireUser, requireTenantAdmin, resolveRequestedTenantId, supabaseService, limiter: rateLimit({ windowMs: 60_000, limit: 60, standardHeaders: true, legacyHeaders: false }) });
 registerRadarGruposRoutes(app, { requireUser, requireTenantAdmin, resolveRequestedTenantId, supabaseService, limiter: rateLimit({ windowMs: 60_000, limit: 60, standardHeaders: true, legacyHeaders: false }) });
 // Fatura/recibo em PDF de uma receita, gerado no próprio servidor (sem serviço externo).
@@ -618,6 +622,7 @@ app.use("/api/leads", aiLimiter);
 // tenant suspenso => 402; teto mensal de tokens estourado => 429; tokens consumidos são
 // contabilizados em ai_usage_log (Gemini via wrapper, Groq em callGroq).
 const saas = createSaas({
+  situacao: (tenantId: string) => situacaoEmpresa.daEmpresa(tenantId),
   requireUser, requireMaster, supabase, supabaseService, supabaseUrl, supabaseKey,
   createUserClient: (token: string) => createClient(supabaseUrl, supabaseKey, { global: { headers: { Authorization: `Bearer ${token}` } } }),
 });
@@ -721,6 +726,9 @@ async function requireUser(req: express.Request, res: express.Response, next: ex
       try { aal = JSON.parse(Buffer.from(token.split(".")[1], "base64url").toString("utf8")).aal || ""; } catch { /* token malformado já teria falhado */ }
       if (aal !== "aal2") return res.status(401).json({ error: "Verificação em duas etapas pendente.", code: "mfa_required" });
     }
+
+    const bloqueio = await situacaoEmpresa.bloqueioDe(data.user.id, req.originalUrl.split("?")[0]);
+    if (bloqueio) return res.status(402).json({ error: "O acesso desta empresa está desabilitado. Regularize o pagamento ou fale com o suporte.", code: "empresa_desabilitada", situacao: bloqueio });
 
     (req as any).user = data.user;
     (req as any).supabase = createClient(supabaseUrl, supabaseKey, {

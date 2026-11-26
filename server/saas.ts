@@ -13,6 +13,7 @@ import type { NextFunction, Request, Response } from "express";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { AsyncLocalStorage } from "async_hooks";
 import { timingSafeEqual } from "crypto";
+import { bloqueiaAcesso, type Situacao } from "../src/lib/situacaoEmpresa.js";
 import axios from "axios";
 import rateLimit from "express-rate-limit";
 
@@ -27,6 +28,8 @@ type Deps = {
   supabaseUrl: string;
   supabaseKey: string;
   createUserClient: (token: string) => SupabaseClient;
+  /** Situação da empresa (aviso de atraso, desabilitada, pronta para exclusão); ver server/situacaoEmpresa.ts. */
+  situacao?: (tenantId: string) => Promise<Situacao>;
 };
 
 const BLOCKED_STATUSES = new Set(["suspended", "canceled"]);
@@ -174,6 +177,7 @@ export function createSaas(deps: Deps) {
     if (!tenantId) return res.status(403).json({ error: "Tenant inválido." });
     const { data: sub } = await req.supabase.from("tenant_subscriptions").select("*, plan:subscription_plans(*)").eq("tenant_id", tenantId).maybeSingle();
     const st = await tenantState(tenantId);
+    const situacao = deps.situacao ? await deps.situacao(tenantId).catch(() => null) : null;
     // Uso x limite do plano: só conta (HEAD, via índice) quando o plano define limite — empresa sem limite não paga a consulta.
     const limits = (sub?.plan?.limits ?? {}) as Record<string, any>;
     const usage: Record<string, { used: number; limit: number }> = {};
@@ -192,7 +196,8 @@ export function createSaas(deps: Deps) {
       subscription: sub ?? null,
       usage,
       effectiveStatus: sub?.status ?? "none",
-      blocked: st.blocked,
+      blocked: st.blocked || (!!situacao && bloqueiaAcesso(situacao)),
+      situacao,
       ai: { used: st.used, limit: st.limit, warnPct: st.warnPct, hardStop: st.hardStop },
     });
   });
