@@ -1,20 +1,31 @@
+import { useMemo } from "react";
 import { Terminal, Rocket } from "lucide-react";
+import { useDevPainel } from "./hooks/useDevPainel";
+import { useDevProjectsForFilter } from "./hooks/useDevProjectsForFilter";
+import { useAmbientes } from "./hooks/useAmbientes";
+import { resumoDev, porSemana } from "./lib/painelDev";
 import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
 import { Button } from "../../components/ui/button";
 import { PageContainer } from "../../components/PageContainer";
 import { DevKPIs } from "./components/DevKPIs";
 import { SprintVelocityChart } from "./components/SprintVelocityChart";
-import { DeploysChart } from "./components/DeploysChart";
+import { TarefasSemanaChart } from "./components/TarefasSemanaChart";
 import { DevRecentActivity } from "./components/DevRecentActivity";
 import { DevEnvironmentStatus } from "./components/DevEnvironmentStatus";
 
 export default function PainelDev() {
   const navigate = useNavigate();
+  const { tarefas, issues, loading } = useDevPainel();
+  const projetos = useDevProjectsForFilter();
+  const { environments } = useAmbientes();
+  const resumo = useMemo(() => resumoDev(tarefas, issues), [tarefas, issues]);
+  const semanas = useMemo(() => porSemana(tarefas), [tarefas]);
+  const nomes = useMemo(() => new Map(projetos.map((p) => [String(p.id), p.name])), [projetos]);
   return (
     <PageContainer
       title="Painel Dev & Tecnologia"
-      description="Visão geral do desenvolvimento: sprints, deploys (publicações), issues e a saúde dos ambientes."
+      description="Visão geral do desenvolvimento da empresa selecionada: tarefas do sprint, bugs, pendências e a situação dos ambientes."
       actions={
         <div className="flex items-center gap-3">
           <Button onClick={() => navigate("/app/dev/sprints")} variant="outline" className="h-10 rounded-xl border-white/5 text-xs gap-2">
@@ -27,15 +38,15 @@ export default function PainelDev() {
       }
     >
       <div className="max-w-[1700px] mx-auto space-y-6 pb-10">
-        <DevKPIs />
+        <DevKPIs resumo={resumo} loading={loading} ambientes={{ operacionais: environments.filter((e) => e.status === "operacional").length, total: environments.length }} />
 
         <div className="grid lg:grid-cols-3 gap-6">
-          <SprintVelocityChart />
-          <DeploysChart />
+          <SprintVelocityChart dados={semanas} />
+          <TarefasSemanaChart dados={semanas} />
         </div>
 
         <div className="grid lg:grid-cols-3 gap-6">
-          <DevRecentActivity />
+          <DevRecentActivity tarefas={tarefas} issues={issues} projetos={nomes} loading={loading} />
           <DevEnvironmentStatus />
         </div>
       </div>
