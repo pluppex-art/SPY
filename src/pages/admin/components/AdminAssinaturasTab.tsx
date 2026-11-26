@@ -16,6 +16,8 @@ const STATUS_VARIANT: Record<string, "success" | "warning" | "destructive" | "in
 };
 const inputCls = "w-full rounded-lg border border-[var(--color-border-default)] bg-[var(--color-surface)] px-3 py-2 text-sm";
 const toLocalDate = (iso?: string | null) => (iso ? iso.slice(0, 10) : "");
+/** A data escolhida é gravada ao meio-dia de Brasília: meia-noite UTC cairia na véspera. */
+const meioDia = (dia: string) => new Date(`${dia}T12:00:00-03:00`).toISOString();
 
 export function AdminAssinaturasTab() {
   const [plans, setPlans] = useState<Plan[]>([]);
@@ -65,8 +67,8 @@ export function AdminAssinaturasTab() {
 
   const saveSub = () => run(() => saasApi.saveSubscription(selected, {
     planId: subForm.planId || undefined, status: subForm.status, graceDays: Number(subForm.graceDays),
-    trialEndsAt: subForm.trialEnd ? new Date(subForm.trialEnd).toISOString() : undefined,
-    currentPeriodEnd: subForm.periodEnd ? new Date(subForm.periodEnd).toISOString() : undefined, notes: subForm.notes,
+    trialEndsAt: subForm.trialEnd ? meioDia(subForm.trialEnd) : undefined,
+    currentPeriodEnd: subForm.periodEnd ? meioDia(subForm.periodEnd) : undefined, notes: subForm.notes,
   }), "Assinatura salva.");
 
   const saveBudget = () => run(() => saasApi.saveAiBudget(selected, {

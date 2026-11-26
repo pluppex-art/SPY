@@ -4,8 +4,9 @@
 // Só LÊ os dados da empresa; a única escrita é no bucket de backups. Senhas, chaves e tokens saem como "[removido]".
 import type express from "express";
 import { gzipSync } from "node:zlib";
+import { BUCKET_BACKUP, locaisDosArquivos, type Arquivo } from "./arquivosDaEmpresa.js";
 
-export const BUCKET_BACKUP = "backups-empresas";
+export { BUCKET_BACKUP };
 const PAGINA = 1000;       // o PostgREST devolve no máximo 1000 linhas por consulta
 const LINHAS_POR_PARTE = 5000;
 const VALIDADE_LINK = 7 * 24 * 3600;
@@ -46,7 +47,7 @@ export interface Manifest {
   versao: 1; id: string; empresa: { id: string; nome: string }; criadoEm: string; atualizadoEm: string; criadoPor: string;
   status: "em_andamento" | "concluido" | "concluido_com_falhas";
   tabelas: ItemTabela[];
-  arquivos: { pastas: { bucket: string; prefixo: string }[] | null; fila: { bucket: string; caminho: string }[]; copiados: string[]; falhas: { arquivo: string; erro: string }[] };
+  arquivos: { pastas: { bucket: string; prefixo: string }[] | null; fila: Arquivo[]; copiados: string[]; falhas: { arquivo: string; erro: string }[] };
   aviso: string;
 }
 
@@ -97,7 +98,7 @@ export function criarMotorBackup(deps: { db: any; lerOpenApi: () => Promise<any>
       status: "em_andamento",
       tabelas: tabelas.map((x) => ({ ...x, status: "pendente", linhas: 0, esperado: null, partes: 0 })),
       arquivos: { pastas: null, fila: [], copiados: [], falhas: [] },
-      aviso: "Senhas, chaves de API e tokens foram substituídos por [removido]. Entram os arquivos guardados na pasta da empresa; os logins (autenticação) não entram.",
+      aviso: "Senhas, chaves de API e tokens foram substituídos por [removido]. Entram os arquivos da empresa (pasta dela, fotos dos usuários e comprovantes de pagamento); os logins (autenticação) não entram.",
     };
     await salvar(m);
     return m;
@@ -135,9 +136,9 @@ export function criarMotorBackup(deps: { db: any; lerOpenApi: () => Promise<any>
   }
 
   async function listarPastas(m: Manifest) {
-    const { data, error } = await db.storage.listBuckets();
-    if (error) throw new Error(error.message);
-    m.arquivos.pastas = (data || []).filter((b: any) => b.id !== BUCKET_BACKUP).map((b: any) => ({ bucket: b.id, prefixo: m.empresa.id }));
+    const { pastas, soltos } = await locaisDosArquivos(db, m.empresa.id);
+    m.arquivos.pastas = pastas;
+    m.arquivos.fila.push(...soltos);
   }
 
   async function passoDosArquivos(m: Manifest) {
@@ -146,6 +147,7 @@ export function criarMotorBackup(deps: { db: any; lerOpenApi: () => Promise<any>
     if (arquivo) {
       const nome = `${arquivo.bucket}/${arquivo.caminho}`;
       const { error } = await db.storage.from(arquivo.bucket).copy(arquivo.caminho, `${pasta(m.empresa.id, m.id)}/arquivos/${nome}`, { destinationBucket: BUCKET_BACKUP });
+      if (error && arquivo.opcional && /not.?found/i.test(error.message)) return; // o registro aponta para um arquivo que já não existe
       if (error && !/exists/i.test(error.message)) a.falhas.push({ arquivo: nome, erro: error.message });
       else a.copiados.push(nome);
       return;
@@ -221,15 +223,14 @@ export function criarMotorBackup(deps: { db: any; lerOpenApi: () => Promise<any>
 
 type Deps = { requireUser: any; requireMaster: any; limiter: any; supabaseService: any; supabaseUrl: string; serviceKey: string };
 
+export const lerOpenApiDe = (supabaseUrl: string, serviceKey: string) => async () => {
+  const r = await fetch(`${supabaseUrl.replace(/\/+$/, "")}/rest/v1/`, { headers: { apikey: serviceKey, Authorization: `Bearer ${serviceKey}` }, signal: AbortSignal.timeout(30_000) });
+  if (!r.ok) throw new Error(`o banco recusou a lista de tabelas (${r.status})`);
+  return r.json();
+};
+
 export function registerBackupEmpresaRoutes(app: express.Express, { requireUser, requireMaster, limiter, supabaseService, supabaseUrl, serviceKey }: Deps) {
-  const motor = criarMotorBackup({
-    db: supabaseService,
-    lerOpenApi: async () => {
-      const r = await fetch(`${supabaseUrl.replace(/\/+$/, "")}/rest/v1/`, { headers: { apikey: serviceKey, Authorization: `Bearer ${serviceKey}` }, signal: AbortSignal.timeout(30_000) });
-      if (!r.ok) throw new Error(`o banco recusou a lista de tabelas (${r.status})`);
-      return r.json();
-    },
-  });
+  const motor = criarMotorBackup({ db: supabaseService, lerOpenApi: lerOpenApiDe(supabaseUrl, serviceKey) });
   const emAndamento = new Set<string>();
 
   const rota = (fn: (req: any, res: any, tenantId: string) => Promise<unknown>) => async (req: any, res: any) => {

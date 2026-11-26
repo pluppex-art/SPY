@@ -1,11 +1,13 @@
-import { AlertTriangle, Lock, Clock } from "lucide-react";
+import { AlertTriangle, Lock } from "lucide-react";
 import { Link } from "react-router-dom";
 import { useAuth } from "../contexts/AuthContext";
 import { useBillingStatus } from "../hooks/useBillingStatus";
-import { fmtDate } from "../lib/saasApi";
+
+/** "2026-12-10" → "10/12/2026" (sem conversão de fuso). */
+const diaBr = (dia?: string | null) => (dia ? dia.split("-").reverse().join("/") : "");
 
 /**
- * Faixa de aviso (teste acabando / pagamento em atraso) e bloqueio total quando a assinatura está
+ * Faixa de aviso (15 dias antes do vencimento) e bloqueio total a partir do dia do vencimento, ou quando a assinatura está
  * suspensa ou cancelada. Master/parceiro nunca ficam trancados (precisam trocar de empresa e regularizar);
  * para eles vira só um aviso. Tenant sem assinatura = sem faixa nenhuma. Falha ao consultar = não bloqueia.
  */
@@ -28,42 +30,9 @@ export function BillingBanner() {
     const d = situacao.diasParaDesabilitar ?? 0;
     return (
       <div className="bg-warning/15 border-b border-warning/30 text-warning text-xs px-4 py-2 flex items-center gap-2 flex-wrap">
-        <AlertTriangle className="w-3.5 h-3.5" /> Mensalidade em atraso há {situacao.diasAtraso} {situacao.diasAtraso === 1 ? "dia" : "dias"}. O acesso será desabilitado em <strong>{d} {d === 1 ? "dia" : "dias"}</strong>.
+        <AlertTriangle className="w-3.5 h-3.5" /> {sub?.status === "trial" ? "Seu período de teste termina" : "Sua mensalidade vence"} em <strong>{d} {d === 1 ? "dia" : "dias"}</strong> ({diaBr(situacao.vencimento)}). Sem o pagamento, o acesso é bloqueado nessa data.
         <Link to="/checkout?renovar=1" className="underline font-semibold ml-1">Pagar agora</Link>
-      </div>
-    );
-  }
-  if (!sub) return null;
-
-  const daysLeft = (iso?: string | null) => (iso ? Math.ceil((new Date(iso).getTime() - Date.now()) / 86400_000) : null);
-
-  if (sub.status === "past_due") {
-    return (
-      <div className="bg-warning/15 border-b border-warning/30 text-warning text-xs px-4 py-2 flex items-center gap-2">
-        <AlertTriangle className="w-3.5 h-3.5" /> Pagamento em atraso. Regularize para evitar a suspensão do acesso.
-        <Link to="/checkout?renovar=1" className="underline font-semibold ml-1">Renovar / pagar</Link>
         <Link to="/app/configuracoes/empresa/plano" className="underline ml-2">Ver plano</Link>
-      </div>
-    );
-  }
-  if (sub.status === "trial") {
-    const d = daysLeft(sub.trial_ends_at);
-    if (d !== null && d <= 5 && d >= 0) {
-      return (
-        <div className="bg-info/15 border-b border-info/30 text-info text-xs px-4 py-2 flex items-center gap-2">
-          <Clock className="w-3.5 h-3.5" /> Seu período de teste termina em {d === 0 ? "hoje" : `${d} dia${d > 1 ? "s" : ""}`} ({fmtDate(sub.trial_ends_at)}).
-          <Link to="/checkout?renovar=1" className="underline font-semibold ml-1">Renovar / pagar</Link>
-          <Link to="/app/configuracoes/empresa/plano" className="underline ml-2">Ver plano</Link>
-        </div>
-      );
-    }
-  }
-  const dEnd = sub.status === "active" ? daysLeft(sub.current_period_end) : null;
-  if (dEnd !== null && dEnd <= 5 && dEnd >= 0 && (!sub.gateway || sub.gateway === "manual")) {
-    return (
-      <div className="bg-info/15 border-b border-info/30 text-info text-xs px-4 py-2 flex items-center gap-2">
-        <Clock className="w-3.5 h-3.5" /> Sua assinatura vence {dEnd === 0 ? "hoje" : `em ${dEnd} dia${dEnd > 1 ? "s" : ""}`} ({fmtDate(sub.current_period_end)}).
-        <Link to="/checkout?renovar=1" className="underline font-semibold ml-1">Renovar / pagar</Link>
       </div>
     );
   }
@@ -85,7 +54,7 @@ export function SuspendedScreen() {
         <p className="text-sm text-[var(--color-text-muted)]">
           {manual
             ? "O acesso desta empresa foi desabilitado. Seus dados continuam guardados. Fale com o suporte para reativar."
-            : "A mensalidade desta empresa está em atraso. Seus dados continuam guardados e o acesso volta assim que o pagamento for conferido."}
+            : `A mensalidade desta empresa ${s?.vencimento ? `venceu em ${diaBr(s.vencimento)}` : "está suspensa"}. Seus dados continuam guardados e o acesso volta assim que o pagamento for conferido.`}
         </p>
         {!manual && s?.diasParaExclusao != null && s.diasParaExclusao > 0 && (
           <p className="text-sm font-bold text-danger">Sem pagamento, a empresa entra na fila de exclusão em {s.diasParaExclusao} {s.diasParaExclusao === 1 ? "dia" : "dias"}.</p>

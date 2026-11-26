@@ -1,4 +1,5 @@
 import { BackupEmpresaModal } from "./BackupEmpresaModal";
+import { ExcluirEmpresaModal } from "./ExcluirEmpresaModal";
 import type { Situacao } from "../../../lib/situacaoEmpresa";
 import { apiFetch } from "../../../lib/apiClient";
 import { useState, useEffect, useMemo } from "react";
@@ -48,9 +49,9 @@ interface AdminTenantsTabProps {
 function SeloSituacao({ situacao, status }: { situacao?: Situacao; status?: string }) {
   const estado = situacao?.estado ?? (status === "Inactive" || status === "Deleted" ? "desabilitada" : "ativa");
   const [cor, texto] = estado === "aviso"
-    ? ["bg-amber-500/10 border-amber-500/20 text-amber-500", `Em atraso · ${situacao?.diasAtraso}d`]
+    ? ["bg-amber-500/10 border-amber-500/20 text-amber-500", `Vence em ${situacao?.diasParaDesabilitar}d`]
     : estado === "desabilitada"
-      ? ["bg-rose-500/10 border-rose-500/20 text-rose-500", situacao?.motivo === "pagamento" ? "Desabilitada · atraso" : "Desabilitada"]
+      ? ["bg-rose-500/10 border-rose-500/20 text-rose-500", situacao?.motivo === "pagamento" ? "Desabilitada · vencida" : "Desabilitada"]
       : estado === "excluir"
         ? ["bg-rose-600 border-rose-600 text-white", `Pronta p/ excluir · ${situacao?.diasAtraso}d`]
         : ["bg-emerald-500/10 border-emerald-500/20 text-emerald-400", "Ativo"];
@@ -83,6 +84,16 @@ export function AdminTenantsTab({
   // Situação de cada empresa (em dia, em atraso, desabilitada, pronta para exclusão), calculada no servidor.
   const [backupDe, setBackupDe] = useState<TenantItem | null>(null);
   const [situacoes, setSituacoes] = useState<Record<string, Situacao>>({});
+  const [excluirDe, setExcluirDe] = useState<{ id: string; name: string } | null>(null);
+  const [voltarParaExclusao, setVoltarParaExclusao] = useState<{ id: string; name: string } | null>(null);
+  // Exclusões que não terminaram: a empresa pode já ter sumido da lista.
+  const [exclusoes, setExclusoes] = useState<{ id: string; empresaId: string; empresa: string; status: string }[]>([]);
+  const loadExclusoes = async () => {
+    try {
+      const r = await apiFetch("/api/admin/empresas/exclusoes");
+      if (r.ok) setExclusoes((await r.json()).exclusoes || []);
+    } catch { /* sem a consulta, a lista não aparece */ }
+  };
   const loadSituacoes = async () => {
     try {
       const r = await apiFetch("/api/admin/empresas/situacoes");
@@ -93,6 +104,7 @@ export function AdminTenantsTab({
   const loadTenants = async () => {
     setLoading(true);
     void loadSituacoes();
+    void loadExclusoes();
     try {
       const data = await fetchTenantsDetailed();
       if (data && data.length > 0) {
@@ -201,7 +213,7 @@ export function AdminTenantsTab({
     }
     const confirmed = await confirmDialog(acao === "desabilitar"
       ? { title: `Desabilitar a empresa "${tenant.name}"?`, description: "Os usuários dela deixam de entrar a partir de agora. Os dados continuam guardados e você pode reativar quando quiser. Nada é excluído.", confirmText: "Desabilitar" }
-      : { title: `Reativar a empresa "${tenant.name}"?`, description: "Os usuários dela voltam a entrar. Se a mensalidade estiver atrasada há mais de 15 dias, ela continua bloqueada até o pagamento ser registrado.", confirmText: "Reativar", variant: "success" });
+      : { title: `Reativar a empresa "${tenant.name}"?`, description: "Os usuários dela voltam a entrar. Se a mensalidade estiver vencida, ela continua bloqueada até o pagamento ser registrado.", confirmText: "Reativar", variant: "success" });
     if (!confirmed) return;
     try {
       const r = await apiFetch(`/api/admin/empresas/${tenant.id}/${acao}`, { method: "POST" });
@@ -362,6 +374,18 @@ export function AdminTenantsTab({
         </div>
       </div>
 
+      {exclusoes.length > 0 && (
+        <div className="rounded-2xl border border-rose-500/30 bg-rose-500/10 p-3 space-y-2">
+          <p className="text-xs font-black text-rose-600">Exclusões que não terminaram</p>
+          {exclusoes.map((x) => (
+            <div key={x.id} className="flex items-center justify-between gap-3 flex-wrap text-xs text-[var(--color-text-primary)]">
+              <span>{x.empresa} — {x.status === "com_pendencias" ? "dados excluídos, com itens pendentes" : x.status === "banco_apagado" ? "dados excluídos, falta limpar o restante" : "parada no meio"}</span>
+              <Button size="sm" variant="outline" className="h-8 text-xs" onClick={() => setExcluirDe({ id: x.empresaId, name: x.empresa })}>Abrir</Button>
+            </div>
+          ))}
+        </div>
+      )}
+
       {/* Tenants Grid or Table */}
       {loading ? (
         <div className="bg-[var(--color-surface-elevated)] rounded-3xl border border-[var(--color-border-default)] min-h-[320px] flex flex-col items-center justify-center gap-3">
@@ -482,6 +506,12 @@ export function AdminTenantsTab({
                     className="p-2 rounded-xl bg-[var(--color-surface-sunken)] hover:bg-[var(--color-surface)] border border-[var(--color-border-default)] text-[var(--color-text-muted)] hover:text-[var(--color-primary-blue)] transition-all cursor-pointer">
                     <Archive className="w-3.5 h-3.5" />
                   </button>
+                  {!isMaster && (
+                    <button type="button" onClick={() => setExcluirDe(tenant)} title="Excluir empresa" aria-label={`Excluir ${tenant.name}`}
+                      className="p-2 rounded-xl bg-[var(--color-surface-sunken)] hover:bg-rose-500/10 border border-[var(--color-border-default)] hover:border-rose-500/30 text-[var(--color-text-muted)] hover:text-rose-500 transition-all cursor-pointer">
+                      <Trash2 className="w-3.5 h-3.5" />
+                    </button>
+                  )}
                   {!isMaster && (tenant.status === "Inactive" || tenant.status === "Deleted" ? (
                     <button type="button" onClick={() => mudarAcesso(tenant, "reativar")} title="Reativar empresa" aria-label={`Reativar ${tenant.name}`}
                       className="p-2 bg-[var(--color-surface-sunken)] hover:bg-emerald-500/10 border border-[var(--color-border-default)] hover:border-emerald-500/30 text-[var(--color-text-muted)] hover:text-emerald-500 rounded-xl transition-all cursor-pointer">
@@ -510,7 +540,7 @@ export function AdminTenantsTab({
                   <th className="py-3 px-4">Módulos Ativos</th>
                   <th className="py-3 px-4">Segurança & RLS</th>
                   <th className="py-3 px-4">Status</th>
-                  <th className="py-3 px-4 text-right"><span className="inline-flex items-center gap-1">Ações<HelpTip label="O que cada botão faz">Editar Dados: altera o cadastro e as credenciais administrativas da empresa. Desabilitar: os usuários da empresa deixam de entrar, os dados ficam guardados. Reativar: volta a liberar. Backup: copia os dados e arquivos da empresa para baixar. Nada é excluído.</HelpTip></span></th>
+                  <th className="py-3 px-4 text-right"><span className="inline-flex items-center gap-1">Ações<HelpTip label="O que cada botão faz">Editar Dados: altera o cadastro e as credenciais administrativas da empresa. Desabilitar: os usuários da empresa deixam de entrar, os dados ficam guardados. Reativar: volta a liberar. Backup: copia os dados e arquivos da empresa para baixar. Excluir: apaga a empresa de todo o sistema, sem volta, depois de um backup completo.</HelpTip></span></th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-[var(--color-border-subtle)]">
@@ -584,6 +614,12 @@ export function AdminTenantsTab({
                             className="p-1.5 rounded-lg bg-[var(--color-surface-sunken)] hover:bg-[var(--color-surface)] border border-[var(--color-border-default)] text-[var(--color-text-muted)] hover:text-[var(--color-primary-blue)] transition-all cursor-pointer">
                             <Archive className="w-3.5 h-3.5" />
                           </button>
+                          {!isMaster && (
+                            <button type="button" onClick={() => setExcluirDe(tenant)} title="Excluir" aria-label={`Excluir ${tenant.name}`}
+                              className="p-1.5 rounded-lg bg-[var(--color-surface-sunken)] hover:bg-rose-500/10 border border-[var(--color-border-default)] text-[var(--color-text-muted)] hover:text-rose-500 transition-all cursor-pointer">
+                              <Trash2 className="w-3.5 h-3.5" />
+                            </button>
+                          )}
                           {!isMaster && (tenant.status === "Inactive" || tenant.status === "Deleted" ? (
                             <button type="button" onClick={() => mudarAcesso(tenant, "reativar")} title="Reativar" aria-label={`Reativar ${tenant.name}`}
                               className="p-1.5 bg-[var(--color-surface-sunken)] hover:bg-emerald-500/10 border border-[var(--color-border-default)] text-[var(--color-text-muted)] hover:text-emerald-500 rounded-lg transition-all cursor-pointer">
@@ -606,7 +642,9 @@ export function AdminTenantsTab({
         </div>
       )}
 
-      <BackupEmpresaModal empresa={backupDe} onClose={() => setBackupDe(null)} />
+      <ExcluirEmpresaModal empresa={excluirDe} onClose={() => setExcluirDe(null)} onMudou={() => void loadTenants()}
+        onBackup={(e) => { setExcluirDe(null); setVoltarParaExclusao(e); setBackupDe({ ...e, niche: "" }); }} />
+      <BackupEmpresaModal empresa={backupDe} onClose={() => { setBackupDe(null); setExcluirDe(voltarParaExclusao); setVoltarParaExclusao(null); }} />
 
       {/* Edit Tenant & Admin Credentials Modal */}
       {editingTenant && (

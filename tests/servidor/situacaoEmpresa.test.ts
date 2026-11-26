@@ -12,30 +12,44 @@ test("sem assinatura e empresa dona do sistema: sempre ativa", () => {
   assert.equal(situacaoDaEmpresa({ status: "Inactive", ehRaiz: true }, AGORA).estado, "ativa");
 });
 
-test("em dia (vence hoje ou depois) é ativa", () => {
-  assert.equal(s(0).estado, "ativa");
-  assert.equal(s(-10).estado, "ativa");
+test("faltando mais de 15 dias é ativa", () => {
+  assert.equal(s(-16).estado, "ativa");
+  assert.equal(s(-200).estado, "ativa");
 });
 
-test("dias 1 a 15: aviso, ainda entra, com contagem", () => {
-  const d1 = s(1);
-  assert.equal(d1.estado, "aviso"); assert.equal(d1.diasParaDesabilitar, 15); assert.equal(d1.diasParaExclusao, 44);
-  const d15 = s(15);
-  assert.equal(d15.estado, "aviso"); assert.equal(d15.diasParaDesabilitar, 1);
-  assert.equal(bloqueiaAcesso(d15), false);
+test("de 15 dias antes até a véspera: aviso, ainda entra, com contagem", () => {
+  const d15 = s(-15);
+  assert.equal(d15.estado, "aviso"); assert.equal(d15.diasParaDesabilitar, 15); assert.equal(d15.diasAtraso, 0); assert.equal(d15.vencimento, venceu(-15));
+  const vespera = s(-1);
+  assert.equal(vespera.estado, "aviso"); assert.equal(vespera.diasParaDesabilitar, 1);
+  assert.equal(bloqueiaAcesso(vespera), false);
 });
 
-test("dia 16 ao 44: desabilitada; dia 45: pronta para exclusão (ainda bloqueada)", () => {
-  assert.equal(s(16).estado, "desabilitada");
+test("no dia do vencimento bloqueia; aos 45 dias fica pronta para exclusão (ainda bloqueada)", () => {
+  const hoje = s(0);
+  assert.equal(hoje.estado, "desabilitada"); assert.equal(bloqueiaAcesso(hoje), true); assert.equal(hoje.diasParaExclusao, 45); assert.equal(hoje.vencimento, venceu(0));
   assert.equal(s(16).diasParaExclusao, 29);
   assert.equal(s(44).estado, "desabilitada");
   assert.equal(s(45).estado, "excluir");
   assert.equal(bloqueiaAcesso(s(45)), true);
 });
 
-test("teste grátis usa o fim do teste; suspensa no cadastro bloqueia na hora", () => {
-  assert.equal(situacaoDaEmpresa({ assinatura: { status: "trial", trial_ends_at: venceu(3), current_period_end: venceu(-30) } }, AGORA).estado, "aviso");
-  assert.equal(s(-5, "suspended").estado, "desabilitada");
+test("data digitada (meia-noite UTC) vale pelo próprio dia, não pela véspera", () => {
+  const com = (fim: string) => situacaoDaEmpresa({ assinatura: { status: "active", current_period_end: fim } }, AGORA);
+  assert.equal(com("2026-11-27T00:00:00+00:00").estado, "aviso");
+  assert.equal(com("2026-11-27T00:00:00.000Z").diasParaDesabilitar, 1);
+  assert.equal(com("2026-11-27T02:30:00Z").estado, "desabilitada"); // 23h30 de 26/11 em Brasília: vence hoje
+});
+
+test("teste grátis usa o fim do teste, inclusive depois de virar atraso; suspensa bloqueia na hora", () => {
+  const teste = (dias: number, status = "trial") => situacaoDaEmpresa({ assinatura: { status, trial_ends_at: venceu(dias), current_period_end: status === "trial" ? venceu(-30) : null } }, AGORA);
+  assert.equal(teste(-3).estado, "aviso");
+  assert.equal(teste(0).estado, "desabilitada");
+  assert.equal(teste(2, "past_due").estado, "desabilitada");
+  assert.equal(teste(50, "suspended").estado, "excluir");
+  assert.equal(situacaoDaEmpresa({ assinatura: { status: "active", trial_ends_at: venceu(50), current_period_end: null } }, AGORA).estado, "ativa");
+  const adiantada = s(-5, "suspended");
+  assert.equal(adiantada.estado, "desabilitada"); assert.equal(adiantada.diasParaExclusao, null);
   assert.equal(s(50, "canceled").estado, "excluir");
 });
 

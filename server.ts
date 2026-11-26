@@ -52,6 +52,7 @@ import { urlWebhookInterno, temWebhookInterno, comWebhookInterno, grupoCadastrad
 import { isVendedorColab } from "./src/lib/sellers.js";
 import { criarSituacaoEmpresa } from "./server/situacaoEmpresa.js";
 import { registerBackupEmpresaRoutes } from "./server/backupEmpresa.js";
+import { registerExclusaoEmpresaRoutes } from "./server/exclusaoEmpresa.js";
 import { registerAgenteInternoGruposRoutes } from "./server/agenteInternoGrupos.js";
 import { registerDevAmbientesRoutes } from "./server/devAmbientes.js";
 import { registerFaturaPdfRoutes } from "./server/faturaPdf.js";
@@ -571,11 +572,21 @@ registerProspeccaoCnaeRoutes(app, { requireUser, limiter: rateLimit({ windowMs: 
 registerApisBrasilRoutes(app, { requireUser, limiter: rateLimit({ windowMs: 60_000, limit: 60, standardHeaders: true, legacyHeaders: false }) });
 // Emissão de NFS-e (emissaoja.com.br): a chave de cada empresa fica no servidor (app_settings), nunca no navegador.
 registerEmissaoJaRoutes(app, { requireUser, requireTenantAdmin, resolveRequestedTenantId, supabaseService, limiter: rateLimit({ windowMs: 60_000, limit: 30, standardHeaders: true, legacyHeaders: false }) });
-// Empresa desabilitada (pagamento em atraso há mais de 15 dias, ou desativada pelo master): trava em requireUser e rotas do master.
+// Empresa desabilitada (mensalidade vencida sem pagamento, ou desativada pelo master): trava em requireUser e rotas do master.
 const situacaoEmpresa = criarSituacaoEmpresa({ supabaseService, tenantRaiz: "27ef95ee-84dd-499e-9f25-cd9baecb5fe4" });
 situacaoEmpresa.registrar(app, { requireUser, requireMaster, limiter: rateLimit({ windowMs: 60_000, limit: 60, standardHeaders: true, legacyHeaders: false }) });
 // Backup completo de uma empresa (só master): gerado em etapas num bucket privado.
 registerBackupEmpresaRoutes(app, { requireUser, requireMaster, supabaseService, supabaseUrl, serviceKey: process.env.SUPABASE_SERVICE_ROLE_KEY || "", limiter: rateLimit({ windowMs: 60_000, limit: 120, standardHeaders: true, legacyHeaders: false }) });
+// Exclusão completa de uma empresa (só master, depois do backup): banco, logins, arquivos, WhatsApp, fluxos do n8n e cobrança.
+registerExclusaoEmpresaRoutes(app, {
+  requireUser, requireMaster, supabaseService, supabaseUrl, serviceKey: process.env.SUPABASE_SERVICE_ROLE_KEY || "",
+  tenantRaiz: "27ef95ee-84dd-499e-9f25-cd9baecb5fe4", aoMudar: situacaoEmpresa.limpar,
+  whatsapp: isWahaConfigured() ? {
+    listar: async () => Object.keys((await getWhatsAppProvider().listSessionStates!()) || {}),
+    apagar: (sessao: string) => getWhatsAppProvider().deleteInstance(sessao),
+  } : null,
+  limiter: rateLimit({ windowMs: 60_000, limit: 120, standardHeaders: true, legacyHeaders: false }),
+});
 registerDevAmbientesRoutes(app, { requireUser, resolveRequestedTenantId, limiter: rateLimit({ windowMs: 60_000, limit: 30, standardHeaders: true, legacyHeaders: false }) });
 registerAgenteInternoGruposRoutes(app, { requireUser, requireTenantAdmin, resolveRequestedTenantId, supabaseService, limiter: rateLimit({ windowMs: 60_000, limit: 60, standardHeaders: true, legacyHeaders: false }) });
 registerRadarGruposRoutes(app, { requireUser, requireTenantAdmin, resolveRequestedTenantId, supabaseService, limiter: rateLimit({ windowMs: 60_000, limit: 60, standardHeaders: true, legacyHeaders: false }) });
