@@ -655,7 +655,9 @@ function AppContent() {
           <Route path="admin" element={<ProtectedRoute requireMaster><SettingsLayout /></ProtectedRoute>}>
             <Route index element={<AdminSaaS />} />
           </Route>
-          <Route path="parceiros" element={<ProtectedRoute requirePartner><PartnersOverview /></ProtectedRoute>} />
+          <Route path="parceiros" element={<ProtectedRoute requirePartner><SettingsLayout /></ProtectedRoute>}>
+            <Route index element={<PartnersOverview />} />
+          </Route>
         </Route>
 
         {/* Portfólio público do corretor — sem autenticação */}

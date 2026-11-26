@@ -88,6 +88,7 @@ export default function SettingsLayout() {
         { title: "Plano & Uso", path: "/app/configuracoes/empresa/plano" },
         { title: "LGPD", path: "/app/configuracoes/empresa/lgpd" },
         ...(user?.isMaster ? [{ title: "Módulos & SaaS (Admin)", path: "/app/admin?tab=modules", matchPaths: ["/app/admin"] }] : []),
+        ...(user?.isMaster || user?.partnerId ? [{ title: "Portal de Parceiros", path: "/app/parceiros" }] : []),
       ],
     },
     {
