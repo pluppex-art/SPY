@@ -10,6 +10,7 @@ import { useDevSprints, type Column } from './hooks/useDevSprints';
 import { readKanbanConfig, KANBAN_KEYS, KANBAN_COR_CLASS, KANBAN_COR_DOT } from '../../hooks/useKanbanConfig';
 import { useDevProjectsForFilter } from './hooks/useDevProjectsForFilter';
 import { useData } from '../../contexts/DataContext';
+import { toast } from 'sonner';
 import { useDevConfig } from '../../lib/modules/devConfig';
 
 function getSprintColumns(appSettings: Record<string, any>): { id: Column; label: string; accent: string; dotColor: string; hex: string }[] {
@@ -84,13 +85,26 @@ export default function Sprints() {
 
   const capacidade = Number(sprintCfg.capacidadePontos) || 0;
   const pontosPlanejados = tasks.reduce((s, t) => s + t.points, 0);
-  const acimaCapacidade = capacidade > 0 && pontosPlanejados > capacidade;
+  // A capacidade é de um sprint: só faz sentido comparar com um projeto escolhido, não com a soma de todos.
+  const mostrarCapacidade = capacidade > 0 && !!activeProjectId;
+  const acimaCapacidade = mostrarCapacidade && pontosPlanejados > capacidade;
 
   const [draggedId, setDraggedId] = useState<string | number | null>(null);
   const [dragOverCol, setDragOverCol] = useState<Column | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
 
   const [selectedTaskId, setSelectedTaskId] = useState<string | number | null>(null);
+
+  // A tarefa precisa pertencer a um projeto: em "Todos os projetos", avisa antes de abrir o formulário.
+  const abrirNovaTarefa = () => {
+    if (!activeProjectId) {
+      toast.info('Escolha um projeto no filtro para adicionar uma tarefa.');
+      return;
+    }
+    setIsModalOpen(true);
+  };
+
+  const nomeDoProjeto = useMemo(() => new Map(projects.map(p => [String(p.id), p.name])), [projects]);
 
   const handleSaveTarefa = async (data: TarefaSprintPayload) => {
     await addTask(data);
@@ -121,7 +135,7 @@ export default function Sprints() {
               {totalPoints}/{totalSprintPoints} pts concluídos
             </span>
           </div>
-          {capacidade > 0 && (
+          {mostrarCapacidade && (
             <div
               className={`flex items-center gap-2 px-4 py-2 rounded-xl border ${acimaCapacidade ? 'bg-red-500/10 border-red-500/30' : 'bg-emerald-500/10 border-emerald-500/20'}`}
               title={acimaCapacidade ? 'O planejado ultrapassa a capacidade do sprint' : 'Dentro da capacidade do sprint'}
@@ -132,7 +146,7 @@ export default function Sprints() {
             </div>
           )}
           <Button
-            onClick={() => setIsModalOpen(true)}
+            onClick={abrirNovaTarefa}
             className="bg-blue-600 hover:bg-blue-700 text-white rounded-xl h-10 px-5 text-[10px] font-black uppercase tracking-widest gap-2"
           >
             <Plus className="w-4 h-4" /> Nova Task
@@ -240,6 +254,11 @@ export default function Sprints() {
                           <p className="text-xs font-bold text-[var(--color-text-primary)] leading-snug break-words line-clamp-3">{task.title}</p>
                           <span className={`shrink-0 text-[9px] font-black uppercase px-1.5 py-0.5 rounded border ${COR_PRIORIDADE_SPRINT[task.priority] ?? COR_PRIORIDADE_SPRINT.baixa}`}>{task.priority}</span>
                         </div>
+                        {!activeProjectId && task.projectId && nomeDoProjeto.has(String(task.projectId)) && (
+                          <span className="flex items-center gap-1 text-[10px] font-bold text-[var(--color-text-muted)] min-w-0">
+                            <FolderCode className="w-3 h-3 shrink-0" /> <span className="truncate">{nomeDoProjeto.get(String(task.projectId))}</span>
+                          </span>
+                        )}
                         <div className="flex flex-wrap items-center gap-1.5">
                           <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-[var(--color-surface-sunken)] text-[var(--color-text-muted)]">{tipo ? `${tipo.icon} ${tipo.label}` : task.type}</span>
                           {(task.tags || []).slice(0, 3).map(tag => <span key={tag} className="text-[10px] font-semibold text-[var(--color-text-faint)]">#{tag}</span>)}
@@ -257,7 +276,7 @@ export default function Sprints() {
                   })}
 
                   <button
-                    onClick={() => setIsModalOpen(true)}
+                    onClick={abrirNovaTarefa}
                     className="w-full py-2 border border-dashed border-[var(--color-border-default)] rounded-xl text-[var(--color-text-muted)] hover:text-[var(--color-text-primary)] hover:bg-[var(--color-surface-sunken)] transition-all flex items-center justify-center gap-1.5 text-xs font-bold cursor-pointer bg-transparent"
                   >
                     <Plus className="w-3.5 h-3.5" /> Adicionar

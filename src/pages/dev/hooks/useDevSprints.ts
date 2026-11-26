@@ -4,6 +4,7 @@ import { useAuth } from '../../../contexts/AuthContext';
 import { toast } from 'sonner';
 import type { TarefaSprintPayload } from '../modals/NovaTarefaSprintModal';
 import { friendlyError } from "../../../lib/friendlyError";
+import { fetchAllRows } from "../../../lib/pgrst";
 
 export type Priority = 'crítica' | 'alta' | 'média' | 'baixa';
 export type Column = 'backlog' | 'todo' | 'inprogress' | 'review' | 'done';
@@ -55,28 +56,27 @@ export function useDevSprints(projectId?: string | null) {
 
   useEffect(() => {
     if (!supabase || !activeTenantId) return;
-    if (!projectId) {
-      setTasks([]);
-      return;
-    }
+    // Evita que a resposta de um filtro antigo sobrescreva a do filtro atual.
+    let cancelled = false;
+    setTasks([]);
 
     async function load() {
       setLoading(true);
-      const { data, error } = await supabase!
-      .from('dev_sprint_tasks')
-        .select('*')
-        .eq('tenant_id', activeTenantId)
+      // Sem projeto = "Todos os projetos": traz as tarefas da empresa inteira.
+      const data = await fetchAllRows(() => {
+        const q = supabase!.from('dev_sprint_tasks').select('*').eq('tenant_id', activeTenantId);
         // Suporta o schema novo (project_id) e legado (project)
-        .or(`project_id.eq.${projectId},project.eq.${projectId}`)
-        .order('created_at', { ascending: true });
-
-      if (!error && data !== null) {
-        setTasks(data.map(rowToTask));
-      }
+        return (projectId ? q.or(`project_id.eq.${projectId},project.eq.${projectId}`) : q)
+          .order('created_at', { ascending: true })
+          .order('id', { ascending: true });
+      });
+      if (cancelled) return;
+      setTasks(data.map(rowToTask));
       setLoading(false);
     }
 
     load();
+    return () => { cancelled = true; };
   }, [projectId, activeTenantId]);
 
 
@@ -137,12 +137,14 @@ export function useDevSprints(projectId?: string | null) {
 
     // Recalcula progresso do projeto (100% automático)
     // Progresso = cards concluídos / total backlog do projeto
-    if (!projectId) return;
+    // Em "Todos os projetos", o projeto é o da própria tarefa movida.
+    const taskProjectId = projectId || tasks.find(t => t.id === id)?.projectId;
+    if (!taskProjectId) return;
 
     const { data: tasksAfter } = await supabase
       .from('dev_sprint_tasks')
       .select('column_id, points')
-      .eq('project', projectId)
+      .eq('project', taskProjectId)
       .eq('tenant_id', activeTenantId);
 
     if (!tasksAfter) return;
@@ -160,7 +162,7 @@ export function useDevSprints(projectId?: string | null) {
     const { error: progressError } = await supabase
       .from('dev_projects')
       .update({ progress: nextProgress })
-      .eq('id', projectId)
+      .eq('id', taskProjectId)
       .eq('tenant_id', activeTenantId);
 
     if (progressError) {
