@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useState } from "react";
-import { Building2, ShieldCheck, AlertTriangle, CheckCircle2 } from "lucide-react";
+import { Building2, AlertTriangle, CheckCircle2 } from "lucide-react";
 import { Modal } from "../../modal";
-import { Button } from "../../button";
+import { ModalFooter, ModalTitle } from "../../../../pages/finance/components/ModalKit";
 import { useIbgeLocalidades } from "../../../../lib/ibgeLocalidades";
 
 type FilialPayload = {
@@ -15,6 +15,8 @@ interface NovaFilialModalProps {
   isOpen: boolean;
   onClose: () => void;
   onSave?: (payload: FilialPayload) => void;
+  /** "cliente": cliente atendido pela empresa (agência, contabilidade, BPO); CNPJ e endereço são opcionais. */
+  tipo?: "filial" | "cliente";
 }
 
 const onlyDigits = (value: string) => (value || "").replace(/\D+/g, "");
@@ -42,7 +44,8 @@ const normalizeAndValidateCnpj = (value: string) => {
 
 type CnpjApiStatus = "idle" | "checking" | "active" | "inactive" | "invalid";
 
-export function NovaFilialModal({ isOpen, onClose, onSave }: NovaFilialModalProps) {
+export function NovaFilialModal({ isOpen, onClose, onSave, tipo = "filial" }: NovaFilialModalProps) {
+  const ehCliente = tipo === "cliente";
   const [nome, setNome] = useState("");
   const [cnpjInput, setCnpjInput] = useState("");
   const [cidade, setCidade] = useState("");
@@ -99,11 +102,12 @@ export function NovaFilialModal({ isOpen, onClose, onSave }: NovaFilialModalProp
   const canSubmit = useMemo(() => {
     if (loading) return false;
     if (!nome.trim()) return false;
+    if (ehCliente) return !cnpjInput.trim() || cnpjNormalized.ok;
     if (!cidade.trim()) return false;
     if (!estado.trim()) return false;
     if (!cnpjNormalized.ok) return false;
     return true;
-  }, [loading, nome, cidade, estado, cnpjNormalized.ok]);
+  }, [loading, nome, cidade, estado, cnpjInput, ehCliente, cnpjNormalized.ok]);
 
   const handleSubmit = (e: React.SyntheticEvent<HTMLFormElement>) => {
     e.preventDefault();
@@ -131,74 +135,27 @@ export function NovaFilialModal({ isOpen, onClose, onSave }: NovaFilialModalProp
       isOpen={isOpen}
       onClose={onClose}
       maxWidth="max-w-2xl"
-      title={
-        <div className="flex items-start gap-3">
-          <div className="w-9 h-9 rounded-xl bg-[#2563EB]/10 border border-[#2563EB]/20 flex items-center justify-center mt-0.5">
-            <Building2 className="w-4.5 h-4.5 text-[#60A5FA]" />
-          </div>
-          <div className="leading-tight">
-            <div className="text-base font-black text-white">Nova Filial</div>
-            <div className="text-[10px] font-black uppercase tracking-widest text-slate-400 mt-0.5">
-              Cadastre os dados da unidade
-            </div>
-          </div>
-        </div>
-      }
-      footer={
-        <>
-          <Button
-            type="button"
-            variant="ghost"
-            onClick={onClose}
-            className="text-slate-400 hover:text-white"
-            disabled={loading}
-          >
-            Cancelar
-          </Button>
-          <Button
-            form="nova-filial-form"
-            type="submit"
-            className="bg-[#2563EB] hover:bg-blue-600 text-white font-bold px-6"
-            disabled={!canSubmit}
-          >
-            {loading ? "Cadastrando..." : "Cadastrar Filial"}
-          </Button>
-        </>
-      }
+      title={<ModalTitle icon={Building2} title={ehCliente ? "Novo cliente" : "Nova filial"} subtitle={ehCliente ? "Cliente que a sua empresa atende: os dados dele ficam separados e entram na visão consolidada." : "Cadastre os dados da unidade."} />}
     >
       <div className="space-y-4">
-        <div className="bg-[var(--color-surface)]/40 border border-white/10 rounded-xl p-4">
-          <div className="flex items-start gap-3">
-            <div className="w-8 h-8 rounded-xl bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center mt-0.5">
-              <ShieldCheck className="w-4 h-4 text-emerald-400" />
-            </div>
-            <div>
-              <p className="text-sm text-slate-200 font-bold">Dados do cadastro</p>
-              <p className="text-xs text-slate-400 leading-relaxed mt-1">
-                O CNPJ será normalizado automaticamente (somente dígitos) e validado com 14 caracteres.
-              </p>
-            </div>
-          </div>
-        </div>
-
         <form id="nova-filial-form" onSubmit={handleSubmit} className="space-y-5">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div className="space-y-2">
-              <label htmlFor="filial-nome" className="text-xs font-bold text-slate-400 uppercase tracking-wider">
-                Nome da Unidade
+              <label htmlFor="filial-nome" className="text-[11px] font-bold text-[var(--color-text-primary)]">
+                {ehCliente ? "Nome do cliente" : "Nome da unidade"}
               </label>
               <input
                 id="filial-nome"
                 value={nome}
                 onChange={(e) => setNome(e.target.value)}
-                placeholder="Ex.: Clínica Centro / Unidade Zona Sul"
-                className="w-full bg-[var(--color-surface)] border border-white/10 rounded-xl px-4 py-2.5 text-sm text-white focus:border-[#2563EB] focus:bg-[var(--color-surface)] focus:outline-none focus:ring-2 focus:ring-[#2563EB]/30 transition-all"
+                placeholder={ehCliente ? "Ex.: Padaria São José" : "Ex.: Clínica Centro / Unidade Zona Sul"}
+                className="w-full bg-[var(--color-surface-sunken)] border border-[var(--color-border-default)] rounded-lg px-3 py-2 text-xs text-[var(--color-text-primary)] focus:border-[#2563EB] focus:bg-[var(--color-surface)] focus:outline-none focus:ring-2 focus:ring-[#2563EB]/30 transition-all"
                 required
               />
             </div>
 
             <div className="space-y-2">
-              <label htmlFor="filial-cnpj" className="text-xs font-bold text-slate-400 uppercase tracking-wider">
+              <label htmlFor="filial-cnpj" className="text-[11px] font-bold text-[var(--color-text-primary)]">
                 CNPJ
               </label>
               <input
@@ -245,14 +202,14 @@ export function NovaFilialModal({ isOpen, onClose, onSave }: NovaFilialModalProp
 
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <div className="space-y-2">
-              <label htmlFor="filial-estado" className="text-xs font-bold text-slate-400 uppercase tracking-wider">
+              <label htmlFor="filial-estado" className="text-[11px] font-bold text-[var(--color-text-primary)]">
                 Estado (UF)
               </label>
               <select
                 id="filial-estado"
                 value={estado}
                 onChange={(e) => { setEstado(e.target.value); setCidade(""); }}
-                className="w-full bg-[var(--color-surface)] border border-white/10 rounded-xl px-4 py-2.5 text-sm text-white focus:border-[#2563EB] focus:bg-[var(--color-surface)] focus:outline-none focus:ring-2 focus:ring-[#2563EB]/30 transition-all uppercase"
+                className="w-full bg-[var(--color-surface-sunken)] border border-[var(--color-border-default)] rounded-lg px-3 py-2 text-xs text-[var(--color-text-primary)] focus:border-[#2563EB] focus:bg-[var(--color-surface)] focus:outline-none focus:ring-2 focus:ring-[#2563EB]/30 transition-all uppercase"
                 required
               >
                 <option value="">Selecione...</option>
@@ -261,7 +218,7 @@ export function NovaFilialModal({ isOpen, onClose, onSave }: NovaFilialModalProp
             </div>
 
             <div className="space-y-2 md:col-span-2">
-              <label htmlFor="filial-cidade" className="text-xs font-bold text-slate-400 uppercase tracking-wider">
+              <label htmlFor="filial-cidade" className="text-[11px] font-bold text-[var(--color-text-primary)]">
                 Cidade
               </label>
               {estado && municipios.length > 0 ? (
@@ -269,7 +226,7 @@ export function NovaFilialModal({ isOpen, onClose, onSave }: NovaFilialModalProp
                   id="filial-cidade"
                   value={cidade}
                   onChange={(e) => setCidade(e.target.value)}
-                  className="w-full bg-[var(--color-surface)] border border-white/10 rounded-xl px-4 py-2.5 text-sm text-white focus:border-[#2563EB] focus:bg-[var(--color-surface)] focus:outline-none focus:ring-2 focus:ring-[#2563EB]/30 transition-all"
+                  className="w-full bg-[var(--color-surface-sunken)] border border-[var(--color-border-default)] rounded-lg px-3 py-2 text-xs text-[var(--color-text-primary)] focus:border-[#2563EB] focus:bg-[var(--color-surface)] focus:outline-none focus:ring-2 focus:ring-[#2563EB]/30 transition-all"
                   required
                 >
                   <option value="">{loadingMunicipios ? "Carregando..." : "Selecione..."}</option>
@@ -281,12 +238,13 @@ export function NovaFilialModal({ isOpen, onClose, onSave }: NovaFilialModalProp
                   value={cidade}
                   onChange={(e) => setCidade(e.target.value)}
                   placeholder={estado ? "Digite a cidade" : "Escolha o estado primeiro"}
-                  className="w-full bg-[var(--color-surface)] border border-white/10 rounded-xl px-4 py-2.5 text-sm text-white focus:border-[#2563EB] focus:bg-[var(--color-surface)] focus:outline-none focus:ring-2 focus:ring-[#2563EB]/30 transition-all"
+                  className="w-full bg-[var(--color-surface-sunken)] border border-[var(--color-border-default)] rounded-lg px-3 py-2 text-xs text-[var(--color-text-primary)] focus:border-[#2563EB] focus:bg-[var(--color-surface)] focus:outline-none focus:ring-2 focus:ring-[#2563EB]/30 transition-all"
                   required
                 />
               )}
             </div>
           </div>
+          <ModalFooter onCancel={onClose} submitLabel={ehCliente ? "Cadastrar cliente" : "Cadastrar filial"} saving={loading} disabled={!canSubmit} />
         </form>
       </div>
     </Modal>

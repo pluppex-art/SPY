@@ -15,7 +15,7 @@ const AJUDA: Record<string, string> = {
   "/app/configuracoes/empresa/dados": "Os dados cadastrais, fiscais e de contato da sua empresa. Também é aqui que você escreve o perfil da empresa que a IA usa para falar com os clientes.",
   "/app/configuracoes/empresa/plano": "Sua assinatura e quanto da inteligência artificial você já usou neste mês.",
   "/app/configuracoes/empresa/lgpd": "Atenda pedidos dos titulares dos dados, como exportar, anonimizar e registrar consentimento. Tudo fica registrado para auditoria.",
-  "/app/configuracoes/empresa/filiais": "Cadastre as filiais, franquias e unidades da empresa. Ao escolher uma filial na barra lateral, o sistema passa a mostrar só os dados dela. A filial nova começa zerada.",
+  "/app/configuracoes/empresa/filiais": "Cadastre as filiais da empresa e os clientes que você atende. No seletor da barra lateral, a visão consolidada mostra tudo, e escolher um mostra só os dados dele.",
   "/app/configuracoes/empresa/nichos": "Os nichos são os segmentos de negócio da sua empresa e servem para classificar leads e clientes. Cada empresa tem os seus próprios.",
   "/app/configuracoes/empresa/equipe": "Convide novas pessoas para a sua empresa no SPY e gerencie o acesso de cada uma.",
   "/app/configuracoes/empresa/cargos": "Cadastre os cargos da empresa e organize a hierarquia. Os cargos definem o que cada pessoa pode ver e fazer no sistema.",
@@ -83,7 +83,7 @@ export default function SettingsLayout() {
       icon: Building,
       items: [
         { title: "Dados da empresa", path: "/app/configuracoes/empresa/dados" },
-        { title: "Filiais / Unidades", path: "/app/configuracoes/empresa/filiais" },
+        { title: "Filiais e clientes", path: "/app/configuracoes/empresa/filiais" },
         { title: "Nichos", path: "/app/configuracoes/empresa/nichos" },
         { title: "Plano & Uso", path: "/app/configuracoes/empresa/plano" },
         { title: "LGPD", path: "/app/configuracoes/empresa/lgpd" },

@@ -83,7 +83,10 @@ export function Sidebar({
   // papel. Admin do próprio tenant (ou master, dentro do cliente ativo) vê e troca de filial.
   const tenantOptions = Object.entries(tenantIdMap).map(([name, id]) => ({ id, name }));
   const canSwitchTenant = (!!user?.isMaster || !!user?.partnerId) && tenantOptions.length > 1;
-  const canSwitchFilial = !!(user?.isMaster || user?.isTenantAdmin) && empresaFiliais.length > 0;
+  // O seletor só aparece quando há o que separar: mais de uma unidade, ou ao menos uma filial/cliente além da principal.
+  const canSwitchFilial = !!(user?.isMaster || user?.isTenantAdmin) && (empresaFiliais.length > 1 || empresaFiliais.some((f: any) => f.status !== "Principal"));
+  const clientesAtendidos = (empresaFiliais as any[]).filter((f) => f.status === "Cliente");
+  const unidadesProprias = (empresaFiliais as any[]).filter((f) => f.status !== "Cliente");
   const cargoModulos: string[] | null = modulosDoCargo(user, cargos);
   // Páginas que o operador ocultou para a empresa aberta (tela de módulos).
   const modulosEmpresa = getTenantModules(activeTenantName || user?.tenantName || "") as Record<string, any>;
@@ -159,7 +162,7 @@ export function Sidebar({
             )}
 
             {canSwitchFilial && (
-              <div className="flex items-center gap-2.5 px-3 py-2 rounded-[var(--radius-control)] hover:bg-[var(--color-surface-sunken)] transition-colors" title="Trocar de filial">
+              <div className="flex items-center gap-2.5 px-3 py-2 rounded-[var(--radius-control)] hover:bg-[var(--color-surface-sunken)] transition-colors" title="Ver tudo junto ou só uma filial ou cliente">
                 <MapPin className="w-4 h-4 text-[var(--color-text-faint)] shrink-0" />
                 <select
                   className="appearance-none bg-transparent border-none outline-none shadow-none ring-0 text-[var(--color-text-primary)] focus:outline-none focus:ring-0 focus:shadow-none text-xs font-bold cursor-pointer w-full truncate"
@@ -169,10 +172,17 @@ export function Sidebar({
                     switchFilial(filial ? { id: filial.id, name: filial.nome } : null);
                   }}
                 >
-                  <option value="" className="bg-[var(--color-surface)]">Todas as filiais</option>
-                  {empresaFiliais.map((f: any) => (
-                    <option key={f.id} value={f.id} className="bg-[var(--color-surface)]">{f.nome}</option>
-                  ))}
+                  <option value="" className="bg-[var(--color-surface)]">{clientesAtendidos.length > 0 ? "Todos (consolidado)" : "Todas as filiais"}</option>
+                  {unidadesProprias.length > 0 && (
+                    <optgroup label="Filiais" className="bg-[var(--color-surface)]">
+                      {unidadesProprias.map((f: any) => <option key={f.id} value={f.id} className="bg-[var(--color-surface)]">{f.nome}</option>)}
+                    </optgroup>
+                  )}
+                  {clientesAtendidos.length > 0 && (
+                    <optgroup label="Clientes" className="bg-[var(--color-surface)]">
+                      {clientesAtendidos.map((f: any) => <option key={f.id} value={f.id} className="bg-[var(--color-surface)]">{f.nome}</option>)}
+                    </optgroup>
+                  )}
                 </select>
               </div>
             )}
