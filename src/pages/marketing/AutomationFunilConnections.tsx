@@ -1057,7 +1057,7 @@ function TestarFluxoPanel({ connection, itens, lead, departamentosAtivos, funisO
     let qtdIntegracoesApi = 0;
     if (supabase && activeTenantId) {
       const [{ count: instCount }, { count: intCount }] = await Promise.all([
-        supabase.from("whatsapp_instances").select("id", { count: "exact", head: true }).eq("tenant_id", activeTenantId).eq("status", "CONNECTED"),
+        supabase.from("whatsapp_instances").select("id", { count: "exact", head: true }).eq("tenant_id", activeTenantId).eq("status", "CONNECTED").neq("provider", "cloud_api"),
         supabase.from("external_integrations").select("id", { count: "exact", head: true }).eq("tenant_id", activeTenantId).eq("active", true).contains("sync_events", [`Automação: ${connection.nome}`]),
       ]);
       temInstanciaWhatsapp = (instCount ?? 0) > 0;

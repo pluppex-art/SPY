@@ -1,3 +1,4 @@
+import { WhatsAppOficialModal, useNumerosOficiais } from "./WhatsAppOficialModal";
 import { setFilialMaxdata } from "../../../../lib/useMaxdataPage";
 import React, { useState, useEffect, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
@@ -11,7 +12,7 @@ import { Modal } from "../../../../components/ui/modal";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "../../../../components/ui/tabs";
 import { Alert } from "../../../../components/ui/alert";
 import { EmptyState } from "../../../../components/ui/empty-state";
-import { Zap, Settings, MessageSquare, Search, Activity, CheckCircle2, Globe, CreditCard, Wallet, Send, ShieldCheck, Play, Server, Facebook, Plus, Layers, Database, Truck, ShoppingCart } from "lucide-react";
+import { BadgeCheck, Zap, Settings, MessageSquare, Search, Activity, CheckCircle2, Globe, CreditCard, Wallet, Send, ShieldCheck, Play, Server, Facebook, Plus, Layers, Database, Truck, ShoppingCart } from "lucide-react";
 import { useData } from "../../../../contexts/DataContext";
 import { useAuth } from "../../../../contexts/AuthContext";
 import { toast } from "sonner";
@@ -533,6 +534,7 @@ export function ConfigIntegracoesApps({ scope }: { scope?: IntegrationsScope } =
   // Modals
   const [isNovaIntegracaoModalOpen, setIsNovaIntegracaoModalOpen] = useState(false);
   const [selectedConfigModal, setSelectedConfigModal] = useState<string | null>(null);
+  const oficial = useNumerosOficiais(activeTenantId);
 
   // Meta Ads, Google Ads, Pagamentos e integrações customizadas vêm do
   // Supabase (app_settings, via DataContext) — hidratado uma vez quando o
@@ -919,7 +921,7 @@ export function ConfigIntegracoesApps({ scope }: { scope?: IntegrationsScope } =
       },
       {
         id: "whatsapp",
-        name: "WhatsApp Business",
+        name: "WhatsApp (QR code)",
         category: "mensageria" as IntegrationCategory,
         icon: MessageSquare,
         iconBg: "bg-emerald-500/10 text-emerald-400 border-emerald-500/20",
@@ -935,6 +937,24 @@ export function ConfigIntegracoesApps({ scope }: { scope?: IntegrationsScope } =
           : "Nenhuma instância criada",
         onConfigure: () => setSelectedConfigModal("whatsapp"),
         onToggle: () => setSelectedConfigModal("whatsapp"),
+      },
+      {
+        id: "whatsapp-oficial",
+        name: "WhatsApp Business (API oficial)",
+        category: "mensageria" as IntegrationCategory,
+        icon: BadgeCheck,
+        iconBg: "bg-emerald-500/10 text-emerald-500 border-emerald-500/20",
+        description:
+          "Números conectados pela API oficial da Meta (Cloud API), com webhook configurado automaticamente, mensagens no Chat e envio de texto.",
+        connected: oficial.numeros.some((n) => n.webhookAtivo),
+        statusText: oficial.numeros.some((n) => n.webhookAtivo) ? "Conectado" : oficial.numeros.length > 0 ? "Webhook pendente" : "Não Conectado",
+        statusVariant: (oficial.numeros.some((n) => n.webhookAtivo) ? "success" : oficial.numeros.length > 0 ? "warning" : "neutral") as any,
+        badgeText: oficial.numeros.length > 0 ? `${oficial.numeros.length} número(s)` : "Disponível",
+        highlightInfo: oficial.numeros.length > 0
+          ? `Linhas: ${oficial.numeros.map((n) => n.telefone || n.apelido).filter(Boolean).slice(0, 2).join(", ")}`
+          : "Cloud API da Meta",
+        onConfigure: () => setSelectedConfigModal("whatsapp-oficial"),
+        onToggle: () => setSelectedConfigModal("whatsapp-oficial"),
       },
       {
         id: "mercadopago",
@@ -1122,7 +1142,7 @@ export function ConfigIntegracoesApps({ scope }: { scope?: IntegrationsScope } =
     });
 
     return [...list, ...customList, ...catalogList] as any[];
-  }, [metaConfig, googleConfig, instances, paymentConfig, maxdataConfig, maxdataEstoqueConfig, customIntegrations, globalWebhooks, appSettings, catalogConfig]);
+  }, [metaConfig, googleConfig, instances, paymentConfig, maxdataConfig, maxdataEstoqueConfig, customIntegrations, globalWebhooks, appSettings, catalogConfig, oficial.numeros]);
 
   // Filtered integrations based on Category and Search Query
   const filteredIntegrations = useMemo(() => {
@@ -1739,6 +1759,15 @@ export function ConfigIntegracoesApps({ scope }: { scope?: IntegrationsScope } =
       {/* ========================================================================= */}
       {/* MODAL DEDICADO: WHATSAPP (WAHA OU SIMULADOR) */}
       {/* ========================================================================= */}
+      <WhatsAppOficialModal
+        aberto={selectedConfigModal === "whatsapp-oficial"}
+        onClose={() => setSelectedConfigModal(null)}
+        tenantId={activeTenantId}
+        numeros={oficial.numeros}
+        carregando={oficial.carregando}
+        recarregar={oficial.recarregar}
+      />
+
       {selectedConfigModal === "whatsapp" && (
         <Modal
           isOpen={true}

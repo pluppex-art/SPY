@@ -17,6 +17,7 @@ import { randomUUID, randomBytes, createHash, timingSafeEqual } from "crypto";
 import axios from "axios";
 import { mensagemDeGrupo, rotearMensagemDeGrupo, idDoGrupo } from "./server/gruposAgenteSecreto.js";
 import { registerRadarGruposRoutes } from "./server/radarGruposMonitorados.js";
+import { registrarWebhookWhatsAppOficial, registrarRotasWhatsAppOficial, enviarTextoOficial } from "./server/whatsappOficial.js";
 import { radarWebhookDaEmpresa, provisionarRadarDaEmpresa, sincronizarRadarDasEmpresas } from "./server/radarWebhook.js";
 import { calcularDRELegado, diaCaixa, filtroPeriodoOr, calcularDreCompleto, cmvDosItens, filtrarPeriodo, quantidadeDoItem, separarLegado, type LancamentoDre, type RegimeDre } from "./src/lib/dre/dre.js";
 import { createGoogleCalendarRouter } from "./server/googleCalendar.js";
@@ -481,6 +482,14 @@ app.post(
   rateLimit({ windowMs: 60_000, limit: 120, standardHeaders: true, legacyHeaders: false }),
   (req: any, res, next) => (req.body !== undefined ? next() : express.raw({ type: "*/*", limit: "1mb" })(req, res, next)),
   createPluggyWebhookHandler({ supabaseService }),
+);
+
+// Webhook da API oficial do WhatsApp: também precisa do corpo BRUTO (X-Hub-Signature-256), por isso fica antes do json().
+registrarWebhookWhatsAppOficial(
+  app,
+  supabaseService,
+  rateLimit({ windowMs: 60_000, limit: 600, standardHeaders: true, legacyHeaders: false }),
+  (req: any, res, next) => (req.body !== undefined ? next() : express.raw({ type: "*/*", limit: "2mb" })(req, res, next)),
 );
 
 // Vercel pre-parses the body before passing to Express — skip json() if already parsed
@@ -5729,7 +5738,7 @@ app.get("/api/whatsapp/instances", requireUser, async (req: any, res) => {
   // várias empresas (master/parceiro) recebia as instâncias de todas misturadas.
   const tenantId = await resolveRequestedTenantId(req, res);
   if (!tenantId) return;
-  const { data, error } = await req.supabase.from("whatsapp_instances").select("*").eq("tenant_id", tenantId).order("created_at", { ascending: false });
+  const { data, error } = await req.supabase.from("whatsapp_instances").select("*").eq("tenant_id", tenantId).neq("provider", "cloud_api").order("created_at", { ascending: false });
   if (error) {
     console.error("[whatsapp/instances GET]", error.message);
     return res.status(500).json({ error: "Erro ao carregar instâncias." });
@@ -5980,6 +5989,16 @@ const isTenantAdminReq = async (req: any): Promise<boolean> => {
   return !!(data?.is_master || data?.is_tenant_admin);
 };
 
+// API oficial do WhatsApp (Central de Integrações): conectar número, webhook automático e remover.
+registrarRotasWhatsAppOficial(app, {
+  requireUser,
+  limiter: rateLimit({ windowMs: 60_000, limit: 20, standardHeaders: true, legacyHeaders: false }),
+  supabaseService,
+  resolveTenant: resolveRequestedTenantId,
+  ehAdmin: isTenantAdminReq,
+  urlPublica: PUBLIC_APP_URL,
+});
+
 // Cria a sessão de WhatsApp de uma pessoa, UMA só, que serve aos dois Agentes Secretos (cada um é um produto, com a sua chave de módulo):
 //  - Vendas (módulo agente_secreto, só vendedor/closer): copia o webhook do n8n de uma sessão-modelo da empresa, só com o evento message.any.
 //  - Interno (módulo agente_interno): acrescenta o webhook do próprio SPY, que repassa só as mensagens de GRUPO ao n8n, e libera os grupos.
@@ -6178,6 +6197,7 @@ app.post("/api/whatsapp/instances/:id/qrcode", requireUser, async (req: any, res
   const { id } = req.params;
   const { data: inst, error } = await req.supabase.from("whatsapp_instances").select("*").eq("id", id).maybeSingle();
   if (error || !inst) return res.status(404).json({ error: "Instância não encontrada" });
+  if (inst.provider === "cloud_api") return res.status(409).json({ error: "Número da API oficial: gerencie em Central de Integrações → WhatsApp Business (API oficial)." });
 
   const provider = getWhatsAppProvider();
   try {
@@ -6199,6 +6219,7 @@ app.post("/api/whatsapp/instances/:id/connect", requireUser, async (req: any, re
   const { id } = req.params;
   const { data: inst, error } = await req.supabase.from("whatsapp_instances").select("*").eq("id", id).maybeSingle();
   if (error || !inst) return res.status(404).json({ error: "Instância não encontrada" });
+  if (inst.provider === "cloud_api") return res.status(409).json({ error: "Número da API oficial: gerencie em Central de Integrações → WhatsApp Business (API oficial)." });
 
   const provider = getWhatsAppProvider();
   try {
@@ -6225,6 +6246,7 @@ app.post("/api/whatsapp/instances/:id/backfill", requireUser, async (req: any, r
   const { id } = req.params;
   const { data: inst, error } = await req.supabase.from("whatsapp_instances").select("*").eq("id", id).maybeSingle();
   if (error || !inst) return res.status(404).json({ error: "Instância não encontrada" });
+  if (inst.provider === "cloud_api") return res.status(409).json({ error: "Número da API oficial: gerencie em Central de Integrações → WhatsApp Business (API oficial)." });
   if (inst.colaborador_id) return res.status(409).json({ error: "Sessão pessoal de colaborador: o histórico das conversas dele não é importado para Vendas." });
   if (inst.status !== "CONNECTED") return res.status(409).json({ error: "Conecte a instância antes de importar o histórico." });
 
@@ -6277,9 +6299,10 @@ app.delete("/api/whatsapp/instances/:id", requireUser, async (req: any, res) => 
   if (!(await isTenantAdminReq(req))) return res.status(403).json({ error: "Apenas administradores podem gerenciar instâncias de WhatsApp." });
   const { id } = req.params;
   // Posse primeiro: só a instância visível ao chamador (RLS) chega ao gateway WAHA compartilhado.
-  const { data: owned, error: ownErr } = await req.supabase.from("whatsapp_instances").select("id").eq("id", id).maybeSingle();
+  const { data: owned, error: ownErr } = await req.supabase.from("whatsapp_instances").select("id, provider").eq("id", id).maybeSingle();
   if (ownErr) return res.status(500).json({ error: "Erro ao remover instância." });
   if (!owned) return res.status(404).json({ error: "Instância não encontrada." });
+  if (owned.provider === "cloud_api") return res.status(409).json({ error: "Número da API oficial: remova em Central de Integrações → WhatsApp Business (API oficial)." });
   const provider = getWhatsAppProvider();
   try { await provider.deleteInstance(owned.id); } catch (err: any) { console.error(`[whatsapp/instances DELETE] provider=${provider.name}`, err?.message); }
   const { error } = await req.supabase.from("whatsapp_instances").delete().eq("id", owned.id).select("id");
@@ -6469,7 +6492,7 @@ async function resolverMidiaWhatsapp(req: any, leadId: string, session: unknown,
   if (!lead) return { erro: { status: 404, msg: "Lead não encontrado." } };
   const fones = await telefonesDoLead(req, lead);
   if (!fones.some((f) => foneVariantes(f.digits).includes(chat))) return { erro: { status: 403, msg: "Conversa não pertence ao lead." } };
-  const { data: insts } = await req.supabase.from("whatsapp_instances").select("id, name, colaborador_id").eq("tenant_id", lead.tenant_id).neq("finalidade", "interno");
+  const { data: insts } = await req.supabase.from("whatsapp_instances").select("id, name, colaborador_id").eq("tenant_id", lead.tenant_id).neq("finalidade", "interno").neq("provider", "cloud_api");
   if (!(insts || []).some((i: any) => sessionNameOf(i) === session)) return { erro: { status: 403, msg: "Sessão não pertence ao tenant." } };
   return { lead, session, chatId: `${chat}@c.us`, messageId };
 }
@@ -6533,7 +6556,7 @@ app.get("/api/leads/:id/conversa-whatsapp", requireUser, whatsappLimiter, async 
 
     const [{ data: insts }, { data: colabs }] = await Promise.all([
       // RLS não basta: master e parceiros enxergam VÁRIOS tenants. Sempre restringe ao tenant do lead.
-      req.supabase.from("whatsapp_instances").select("id, name, colaborador_id, status").eq("tenant_id", lead.tenant_id).neq("finalidade", "interno"),
+      req.supabase.from("whatsapp_instances").select("id, name, colaborador_id, status").eq("tenant_id", lead.tenant_id).neq("finalidade", "interno").neq("provider", "cloud_api"),
       req.supabase.from("colaboradores").select("id, nome").eq("tenant_id", lead.tenant_id),
     ]);
     const nomeColab = new Map<string, string>((colabs || []).map((c: any) => [c.id, c.nome]));
@@ -6666,12 +6689,25 @@ app.post("/api/whatsapp/messages/send", requireUser, async (req: any, res) => {
 
   const provider = getWhatsAppProvider();
   let instanceIdForSend = contact.whatsapp_instance_id;
-  if (provider.name === "waha") {
+  // Número da API oficial: o envio vai pela Meta (Cloud API), não pelo WAHA.
+  const { data: instDoContato } = instanceIdForSend
+    ? await req.supabase.from("whatsapp_instances").select("provider").eq("tenant_id", tenantId).eq("id", instanceIdForSend).maybeSingle()
+    : { data: null };
+  let waMessageId: string | null = null;
+  if (instDoContato?.provider === "cloud_api") {
+    if (!contact.phone) return res.status(400).json({ error: "Contato sem telefone cadastrado — não é possível enviar via WhatsApp." });
+    try {
+      waMessageId = await enviarTextoOficial(supabaseService, instanceIdForSend, contact.phone, text);
+    } catch (err: any) {
+      console.error("[whatsapp/messages/send] cloud_api", err?.message);
+      return res.status(502).json({ error: `Falha ao enviar pela API oficial: ${err?.message || "erro desconhecido"}` });
+    }
+  } else if (provider.name === "waha") {
     // Só entra aqui se WAHA_API_URL estiver configurada — nesse modo o envio
     // precisa ser real (nada de eco local fingindo sucesso).
     if (!contact.phone) return res.status(400).json({ error: "Contato sem telefone cadastrado — não é possível enviar via WhatsApp." });
     if (!instanceIdForSend) {
-      const { data: inst } = await req.supabase.from("whatsapp_instances").select("id").eq("tenant_id", tenantId).eq("status", "CONNECTED").limit(1).maybeSingle();
+      const { data: inst } = await req.supabase.from("whatsapp_instances").select("id").eq("tenant_id", tenantId).eq("status", "CONNECTED").neq("provider", "cloud_api").limit(1).maybeSingle();
       if (!inst) return res.status(409).json({ error: "Nenhuma instância WhatsApp conectada. Conecte uma instância antes de enviar mensagens." });
       instanceIdForSend = inst.id;
     }
@@ -6684,7 +6720,7 @@ app.post("/api/whatsapp/messages/send", requireUser, async (req: any, res) => {
   }
 
   const { data: inserted, error } = await req.supabase.from("chat_messages")
-    .insert({ tenant_id: tenantId, contact_id: contactId, whatsapp_instance_id: instanceIdForSend, text, sender: "human", status: "sent" })
+    .insert({ tenant_id: tenantId, contact_id: contactId, whatsapp_instance_id: instanceIdForSend, text, sender: "human", status: "sent", ...(waMessageId ? { wa_message_id: waMessageId } : {}) })
     .select().maybeSingle();
   if (error || !inserted) {
     console.error("[whatsapp/messages/send] insert", error?.message);
@@ -6708,12 +6744,16 @@ app.post("/api/whatsapp/messages/send-media", requireUser, async (req: any, res)
   const { data: contact } = await req.supabase.from("chat_contacts").select("*").eq("tenant_id", tenantId).eq("id", contactId).maybeSingle();
   if (!contact) return res.status(404).json({ error: "Contato não encontrado" });
 
+  if (contact.whatsapp_instance_id) {
+    const { data: instDoContato } = await req.supabase.from("whatsapp_instances").select("provider").eq("tenant_id", tenantId).eq("id", contact.whatsapp_instance_id).maybeSingle();
+    if (instDoContato?.provider === "cloud_api") return res.status(409).json({ error: "O envio de arquivos pela API oficial ainda não está disponível. Envie apenas texto." });
+  }
   const provider = getWhatsAppProvider();
   let instanceIdForSend = contact.whatsapp_instance_id;
   if (provider.name === "waha") {
     if (!contact.phone) return res.status(400).json({ error: "Contato sem telefone cadastrado — não é possível enviar via WhatsApp." });
     if (!instanceIdForSend) {
-      const { data: inst } = await req.supabase.from("whatsapp_instances").select("id").eq("tenant_id", tenantId).eq("status", "CONNECTED").limit(1).maybeSingle();
+      const { data: inst } = await req.supabase.from("whatsapp_instances").select("id").eq("tenant_id", tenantId).eq("status", "CONNECTED").neq("provider", "cloud_api").limit(1).maybeSingle();
       if (!inst) return res.status(409).json({ error: "Nenhuma instância WhatsApp conectada. Conecte uma instância antes de enviar mensagens." });
       instanceIdForSend = inst.id;
     }
@@ -6758,7 +6798,7 @@ app.post("/api/automations/enviar-mensagem", async (req, res) => {
 
   const provider = getWhatsAppProvider();
   if (provider.name === "waha") {
-    const { data: inst } = await supabaseService.from("whatsapp_instances").select("id").eq("tenant_id", tenantId).eq("status", "CONNECTED").limit(1).maybeSingle();
+    const { data: inst } = await supabaseService.from("whatsapp_instances").select("id").eq("tenant_id", tenantId).eq("status", "CONNECTED").neq("provider", "cloud_api").limit(1).maybeSingle();
     if (!inst) return res.status(409).json({ error: "Nenhuma instância WhatsApp conectada pra esse tenant." });
     try {
       await provider.sendTextMessage(inst.id, telefone, texto);
