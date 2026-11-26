@@ -166,6 +166,7 @@ const Propostas = lazy(() => import("./pages/crm/Propostas"));
 const CommercialDashboard = lazy(() => import("./pages/crm/Dashboard"));
 const MarketingAutomacoes = lazy(() => import("./pages/marketing/MarketingAutomacoes"));
 const MarketingConteudo = lazy(() => import("./pages/marketing/MarketingConteudo"));
+const ArquivosClientes = lazy(() => import("./pages/arquivos/ArquivosClientes"));
 const MarketingTrafego = lazy(() => import("./pages/marketing/MarketingTrafego"));
 const MarketingCampanhas = lazy(() => import("./pages/marketing/MarketingCampanhas"));
 const MarketingCampanhasDados = lazy(() => import("./pages/marketing/MarketingCampanhasDados"));
@@ -353,6 +354,7 @@ function AppContent() {
           <Route path="equipe/calculadora" element={<CalculadoraTrabalhista />} />
 
           {/* Comunicação & Marketing */}
+          <Route path="arquivos-clientes" element={<ArquivosClientes />} />
           <Route path="mensageria" element={<Messaging />} />
           <Route path="chatbot" element={<Navigate to="/app/mensageria?aba=chatbot" replace />} />
           <Route path="automacoes" element={<Navigate to="/app/configuracoes/engajamento/automacoes" replace />} />

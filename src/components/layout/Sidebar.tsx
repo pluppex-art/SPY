@@ -201,6 +201,7 @@ export function Sidebar({
                 if (item.reqModule === 'master' && !user?.isMaster) return false;
                 if (item.reqCondition && !conditionCheckers[item.reqCondition as NavReqCondition](user)) return false;
                 if (item.hideWhen === 'os-implementacao' && usaOsImplementacao) return false;
+                if (item.hideWhen === 'sem-clientes' && clientesAtendidos.length === 0) return false;
                 if (item.path && paginaOculta(modulosEmpresa, item.path)) return false;
                 return true;
               });

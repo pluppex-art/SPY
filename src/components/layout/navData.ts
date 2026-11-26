@@ -69,6 +69,8 @@ export const navSections = [
   {
     title: "Operações & Catálogo",
     items: [
+      // Só aparece para quem atende clientes (agência, contabilidade, BPO) — ver Filiais e clientes.
+      { name: "Arquivos de Clientes", path: "/app/arquivos-clientes", icon: FolderOpen, hideWhen: "sem-clientes" },
       { name: "Catálogo de Produtos", path: "/app/produtos", icon: FolderOpen, reqModule: "catalogo-produtos" },
       { name: "Ordens de Serviço", path: "/app/ordens-servico", icon: Wrench, reqModule: "catalogo" },
       { name: "Fornecedores", path: "/app/varejo/fornecedores", icon: Truck, reqModule: "varejo" },

@@ -28,7 +28,8 @@ export function MobileNav({ isMobileMoreOpen, setIsMobileMoreOpen, setIsSDRWebho
   const navigate = useNavigate();
   const { logout, user, isModuleEnabled, getTenantModules, activeTenantName } = useAuth();
   const modulosEmpresa = getTenantModules(activeTenantName || user?.tenantName || "") as Record<string, any>;
-  const { cargos } = useData();
+  const { cargos, empresaFiliais } = useData();
+  const temClientes = (empresaFiliais as any[]).some((f) => f.status === "Cliente");
   const usaOsImplementacao = useUsaOsImplementacao();
 
   const cargoModulos: string[] | null = modulosDoCargo(user, cargos);
@@ -142,6 +143,7 @@ export function MobileNav({ isMobileMoreOpen, setIsMobileMoreOpen, setIsSDRWebho
                     if (item.reqModule === 'master' && !user?.isMaster) return false;
                     if (item.reqCondition && !conditionCheckers[item.reqCondition as NavReqCondition](user)) return false;
                     if (item.hideWhen === 'os-implementacao' && usaOsImplementacao) return false;
+                    if (item.hideWhen === 'sem-clientes' && !temClientes) return false;
                     if (item.path && paginaOculta(modulosEmpresa, item.path)) return false;
                     return true;
                   });

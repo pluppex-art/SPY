@@ -1,7 +1,8 @@
 import { useState } from "react";
 import { Card } from "../../../../components/ui/card";
 import { Button } from "../../../../components/ui/button";
-import { Plus, Store, Trash2, MapPin, Building2 } from "lucide-react";
+import { Plus, Store, Trash2, MapPin, Building2, FolderOpen } from "lucide-react";
+import { Link } from "react-router-dom";
 import { NovaFilialModal } from "../../../../components/ui/modals/settings/NovaFilialModal";
 import { toast } from "sonner";
 import { useData } from "../../../../contexts/DataContext";
@@ -44,7 +45,7 @@ export function ConfigEmpresaFiliais() {
   const handleDeleteFilial = async (id: string, nome: string) => {
     if (!(await confirmDialog({
       title: "Excluir cadastro",
-      description: `Excluir "${nome}"? Essa ação não pode ser desfeita. Os registros ligados a ele deixam de aparecer no filtro dele.`,
+      description: `Excluir "${nome}"? Essa ação não pode ser desfeita. Os registros e arquivos ligados a ele deixam de aparecer.`,
     }))) return;
     deleteEmpresaFilial(id);
     toast.success(`"${nome}" removido.`);
@@ -103,6 +104,11 @@ export function ConfigEmpresaFiliais() {
                 <span className={`text-[10px] font-bold uppercase tracking-wider px-2.5 py-0.5 rounded-md border ${filial.status === "Principal" ? "bg-[var(--color-primary-blue)]/10 text-[var(--color-primary-blue)] border-[var(--color-primary-blue)]/20" : "bg-[var(--color-surface-sunken)] text-[var(--color-text-muted)] border-[var(--color-border-default)]"}`}>
                   {filial.status}
                 </span>
+                {filial.status === "Cliente" && (
+                  <Link to={`/app/arquivos-clientes?cliente=${filial.id}`} className="inline-flex items-center gap-1.5 h-8 px-3 rounded-lg border border-[var(--color-border-default)] text-xs font-bold text-[var(--color-text-primary)] no-underline hover:bg-[var(--color-surface-sunken)]">
+                    <FolderOpen className="w-3.5 h-3.5" /> Arquivos
+                  </Link>
+                )}
                 <Button
                   variant="ghost"
                   size="xs"
