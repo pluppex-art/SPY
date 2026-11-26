@@ -2263,8 +2263,10 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
       if (tenantId) lanc.tenant_id = tenantId;
       lanc.filial_id = activeFilialId;
       if (supabase) {
-        const { error } = await supabase.from('finance_entries').upsert(lanc, { onConflict: 'id', ignoreDuplicates: true });
-        if (error) { console.warn('[ganho] financeiro:', error.message); return; }
+        // INSERT simples (id fixo por negócio): "já existe" (23505) não é erro. O upsert exigiria enxergar o financeiro,
+        // e um parceiro sem esse acesso também precisa gerar a conta a receber ao ganhar um negócio.
+        const { error } = await supabase.from('finance_entries').insert(lanc);
+        if (error) { if (error.code !== '23505') console.warn('[ganho] financeiro:', error.message); return; }
       }
       setFinanceEntries(prev => (prev.some((f: any) => f.id === lanc.id) ? prev : [lanc, ...prev]));
     } catch (e: any) { console.warn('[ganho] financeiro:', e?.message); }
@@ -3559,8 +3561,10 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
     // Segunda trava: se esta proposta já tem lançamentos (no estado ou no banco), não gera de novo.
     let jaTemLancamentos = (financeEntries || []).some((e: any) => e.proposal_id === prop.id);
     if (!jaTemLancamentos && supabase) {
-      const { count } = await supabase.from('finance_entries').select('id', { count: 'exact', head: true }).eq('proposal_id', prop.id);
-      jaTemLancamentos = (count ?? 0) > 0;
+      // Pergunta ao banco, que responde mesmo para quem não enxerga o financeiro desta empresa.
+      const { data, error } = await supabase.rpc('proposta_tem_lancamentos', { p_proposta: String(prop.id) });
+      if (error) console.warn('[proposta] financeiro:', error.message); // segue: o contrato recém-criado já é a primeira trava
+      jaTemLancamentos = data === true;
     }
 
     if (!jaTemLancamentos) {
