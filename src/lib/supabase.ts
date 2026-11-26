@@ -539,8 +539,13 @@ export async function createTenantAdmin(
   niche: string,
   adminEmail: string,
   adminPassword: string,
-  options?: { plan?: string; planId?: string; primaryColor?: string; timezone?: string; modules?: Record<string, boolean>; implementationId?: string }
-): Promise<{ success: boolean; error?: string; tenantId?: string; empresaDadosSalvos?: boolean; vinculada?: boolean }> {
+  options?: {
+    plan?: string; planId?: string; primaryColor?: string; timezone?: string; modules?: Record<string, boolean>; implementationId?: string;
+    funil?: { nome: string; etapas: { nome: string; cor: string; iniciarMinimizado: boolean }[] }; funilSdr?: boolean;
+    empresa?: { razaoSocial?: string; cnpj?: string; endereco?: string; telefone?: string; site?: string };
+    adminName?: string; adminPhone?: string; iniciarWhatsapp?: boolean;
+  }
+): Promise<{ success: boolean; error?: string; tenantId?: string; empresaDadosSalvos?: boolean; vinculada?: boolean; funilCriado?: boolean }> {
   if (!supabase) return { success: false, error: 'Não foi possível conectar ao servidor' };
   try {
     const session = await getSessionWithTimeout();
@@ -549,11 +554,12 @@ export async function createTenantAdmin(
       method: 'POST',
       headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${session.access_token}` },
       body: JSON.stringify({ tenantName, niche, adminEmail, adminPassword, ...options }),
-      signal: AbortSignal.timeout(15000),
+      // São várias gravações no servidor: com pouco prazo a tela dava erro com a empresa já criada.
+      signal: AbortSignal.timeout(45000),
     });
     const data = await res.json();
     if (!res.ok) return { success: false, error: data.error || 'Erro ao cadastrar empresa.' };
-    return { success: true, tenantId: data.tenantId, empresaDadosSalvos: data.empresaDadosSalvos, vinculada: data.vinculada };
+    return { success: true, tenantId: data.tenantId, empresaDadosSalvos: data.empresaDadosSalvos, vinculada: data.vinculada, funilCriado: data.funilCriado };
   } catch (err: any) {
     return { success: false, error: err?.message || 'Erro desconhecido' };
   }

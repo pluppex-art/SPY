@@ -59,6 +59,8 @@ import { registerFaturaPdfRoutes } from "./server/faturaPdf.js";
 import { registerKommoRoutes } from "./server/kommoSync.js";
 import { registerKommoWebhookRoutes } from "./server/kommoWebhook.js";
 import { buildEmpresaDados, tenantReadiness } from "./src/lib/implementationTenant.js";
+import { linhasDeFunis, montarFunil } from "./src/lib/modelosDeFunil.js";
+import { isValidCnpj } from "./src/lib/brLookup.js";
 import { registerTableComparisonExportRoutes } from "./server/tableComparisonExport.js";
 import { registerTableComparisonResearchRoutes } from "./server/tableComparisonResearch.js";
 import { makeN8nAiJson } from "./server/tableComparisonN8n.js";
@@ -5527,11 +5529,23 @@ app.post("/api/admin/tenant-user/:userId/credentials", requireUser, requireMaste
 app.post("/api/admin/tenant", requireUser, requireMaster, async (req: any, res) => {
   if (!supabaseService) return res.status(503).json({ error: "SUPABASE_SERVICE_ROLE_KEY não configurada no servidor." });
 
-  const { tenantName, niche, adminEmail, adminPassword, plan, planId, primaryColor, timezone, modules, implementationId } = req.body ?? {};
+  const { tenantName, niche, adminEmail, adminPassword, plan, planId, primaryColor, timezone, modules, implementationId, funil, funilSdr, empresa, adminName, adminPhone, iniciarWhatsapp } = req.body ?? {};
   if (!tenantName?.trim()) return res.status(400).json({ error: "Informe o nome da empresa." });
   if (!adminEmail?.trim()) return res.status(400).json({ error: "Informe o e-mail do administrador da empresa." });
   if (typeof adminEmail !== "string" || !EMAIL_RE.test(adminEmail.trim())) return res.status(400).json({ error: "E-mail do administrador inválido." });
   if (!adminPassword || typeof adminPassword !== "string" || adminPassword.length < 8) return res.status(400).json({ error: "A senha do administrador precisa ter pelo menos 8 caracteres." });
+
+  // Opcionais do cadastro: conferidos antes de criar qualquer coisa.
+  if (funil && !montarFunil(funil)) return res.status(400).json({ error: "O funil precisa ter pelo menos uma etapa além de Ganho, Perdido e Desqualificado." });
+  const texto = (v: unknown, max: number) => String(v ?? "").trim().slice(0, max);
+  const dadosEmpresa = {
+    razao_social: texto(empresa?.razaoSocial, 200), cnpj: texto(empresa?.cnpj, 20), endereco: texto(empresa?.endereco, 400),
+    resp_whatsapp: texto(empresa?.telefone, 40), site: texto(empresa?.site, 200),
+  };
+  if (!implementationId && dadosEmpresa.cnpj && !isValidCnpj(dadosEmpresa.cnpj)) return res.status(400).json({ error: "CNPJ inválido — confira os dígitos." });
+  const nomeGestor = texto(adminName, 120);
+  const telefoneGestor = texto(adminPhone, 40);
+  if (iniciarWhatsapp === true && telefoneGestor.replace(/\D/g, "").length < 10) return res.status(400).json({ error: "Informe o WhatsApp do administrador com DDD." });
 
   try {
     const { data: existingUser } = await supabaseService.from("users").select("id").eq("email", adminEmail.trim()).maybeSingle();
@@ -5606,8 +5620,8 @@ app.post("/api/admin/tenant", requireUser, requireMaster, async (req: any, res) 
       return res.status(friendlyTenant.status).json({ error: friendlyTenant.code === "outro" ? `Erro ao criar conta de acesso do administrador${created.error?.message ? `: ${created.error.message}` : "."}` : friendlyTenant.message });
     }
 
-    // Nome do gestor: o responsável da implementação, quando vem dela; senão "Admin <empresa>".
-    const adminDisplayName = String(impl?.data?.resp_nome || "").trim() || `Admin ${tenantName.trim()}`;
+    // Nome do gestor: o responsável da implementação, quando vem dela; senão o informado no cadastro; senão "Admin <empresa>".
+    const adminDisplayName = String(impl?.data?.resp_nome || "").trim() || nomeGestor || `Admin ${tenantName.trim()}`;
     const { error: profileError } = await supabaseService.from("users").insert({
       id: authData.user.id,
       tenant_id: tenantData.id,
@@ -5627,7 +5641,7 @@ app.post("/api/admin/tenant", requireUser, requireMaster, async (req: any, res) 
 
     // O gestor também entra no RH da empresa como Administrador (falha aqui não desfaz o ambiente).
     const gestorNoRh = await ensureAdminColaborador(supabaseService, {
-      tenantId: tenantData.id, userId: authData.user.id, nome: adminDisplayName, email: adminEmail.trim(), phone: impl?.data?.resp_whatsapp,
+      tenantId: tenantData.id, userId: authData.user.id, nome: adminDisplayName, email: adminEmail.trim(), phone: impl?.data?.resp_whatsapp || telefoneGestor,
     });
     if (!gestorNoRh) console.error("[tenant-create] gestor não foi criado no RH:", tenantData.id);
 
@@ -5643,6 +5657,22 @@ app.post("/api/admin/tenant", requireUser, requireMaster, async (req: any, res) 
         .update({ linked_tenant_id: tenantData.id, last_synced_at: new Date().toISOString() }).eq("id", impl.id);
       vinculada = !linkError;
       if (linkError) console.error("[tenant-create] Falha ao vincular a implementação:", linkError.message);
+    } else if (Object.values(dadosEmpresa).some(Boolean)) {
+      const { error: empresaError } = await supabaseService.from("app_settings").insert({
+        tenant_id: tenantData.id, key: "empresa_dados",
+        value: buildEmpresaDados({ ...dadosEmpresa, nome_fantasia: tenantName.trim(), resp_email: adminEmail.trim() }),
+      });
+      empresaDadosSalvos = !empresaError;
+      if (empresaError) console.error("[tenant-create] Falha ao gravar empresa_dados:", empresaError.message);
+    }
+
+    // Funil(is) inicial(is) escolhido(s) no cadastro. Falha aqui não desfaz o ambiente: a tela avisa.
+    let funilCriado: boolean | undefined;
+    const funis = linhasDeFunis(tenantData.id, funil, funilSdr === true, randomUUID);
+    if (funis.length) {
+      const { error: funilError } = await supabaseService.from("crm_funis").insert(funis);
+      funilCriado = !funilError;
+      if (funilError) console.error("[tenant-create] Falha ao criar o funil inicial:", funilError.message);
     }
 
     // Plano: o escolhido no cadastro; senão o que o cliente comprou (item de proposta do lead da implementação
@@ -5675,14 +5705,15 @@ app.post("/api/admin/tenant", requireUser, requireMaster, async (req: any, res) 
           tenant_id: tenantData.id,
           company: tenantName.trim(),
           email: adminEmail.trim(),
-          phone: impl?.data?.resp_whatsapp || "",
+          // Com telefone, o agente de implantação inicia a conversa no WhatsApp: no cadastro manual, só quando marcado.
+          phone: impl?.data?.resp_whatsapp || (iniciarWhatsapp === true ? telefoneGestor : ""),
           implementation_id: impl?.id || "",
           agentes,
         }),
       })).catch((e: any) => console.error("[tenant-create] Falha ao notificar agente de implementacao:", e?.message));
     }
 
-    res.json({ success: true, tenantId: tenantData.id, ...(planoAplicado ? { plano: planoAplicado } : {}), ...(impl ? { empresaDadosSalvos, vinculada } : {}) });
+    res.json({ success: true, tenantId: tenantData.id, funilCriado, empresaDadosSalvos, ...(planoAplicado ? { plano: planoAplicado } : {}), ...(impl ? { vinculada } : {}) });
   } catch (err: any) {
     console.error("[tenant-create]", err?.message);
     res.status(500).json({ error: "Erro ao cadastrar empresa." });
