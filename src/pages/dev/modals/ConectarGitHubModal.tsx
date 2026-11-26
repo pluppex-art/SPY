@@ -42,11 +42,10 @@ export function ConectarGitHubModal({ isOpen, onClose, onConnected, tenantId }: 
           .eq("key", "github_config")
           .eq("tenant_id", tenantId)
           .maybeSingle();
-        if (existing?.id) {
-          await supabase.from("app_settings").update({ value: configValue, updated_at: new Date().toISOString() }).eq("id", existing.id);
-        } else {
-          await supabase.from("app_settings").insert({ id: crypto.randomUUID(), key: "github_config", tenant_id: tenantId, value: configValue });
-        }
+        const { error: erroSalvar } = existing?.id
+          ? await supabase.from("app_settings").update({ value: configValue, updated_at: new Date().toISOString() }).eq("id", existing.id)
+          : await supabase.from("app_settings").insert({ id: crypto.randomUUID(), key: "github_config", tenant_id: tenantId, value: configValue });
+        if (erroSalvar) { setError("O token é válido, mas não foi salvo. Só administradores da empresa podem conectar o GitHub."); return; }
       }
 
       toast.success(`GitHub conectado como @${user.login}`);
