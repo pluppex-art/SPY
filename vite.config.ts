@@ -5,7 +5,7 @@ import fs from 'fs';
 import {defineConfig, loadEnv, type Plugin} from 'vite';
 
 // Marca de versão do build, pra detectar aba aberta rodando bundle antigo
-// (ver useBuildVersionCheck.ts) — usa o commit da Vercel quando existe
+// (ver AvisoNovaVersao.tsx) — usa o commit da Vercel quando existe
 // (deploy real) e cai pro timestamp em build local/dev.
 function buildIdPlugin(buildId: string): Plugin {
   return {

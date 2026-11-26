@@ -242,7 +242,7 @@ import { LocalizationProvider } from "./contexts/LocalizationContext";
 import { Toaster } from "sonner";
 const InteractiveForm = lazy(() => import("./pages/common/InteractiveForm").then(m => ({ default: m.InteractiveForm })));
 import { ConfirmDialogHost } from "./components/ui/confirm-dialog";
-import { useBuildVersionCheck } from "./hooks/useBuildVersionCheck";
+import { AvisoNovaVersao } from "./components/AvisoNovaVersao";
 
 function AppContent() {
   const location = useLocation();
@@ -259,12 +259,11 @@ function AppContent() {
     }
   }, [isAppRoute]);
 
-  useBuildVersionCheck();
-
   return (
     <>
       {isLoginRoute && <Toaster theme={theme} position="bottom-right" richColors closeButton />}
       {isAppRoute && <ConfirmDialogHost />}
+      {isAppRoute && <AvisoNovaVersao />}
       <Suspense fallback={<div className="min-h-dvh bg-white" />}>
       <Routes>
         <Route path="/" element={<Navigate to="/app" replace />} />
