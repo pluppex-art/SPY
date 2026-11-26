@@ -2,6 +2,7 @@ import React, { useEffect, useMemo, useState } from "react";
 import { Kanban } from "lucide-react";
 import { Modal } from "../../../components/ui/modal";
 import { Button } from "../../../components/ui/button";
+import { arquivosColados } from "../lib/anexos";
 import { useData } from "../../../contexts/DataContext";
 import { useDevConfig, pick, DEV_TIPOS_TAREFA, DEV_PRIORIDADES, DEV_COLUNAS_TAREFA } from "../../../lib/modules/devConfig";
 
@@ -12,6 +13,9 @@ export type TarefaSprintPayload = {
   points: number;
   assignee: string;
   column: string;
+  description?: string;
+  errorDetail?: string;
+  files?: File[];
 };
 
 type Props = {
@@ -19,6 +23,8 @@ type Props = {
   onClose: () => void;
   onSave: (data: TarefaSprintPayload) => void;
   defaultColumn?: string;
+  /** Mostra o campo de anexos (só quando o banco já tem os detalhes das tarefas). */
+  comAnexos?: boolean;
 };
 
 const TYPES: { value: TarefaSprintPayload["type"]; label: string; color: string }[] = [
@@ -40,7 +46,7 @@ const COLUMNS = ["Backlog", "A Fazer", "Em Progresso", "Em Review", "Concluído"
 const label = "text-[10px] font-bold text-slate-400 uppercase tracking-wider";
 const input = "w-full bg-[var(--color-surface)] border border-white/10 rounded-xl px-4 py-2.5 text-sm text-white focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/20 transition-all placeholder-slate-600";
 
-export function NovaTarefaSprintModal({ isOpen, onClose, onSave, defaultColumn }: Props) {
+export function NovaTarefaSprintModal({ isOpen, onClose, onSave, defaultColumn, comAnexos }: Props) {
   const { sprint: cfg } = useDevConfig();
   const tipoPadrao = pick(cfg.tipoPadrao, DEV_TIPOS_TAREFA, "feature") as TarefaSprintPayload["type"];
   const prioPadrao = pick(cfg.prioridadePadrao, DEV_PRIORIDADES, "média") as TarefaSprintPayload["priority"];
@@ -55,10 +61,14 @@ export function NovaTarefaSprintModal({ isOpen, onClose, onSave, defaultColumn }
   const [assignee, setAssignee] = useState("");
   const [column, setColumn] = useState(colPadrao);
   const [loading, setLoading] = useState(false);
+  const [description, setDescription] = useState("");
+  const [errorDetail, setErrorDetail] = useState("");
+  const [files, setFiles] = useState<File[]>([]);
 
   useEffect(() => {
     if (!isOpen) return;
     setTitle(""); setType(tipoPadrao); setPriority(prioPadrao); setPoints(pontosPadrao); setAssignee(""); setColumn(colPadrao); setLoading(false);
+    setDescription(""); setErrorDetail(""); setFiles([]);
   }, [isOpen, colPadrao, tipoPadrao, prioPadrao, pontosPadrao]);
 
   const canSubmit = useMemo(() => !loading && Boolean(title.trim()), [loading, title]);
@@ -68,7 +78,7 @@ export function NovaTarefaSprintModal({ isOpen, onClose, onSave, defaultColumn }
     if (!canSubmit) return;
     setLoading(true);
     try {
-      onSave({ title: title.trim(), type, priority, points, assignee: assignee.trim(), column });
+      onSave({ title: title.trim(), type, priority, points, assignee: assignee.trim(), column, description: description.trim(), errorDetail: errorDetail.trim(), files });
       onClose();
     } finally {
       setLoading(false);
@@ -100,11 +110,38 @@ export function NovaTarefaSprintModal({ isOpen, onClose, onSave, defaultColumn }
         </>
       }
     >
-      <form id="nova-tarefa-sprint-form" onSubmit={handleSubmit} className="space-y-5">
+      <form id="nova-tarefa-sprint-form" onSubmit={handleSubmit} className="space-y-5"
+        onPaste={e => { if (!comAnexos) return; const colados = arquivosColados(e); if (colados.length) { e.preventDefault(); setFiles(f => [...f, ...colados]); } }}>
         <div className="space-y-2">
           <label className={label}>Título da Tarefa *</label>
           <input value={title} onChange={e => setTitle(e.target.value)} className={input} placeholder="Ex.: Implementar autenticação OAuth2" required />
         </div>
+
+        {comAnexos && (
+          <>
+            <div className="space-y-2">
+              <label className={label} htmlFor="nova-tarefa-descricao">O que precisa ser feito</label>
+              <textarea id="nova-tarefa-descricao" value={description} onChange={e => setDescription(e.target.value)} rows={3} maxLength={8000} className={input} placeholder="Descreva o pedido: onde, o que mudar e como deve ficar." />
+            </div>
+            {type === "bug" && (
+              <div className="space-y-2">
+                <label className={label} htmlFor="nova-tarefa-erro">O que aconteceu (erro)</label>
+                <textarea id="nova-tarefa-erro" value={errorDetail} onChange={e => setErrorDetail(e.target.value)} rows={3} maxLength={8000} className={input} placeholder="Mensagem de erro, em que tela, o que a pessoa estava fazendo." />
+              </div>
+            )}
+            <div className="space-y-2">
+              <label className={label}>Imagens e arquivos</label>
+              <input type="file" multiple accept="image/*,video/mp4,.pdf,.txt,.log,.csv,.json,.zip" onChange={e => { const novos = Array.from(e.target.files || []); e.target.value = ""; setFiles(f => [...f, ...novos]); }} className={input} />
+              <p className="text-[10px] text-slate-500">Você também pode colar um print com Ctrl/Cmd+V. Até 15 MB por arquivo.</p>
+              {files.map((f, i) => (
+                <div key={`${f.name}-${i}`} className="flex items-center justify-between gap-2 text-xs text-slate-400">
+                  <span className="truncate">{f.name}</span>
+                  <button type="button" onClick={() => setFiles(a => a.filter((_, j) => j !== i))} className="text-[10px] font-bold text-rose-400 bg-transparent border-none cursor-pointer">Tirar</button>
+                </div>
+              ))}
+            </div>
+          </>
+        )}
 
         <div className="grid grid-cols-2 gap-4">
           <div className="space-y-2">

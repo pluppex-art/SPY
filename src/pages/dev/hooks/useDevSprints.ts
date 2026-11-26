@@ -5,6 +5,7 @@ import { toast } from 'sonner';
 import type { TarefaSprintPayload } from '../modals/NovaTarefaSprintModal';
 import { friendlyError } from "../../../lib/friendlyError";
 import { fetchAllRows } from "../../../lib/pgrst";
+import { enviarAnexos, apagarAnexo, type Anexo } from "../lib/anexos";
 
 export type Priority = 'crítica' | 'alta' | 'média' | 'baixa';
 export type Column = 'backlog' | 'todo' | 'inprogress' | 'review' | 'done';
@@ -21,7 +22,19 @@ export interface SprintTask {
   projectId: string | null;
   createdAt: string;
   updatedAt: string;
+  /** O que precisa ser feito. */
+  description: string;
+  /** O que aconteceu / mensagem de erro. */
+  errorDetail: string;
+  checklist: PassoTarefa[];
+  attachments: Anexo[];
+  /** De onde veio o pedido (ex.: Agente Secreto Interno). */
+  source: OrigemTarefa | null;
 }
+
+export interface PassoTarefa { texto: string; feito: boolean }
+export interface OrigemTarefa { origem?: string; solicitante?: string; grupo?: string; mensagem?: string; recebido_em?: string }
+export type PatchTarefa = Partial<Pick<SprintTask, 'title' | 'type' | 'priority' | 'points' | 'assignee' | 'tags' | 'description' | 'errorDetail' | 'checklist' | 'attachments'>>;
 
 const COL_MAP: Record<string, Column> = {
   'Backlog': 'backlog', 'A Fazer': 'todo', 'Em Progresso': 'inprogress',
@@ -43,6 +56,11 @@ function rowToTask(row: any): SprintTask {
     projectId: row.project_id ?? row.project ?? null,
     createdAt: row.created_at ?? '',
     updatedAt: row.updated_at ?? '',
+    description: row.description ?? '',
+    errorDetail: row.error_detail ?? '',
+    checklist: Array.isArray(row.checklist) ? row.checklist.filter((p: any) => p && typeof p.texto === 'string') : [],
+    attachments: Array.isArray(row.attachments) ? row.attachments.filter((a: any) => a && (a.path || a.url)).map((a: any) => ({ ...a, nome: String(a.nome || 'anexo') })) : [],
+    source: row.source && typeof row.source === 'object' ? row.source : null,
   };
 }
 
@@ -52,6 +70,15 @@ export function useDevSprints(projectId?: string | null) {
 
 
   const [loading, setLoading] = useState(false);
+
+  // As colunas de detalhes entram pela migração 20261221; enquanto ela não for aplicada, a tela avisa e
+  // continua funcionando só com os campos básicos.
+  const [detalhesDisponiveis, setDetalhesDisponiveis] = useState(true);
+  useEffect(() => {
+    if (!supabase) return;
+    supabase.from('dev_sprint_tasks').select('description,error_detail,checklist,attachments,source').limit(1)
+      .then(({ error }) => { if (error && /42703|PGRST204|column/i.test(`${error.code} ${error.message}`)) setDetalhesDisponiveis(false); });
+  }, []);
 
 
   useEffect(() => {
@@ -89,7 +116,7 @@ export function useDevSprints(projectId?: string | null) {
     }
 
     if (!supabase) {
-      setTasks(prev => [...prev, { id: Date.now(), title: payload.title, type: payload.type, priority: payload.priority, points: payload.points, assignee: payload.assignee || '?', tags: [], column, projectId: projectId ?? null, createdAt: new Date().toISOString(), updatedAt: new Date().toISOString() }]);
+      setTasks(prev => [...prev, { id: Date.now(), title: payload.title, type: payload.type, priority: payload.priority, points: payload.points, assignee: payload.assignee || '?', tags: [], column, projectId: projectId ?? null, createdAt: new Date().toISOString(), updatedAt: new Date().toISOString(), description: payload.description || '', errorDetail: payload.errorDetail || '', checklist: [], attachments: [], source: null }]);
       toast.success('Tarefa adicionada!');
       return;
     }
@@ -107,13 +134,24 @@ export function useDevSprints(projectId?: string | null) {
         column_id: column,
         project: projectId,
         sprint_id: projectId,
+        ...(detalhesDisponiveis ? { description: payload.description || null, error_detail: payload.errorDetail || null } : {}),
       })
       .select()
       .maybeSingle();
 
     if (error) { toast.error('Erro ao adicionar tarefa'); return; }
     if (data) {
-      setTasks(prev => [...prev, rowToTask(data)]);
+      let nova = rowToTask(data);
+      if (detalhesDisponiveis && payload.files?.length && activeTenantId) {
+        const { anexos, falhas } = await enviarAnexos(activeTenantId, nova.id, payload.files);
+        if (anexos.length) {
+          const { error: anexoError } = await supabase.from('dev_sprint_tasks').update({ attachments: anexos }).eq('id', nova.id).eq('tenant_id', activeTenantId);
+          if (anexoError) falhas.push(...anexos.map(a => a.nome));
+          else nova = { ...nova, attachments: anexos };
+        }
+        if (falhas.length) toast.error(`Não foi possível anexar: ${falhas.join(', ')}`);
+      }
+      setTasks(prev => [...prev, nova]);
       toast.success('Tarefa adicionada!');
     }
   }
@@ -171,8 +209,8 @@ export function useDevSprints(projectId?: string | null) {
   }
 
 
-  /** Edita os campos do card (título, tipo, prioridade, pontos, responsável, tags). A etapa muda por moveTask. */
-  async function updateTask(id: string | number, patch: Partial<Pick<SprintTask, 'title' | 'type' | 'priority' | 'points' | 'assignee' | 'tags'>>): Promise<boolean> {
+  /** Edita os campos do card (inclusive descrição, erro, passos e anexos). A etapa muda por moveTask. */
+  async function updateTask(id: string | number, patch: PatchTarefa): Promise<boolean> {
     const antes = tasks.find(t => t.id === id);
     if (!antes) return false;
     if (patch.title !== undefined && !patch.title.trim()) { toast.error('O título não pode ficar vazio.'); return false; }
@@ -184,7 +222,9 @@ export function useDevSprints(projectId?: string | null) {
     };
     setTasks(prev => prev.map(t => (t.id === id ? { ...t, ...limpo } : t)));
     if (!supabase) return true;
-    const { error } = await supabase.from('dev_sprint_tasks').update(limpo).eq('id', id).eq('tenant_id', activeTenantId);
+    const { errorDetail, ...resto } = limpo;
+    const colunas = { ...resto, ...(errorDetail !== undefined ? { error_detail: errorDetail } : {}) };
+    const { error } = await supabase.from('dev_sprint_tasks').update(colunas).eq('id', id).eq('tenant_id', activeTenantId);
     if (error) {
       setTasks(prev => prev.map(t => (t.id === id ? antes : t)));
       toast.error(`Não foi possível salvar: ${friendlyError(error)}`);
@@ -193,5 +233,23 @@ export function useDevSprints(projectId?: string | null) {
     return true;
   }
 
-  return { tasks, loading, addTask, moveTask, updateTask };
+  /** Envia arquivos e acrescenta aos anexos da tarefa. */
+  async function addAttachments(id: string | number, files: File[]) {
+    if (!activeTenantId) return;
+    const { anexos, falhas } = await enviarAnexos(activeTenantId, id, files);
+    if (falhas.length) toast.error(`Não foi possível anexar: ${falhas.join(', ')}`);
+    if (!anexos.length) return;
+    // Relê do banco antes de gravar, para não apagar anexo incluído por outra pessoa ou pelo agente.
+    const { data } = await supabase!.from('dev_sprint_tasks').select('attachments').eq('id', id).eq('tenant_id', activeTenantId).maybeSingle();
+    const atuais: Anexo[] = Array.isArray(data?.attachments) ? data!.attachments : [];
+    await updateTask(id, { attachments: [...atuais, ...anexos] });
+  }
+
+  async function removeAttachment(id: string | number, anexo: Anexo) {
+    const t = tasks.find(x => x.id === id);
+    if (!t) return;
+    if (await updateTask(id, { attachments: t.attachments.filter(a => a !== anexo) })) await apagarAnexo(anexo);
+  }
+
+  return { tasks, loading, addTask, moveTask, updateTask, addAttachments, removeAttachment, detalhesDisponiveis };
 }

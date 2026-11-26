@@ -55,7 +55,7 @@ export default function ProjetoDetalhesDev() {
   const project = useMemo(() => projects.find((p: any) => String(p.id) === String(pid)), [projects, pid]);
 
 
-  const { tasks, addTask, moveTask } = useDevSprints(pid);
+  const { tasks, addTask, moveTask, detalhesDisponiveis } = useDevSprints(pid);
   const [draggedId, setDraggedId] = useState<string | number | null>(null);
   const [dragOverCol, setDragOverCol] = useState<Column | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -201,6 +201,7 @@ export default function ProjetoDetalhesDev() {
         isOpen={isModalOpen}
         onClose={() => setIsModalOpen(false)}
         onSave={addTask}
+        comAnexos={detalhesDisponiveis}
       />
 
       <EditarProjetoDevModal

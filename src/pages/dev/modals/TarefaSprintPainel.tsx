@@ -1,9 +1,12 @@
 import { useEffect, useState } from 'react';
-import { Check, ChevronRight, Clock, FolderCode, Hash, Pencil, User as UserIcon, X, Zap, Info } from 'lucide-react';
+import { AlertTriangle, Bot, Check, ChevronRight, Clock, FolderCode, Hash, Pencil, User as UserIcon, X, Zap, Info } from 'lucide-react';
+import { confirmDialog } from '../../../components/ui/confirm-dialog';
 import { Modal } from '../../../components/ui/modal';
 import { useData } from '../../../contexts/DataContext';
 import { cn } from '../../../lib/utils';
-import type { SprintTask, Column, Priority } from '../hooks/useDevSprints';
+import type { SprintTask, Column, Priority, PatchTarefa } from '../hooks/useDevSprints';
+import { AnexosTarefa } from '../components/AnexosTarefa';
+import { arquivosColados, type Anexo } from '../lib/anexos';
 
 export interface ColunaSprint { id: Column; label: string; hex: string }
 
@@ -40,11 +43,15 @@ interface Props {
   projetos: { id: string | number; name: string }[];
   onClose: () => void;
   onMover: (id: string | number, col: Column) => Promise<void>;
-  onSalvar: (id: string | number, patch: Partial<Pick<SprintTask, 'title' | 'type' | 'priority' | 'points' | 'assignee' | 'tags'>>) => Promise<boolean>;
+  onSalvar: (id: string | number, patch: PatchTarefa) => Promise<boolean>;
+  onAnexar: (id: string | number, arquivos: File[]) => Promise<void>;
+  onRemoverAnexo: (id: string | number, anexo: Anexo) => Promise<void>;
+  /** false = o banco ainda não tem os campos de detalhes (migração pendente). */
+  detalhesDisponiveis: boolean;
 }
 
 /** Detalhes da task do sprint em painel lateral, no mesmo desenho dos detalhes do lead: cabeçalho, etapas clicáveis e edição dos campos. */
-export function TarefaSprintPainel({ task, colunas, projetos, onClose, onMover, onSalvar }: Props) {
+export function TarefaSprintPainel({ task, colunas, projetos, onClose, onMover, onSalvar, onAnexar, onRemoverAnexo, detalhesDisponiveis }: Props) {
   const { colaboradores } = useData();
   const [editando, setEditando] = useState(false);
   const [titulo, setTitulo] = useState('');
@@ -54,12 +61,17 @@ export function TarefaSprintPainel({ task, colunas, projetos, onClose, onMover, 
   const [responsavel, setResponsavel] = useState('');
   const [tags, setTags] = useState('');
   const [salvando, setSalvando] = useState(false);
+  const [descricao, setDescricao] = useState('');
+  const [erro, setErro] = useState('');
+  const [novoPasso, setNovoPasso] = useState('');
+  const [enviando, setEnviando] = useState(false);
 
   useEffect(() => {
     setEditando(false);
     if (!task) return;
     setTitulo(task.title); setTipo(task.type); setPrioridade(task.priority); setPontos(String(task.points));
     setResponsavel(task.assignee === '?' || task.assignee === '-' ? '' : task.assignee); setTags((task.tags || []).join(', '));
+    setDescricao(task.description); setErro(task.errorDetail); setNovoPasso('');
   }, [task?.id]); // eslint-disable-line react-hooks/exhaustive-deps
 
   if (!task) return null;
@@ -74,10 +86,27 @@ export function TarefaSprintPainel({ task, colunas, projetos, onClose, onMover, 
 
   const salvar = async () => {
     setSalvando(true);
-    const ok = await onSalvar(t.id, { title: titulo, type: tipo, priority: prioridade, points: Number(pontos) || 0, assignee: responsavel, tags: tags.split(',') });
+    const ok = await onSalvar(t.id, {
+      title: titulo, type: tipo, priority: prioridade, points: Number(pontos) || 0, assignee: responsavel, tags: tags.split(','),
+      ...(detalhesDisponiveis ? { description: descricao.trim(), errorDetail: erro.trim() } : {}),
+    });
     setSalvando(false);
     if (ok) setEditando(false);
   };
+
+  const anexar = async (arquivos: File[]) => {
+    setEnviando(true);
+    await onAnexar(t.id, arquivos);
+    setEnviando(false);
+  };
+  const adicionarPasso = async () => {
+    const texto = novoPasso.trim();
+    if (!texto) return;
+    if (await onSalvar(t.id, { checklist: [...t.checklist, { texto: texto.slice(0, 300), feito: false }] })) setNovoPasso('');
+  };
+  const feitos = t.checklist.filter((p) => p.feito).length;
+  const origem = t.source;
+  const doAgente = origem?.origem === 'agente-secreto' || (t.tags || []).includes('agente-secreto');
 
   const info: [string, string][] = [
     ['Projeto', projeto?.name ?? '—'],
@@ -104,7 +133,8 @@ export function TarefaSprintPainel({ task, colunas, projetos, onClose, onMover, 
         )
       }
     >
-      <div className="flex flex-col h-full overflow-hidden bg-[var(--color-surface)] animate-in fade-in duration-150">
+      <div className="flex flex-col h-full overflow-hidden bg-[var(--color-surface)] animate-in fade-in duration-150"
+        onPaste={(e) => { if (!detalhesDisponiveis) return; const colados = arquivosColados(e); if (colados.length) { e.preventDefault(); void anexar(colados); } }}>
         <div className="h-[3px] shrink-0" style={{ backgroundColor: hex }} />
         <div className="shrink-0 bg-[var(--color-surface-elevated)] border-b border-[var(--color-border-default)]">
           <div className="flex items-center justify-between px-5 pt-3.5 pb-2.5">
@@ -151,6 +181,12 @@ export function TarefaSprintPainel({ task, colunas, projetos, onClose, onMover, 
           {editando ? (
             <div className="space-y-3">
               <div className="space-y-1.5"><label className={rotulo}>Título</label><textarea rows={3} value={titulo} onChange={(e) => setTitulo(e.target.value)} className={cn(campo, 'h-auto py-2 resize-none')} /></div>
+              {detalhesDisponiveis && (
+                <>
+                  <div className="space-y-1.5"><label className={rotulo}>O que precisa ser feito</label><textarea rows={6} maxLength={8000} value={descricao} onChange={(e) => setDescricao(e.target.value)} placeholder="Descreva o pedido: onde, o que mudar e como deve ficar." className={cn(campo, 'h-auto py-2 resize-y')} /></div>
+                  <div className="space-y-1.5"><label className={rotulo}>O que aconteceu (erro)</label><textarea rows={4} maxLength={8000} value={erro} onChange={(e) => setErro(e.target.value)} placeholder="Mensagem de erro, em que tela, o que a pessoa estava fazendo." className={cn(campo, 'h-auto py-2 resize-y')} /></div>
+                </>
+              )}
               <div className="grid grid-cols-2 gap-3">
                 <div className="space-y-1.5"><label className={rotulo}>Tipo</label><select value={tipo} onChange={(e) => setTipo(e.target.value as SprintTask['type'])} className={campo}>{TIPOS_SPRINT.map((x) => <option key={x.id} value={x.id}>{x.label}</option>)}</select></div>
                 <div className="space-y-1.5"><label className={rotulo}>Prioridade</label><select value={prioridade} onChange={(e) => setPrioridade(e.target.value as Priority)} className={campo}>{PRIORIDADES_SPRINT.map((x) => <option key={x} value={x}>{x}</option>)}</select></div>
@@ -161,6 +197,65 @@ export function TarefaSprintPainel({ task, colunas, projetos, onClose, onMover, 
             </div>
           ) : (
             <>
+              {!detalhesDisponiveis && (
+                <p className="flex items-start gap-2 text-xs text-amber-600 bg-amber-500/10 border border-amber-500/25 rounded-xl p-3"><Info className="w-3.5 h-3.5 shrink-0 mt-0.5" />Descrição, erro, passos e imagens aparecem aqui depois que a atualização do banco de dados (20261221) for aplicada.</p>
+              )}
+
+              {(origem || doAgente) && (
+                <section className="space-y-1.5">
+                  <h3 className={rotulo}>Pedido original</h3>
+                  <div className="rounded-xl border border-[var(--color-primary-blue)]/25 bg-[var(--color-primary-blue)]/5 p-3 space-y-2">
+                    <p className="flex flex-wrap items-center gap-x-2 gap-y-1 text-[11px] text-[var(--color-text-muted)]">
+                      {doAgente && <span className="inline-flex items-center gap-1 font-black text-[var(--color-primary-blue)]"><Bot className="w-3.5 h-3.5" /> Agente Secreto</span>}
+                      {origem?.solicitante && <span>pedido por <b className="text-[var(--color-text-primary)]">{origem.solicitante}</b></span>}
+                      {origem?.grupo && <span>no grupo <b className="text-[var(--color-text-primary)]">{origem.grupo}</b></span>}
+                      {origem?.recebido_em && <span>em {dataHora(origem.recebido_em)}</span>}
+                    </p>
+                    {origem?.mensagem && <blockquote className="text-xs text-[var(--color-text-primary)] whitespace-pre-wrap break-words border-l-2 border-[var(--color-primary-blue)]/50 pl-2.5">{origem.mensagem}</blockquote>}
+                  </div>
+                </section>
+              )}
+
+              {detalhesDisponiveis && (
+                <>
+                  <section className="space-y-1.5">
+                    <h3 className={rotulo}>O que precisa ser feito</h3>
+                    {t.description ? <p className="text-sm leading-relaxed text-[var(--color-text-primary)] whitespace-pre-wrap break-words bg-[var(--color-surface-elevated)] border border-[var(--color-border-subtle)] rounded-xl p-3">{t.description}</p>
+                      : <button type="button" onClick={() => setEditando(true)} className="w-full text-left text-xs italic text-[var(--color-text-faint)] border border-dashed border-[var(--color-border-default)] rounded-xl p-3 cursor-pointer bg-transparent">Sem descrição. Clique para escrever o que precisa ser feito.</button>}
+                  </section>
+
+                  {(t.errorDetail || t.type === 'bug') && (
+                    <section className="space-y-1.5">
+                      <h3 className={cn(rotulo, 'flex items-center gap-1')}><AlertTriangle className="w-3 h-3 text-rose-500" /> O que aconteceu (erro)</h3>
+                      {t.errorDetail ? <pre className="text-xs leading-relaxed font-mono text-[var(--color-text-primary)] whitespace-pre-wrap break-words bg-rose-500/5 border border-rose-500/25 rounded-xl p-3 max-h-64 overflow-auto">{t.errorDetail}</pre>
+                        : <button type="button" onClick={() => setEditando(true)} className="w-full text-left text-xs italic text-[var(--color-text-faint)] border border-dashed border-[var(--color-border-default)] rounded-xl p-3 cursor-pointer bg-transparent">Erro não descrito. Clique para registrar o que aconteceu.</button>}
+                    </section>
+                  )}
+
+                  <section className="space-y-1.5">
+                    <h3 className={rotulo}>Imagens e arquivos{t.attachments.length ? ` (${t.attachments.length})` : ''}</h3>
+                    <AnexosTarefa anexos={t.attachments} enviando={enviando} onAdicionar={anexar} onRemover={(a) => { void confirmDialog({ description: `Remover o anexo “${a.nome}”?` }).then((ok) => { if (ok) void onRemoverAnexo(t.id, a); }); }} />
+                  </section>
+
+                  <section className="space-y-1.5">
+                    <h3 className={rotulo}>Passos a fazer{t.checklist.length ? ` (${feitos}/${t.checklist.length})` : ''}</h3>
+                    {t.checklist.map((p, i) => (
+                      <div key={i} className="flex items-start gap-2 bg-[var(--color-surface-elevated)] border border-[var(--color-border-subtle)] rounded-xl px-3 py-2">
+                        <label className="flex items-start gap-2 flex-1 min-w-0 cursor-pointer">
+                          <input type="checkbox" checked={p.feito} onChange={() => void onSalvar(t.id, { checklist: t.checklist.map((x, j) => (j === i ? { ...x, feito: !x.feito } : x)) })} className="mt-0.5 accent-[var(--color-primary-blue)]" />
+                          <span className={cn('text-xs break-words', p.feito ? 'line-through text-[var(--color-text-faint)]' : 'text-[var(--color-text-primary)]')}>{p.texto}</span>
+                        </label>
+                        <button type="button" aria-label={`Remover o passo ${p.texto}`} onClick={() => void onSalvar(t.id, { checklist: t.checklist.filter((_, j) => j !== i) })} className="text-[var(--color-text-faint)] hover:text-rose-500 bg-transparent border-none cursor-pointer p-0"><X className="w-3.5 h-3.5" /></button>
+                      </div>
+                    ))}
+                    <div className="flex gap-2">
+                      <input value={novoPasso} onChange={(e) => setNovoPasso(e.target.value)} onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); void adicionarPasso(); } }} placeholder="Adicionar um passo…" className={campo} />
+                      <button type="button" onClick={() => void adicionarPasso()} disabled={!novoPasso.trim()} className="px-3 rounded-xl bg-[var(--color-primary-blue)] !text-white text-xs font-bold border-none cursor-pointer disabled:opacity-50">Adicionar</button>
+                    </div>
+                  </section>
+                </>
+              )}
+
               <div className="grid grid-cols-3 gap-2">
                 {[
                   { icon: Zap, r: 'Pontos', v: String(t.points) },

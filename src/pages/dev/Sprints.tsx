@@ -1,7 +1,9 @@
 import { KpiFilterCard, FilterBar, FilterSearch, FilterSelect } from '../../components/ui/kpi-filter-card';
 import { useMemo, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
-import { Plus, Zap, Layers, Clock, CheckCircle2, FolderCode, Flame, User } from 'lucide-react';
+import { Plus, Zap, Layers, Clock, CheckCircle2, FolderCode, Flame, User, Bot, Paperclip, CheckSquare } from 'lucide-react';
+import { useAnexoLinks } from './hooks/useAnexoLinks';
+import { ehImagem } from './lib/anexos';
 import { NovaTarefaSprintModal, type TarefaSprintPayload } from './modals/NovaTarefaSprintModal';
 import { TarefaSprintPainel, TIPOS_SPRINT, COR_PRIORIDADE_SPRINT, iniciaisSprint } from './modals/TarefaSprintPainel';
 import { Button } from '../../components/ui/button';
@@ -52,7 +54,8 @@ export default function Sprints() {
     done: true,
   });
 
-  const { tasks, addTask, moveTask, updateTask } = useDevSprints(activeProjectId);
+  const { tasks, addTask, moveTask, updateTask, addAttachments, removeAttachment, detalhesDisponiveis } = useDevSprints(activeProjectId);
+  const linkDoAnexo = useAnexoLinks(useMemo(() => tasks.flatMap(t => t.attachments.filter(ehImagem).slice(0, 1)), [tasks]));
 
   const [search, setSearch] = useState('');
   const [filterAssignee, setFilterAssignee] = useState('');
@@ -65,7 +68,7 @@ export default function Sprints() {
     const q = search.trim().toLowerCase();
     return tasks.filter(t =>
       filterColumns[t.column] &&
-      (!q || t.title.toLowerCase().includes(q) || (t.tags || []).some(tag => tag.toLowerCase().includes(q))) &&
+      (!q || [t.title, t.description, t.errorDetail, t.source?.solicitante, ...(t.tags || [])].some(v => (v || '').toLowerCase().includes(q))) &&
       (!filterAssignee || t.assignee === filterAssignee) &&
       (!filterPriority || t.priority === filterPriority)
     );
@@ -167,7 +170,7 @@ export default function Sprints() {
           onClear={clearFilters}
         >
           <FilterBar>
-            <FilterSearch value={search} onChange={setSearch} placeholder="Buscar por título ou tag..." />
+            <FilterSearch value={search} onChange={setSearch} placeholder="Buscar por título, descrição, erro ou tag..." />
             <FilterSelect
               icon={FolderCode}
               value={activeProjectId ?? ''}
@@ -250,10 +253,26 @@ export default function Sprints() {
                         tabIndex={0}
                         onKeyDown={(e) => { if (e.key === 'Enter') setSelectedTaskId(task.id); }}
                       >
+                        {(() => {
+                          const capa = task.attachments.find(ehImagem);
+                          const url = capa && linkDoAnexo(capa);
+                          return url ? <img src={url} alt="" loading="lazy" draggable={false} className="w-full h-28 object-cover rounded-xl border border-[var(--color-border-subtle)]" /> : null;
+                        })()}
                         <div className="flex items-start justify-between gap-2">
                           <p className="text-xs font-bold text-[var(--color-text-primary)] leading-snug break-words line-clamp-3">{task.title}</p>
                           <span className={`shrink-0 text-[9px] font-black uppercase px-1.5 py-0.5 rounded border ${COR_PRIORIDADE_SPRINT[task.priority] ?? COR_PRIORIDADE_SPRINT.baixa}`}>{task.priority}</span>
                         </div>
+                        {(task.description || task.errorDetail || task.source?.mensagem) && (
+                          <p className="text-[11px] leading-snug text-[var(--color-text-muted)] line-clamp-3 break-words">{task.description || task.errorDetail || task.source?.mensagem}</p>
+                        )}
+                        {(task.source?.solicitante || task.attachments.length > 0 || task.checklist.length > 0 || (task.tags || []).includes('agente-secreto')) && (
+                          <div className="flex flex-wrap items-center gap-2 text-[10px] font-bold text-[var(--color-text-faint)]">
+                            {(task.source?.origem === 'agente-secreto' || (task.tags || []).includes('agente-secreto')) && <span className="inline-flex items-center gap-1 text-[var(--color-primary-blue)]" title="Pedido lido pelo Agente Secreto"><Bot className="w-3 h-3" /> Agente</span>}
+                            {task.source?.solicitante && <span className="truncate max-w-[130px]" title={`Pedido por ${task.source.solicitante}`}>{task.source.solicitante}</span>}
+                            {task.attachments.length > 0 && <span className="inline-flex items-center gap-1" title="Anexos"><Paperclip className="w-3 h-3" />{task.attachments.length}</span>}
+                            {task.checklist.length > 0 && <span className="inline-flex items-center gap-1" title="Passos concluídos"><CheckSquare className="w-3 h-3" />{task.checklist.filter(p => p.feito).length}/{task.checklist.length}</span>}
+                          </div>
+                        )}
                         {!activeProjectId && task.projectId && nomeDoProjeto.has(String(task.projectId)) && (
                           <span className="flex items-center gap-1 text-[10px] font-bold text-[var(--color-text-muted)] min-w-0">
                             <FolderCode className="w-3 h-3 shrink-0" /> <span className="truncate">{nomeDoProjeto.get(String(task.projectId))}</span>
@@ -292,6 +311,7 @@ export default function Sprints() {
         isOpen={isModalOpen}
         onClose={() => setIsModalOpen(false)}
         onSave={handleSaveTarefa}
+        comAnexos={detalhesDisponiveis}
       />
 
       <TarefaSprintPainel
@@ -301,6 +321,9 @@ export default function Sprints() {
         onClose={() => setSelectedTaskId(null)}
         onMover={moveTask}
         onSalvar={updateTask}
+        onAnexar={addAttachments}
+        onRemoverAnexo={removeAttachment}
+        detalhesDisponiveis={detalhesDisponiveis}
       />
     </PageContainer>
   );
