@@ -46,9 +46,18 @@ test("desativação manual é permanente e nunca entra na exclusão, mesmo muito
 
 test("dia no horário de Brasília", () => assert.equal(diaBR("2026-11-27T02:00:00Z"), "2026-11-26"));
 
+test("a rota de situação que a tela usa fica livre no endereço em que o servidor a monta", async () => {
+  const { readFileSync } = await import("node:fs");
+  const server = readFileSync("server.ts", "utf8");
+  const base = /app\.use\("([^"]+)", saas\.billingRouter\)/.exec(server)?.[1];
+  assert.ok(base, "não achei onde o roteador de assinatura é montado");
+  assert.equal(rotaLivre(`${base}/status`), true);
+  assert.match(readFileSync("src/lib/saasApi.ts", "utf8"), new RegExp(`${base}/status`));
+});
+
 test("rotas livres para quem está desabilitado", () => {
   assert.equal(rotaLivre("/api/checkout"), true);
-  assert.equal(rotaLivre("/api/saas/status"), true);
+  assert.equal(rotaLivre("/api/billing/status"), true);
   assert.equal(rotaLivre("/api/leads"), false);
   assert.equal(rotaLivre("/api/checkoutx"), false);
 });

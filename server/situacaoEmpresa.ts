@@ -4,7 +4,7 @@ import type express from "express";
 import { situacaoDaEmpresa, bloqueiaAcesso, type Situacao } from "../src/lib/situacaoEmpresa.js";
 
 /** Continuam abertas para empresa desabilitada: ver a própria situação, assinatura e pagamento. */
-export const ROTAS_LIVRES = ["/api/saas", "/api/checkout"];
+export const ROTAS_LIVRES = ["/api/billing", "/api/checkout"];
 export const rotaLivre = (caminho: string) => ROTAS_LIVRES.some((p) => caminho === p || caminho.startsWith(`${p}/`));
 
 const TTL = 60_000;
