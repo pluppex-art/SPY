@@ -9,6 +9,7 @@ import { supabase } from "../../lib/supabase";
 import { useAutomotivoConfig } from "../../lib/modules/automotivoConfig";
 import { DrillDownPanel, type DrillColumn } from "../../components/ui/DrillDownPanel";
 import { fetchVeiculosCatalogo, veiculoLabelFromEmbed, VEICULO_EMBED } from "../../lib/veiculosCatalogo";
+import { BotaoRelatorio } from "../../components/relatorio/BotaoRelatorio";
 
 type VeiculoSummary = {
   id: string;
@@ -110,7 +111,8 @@ export default function PainelAutomotivo() {
       title="Painel Geral Concessionária & Revenda"
       description="Resumo da operação da concessionária: estoque de veículos, giro de pátio (rapidez com que os carros saem), ticket médio e test-drives agendados."
       actions={
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2">
+          <BotaoRelatorio area="automotivo" />
           <Link
             to="/app/crm/pipeline?nicho=automotivo"
             className="h-9 px-3.5 text-xs font-bold gap-1.5 inline-flex items-center rounded-xl bg-[var(--color-surface-elevated)] border border-[var(--color-border-default)] hover:border-[var(--color-primary-blue)] text-[var(--color-text-primary)] transition-all"

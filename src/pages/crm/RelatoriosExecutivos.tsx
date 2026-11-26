@@ -11,6 +11,7 @@ import { downloadCsv } from "../../lib/csvExport";
 import { getMRR } from "../../lib/revenueMetrics";
 import { toast } from "sonner";
 import { apiFetch } from "../../lib/apiClient";
+import { BotaoRelatorio } from "../../components/relatorio/BotaoRelatorio";
 
 type Periodo = "30dias" | "mes" | "trimestre" | "ano" | "todos";
 
@@ -174,7 +175,8 @@ export default function RelatoriosExecutivos() {
       title="Relatórios Executivos S.P.Y."
       description="Resumo estratégico dos três pilares do negócio (Comercial, Financeiro e Operacional) para quem toma as decisões."
       actions={
-        <div className="flex items-center gap-3">
+        <div className="flex flex-wrap items-center gap-3">
+          <BotaoRelatorio />
           <select 
             value={periodo} 
             onChange={(e) => setPeriodo(e.target.value as Periodo)}

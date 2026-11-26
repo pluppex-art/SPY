@@ -5,6 +5,7 @@ import { IndicadoresKPIs } from "./components/Indicadores/IndicadoresKPIs";
 import { IndicadoresCharts } from "./components/Indicadores/IndicadoresCharts";
 import { IndicadoresScheduler } from "./components/Indicadores/IndicadoresScheduler";
 import { IndicadoresChannels } from "./components/Indicadores/IndicadoresChannels";
+import { BotaoRelatorio } from "../../components/relatorio/BotaoRelatorio";
 
 export default function Indicadores() {
   const {
@@ -19,7 +20,8 @@ export default function Indicadores() {
       title="BI & Analytics S.P.Y."
       description="Aprofunde-se nos indicadores da empresa, na projeção de faturamento e na governança dos dados."
       actions={
-        <div className="flex gap-2">
+        <div className="flex flex-wrap items-center gap-2">
+          <BotaoRelatorio />
           <Button onClick={() => window.print()} variant="outline" className="border-white/10 bg-[var(--color-surface-elevated)] text-slate-300 h-11 px-6 rounded-xl font-bold uppercase tracking-widest text-[10px]">
             Exportar PDF
           </Button>

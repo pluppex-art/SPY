@@ -14,6 +14,7 @@ import { Plus } from 'lucide-react';
 import { apiFetch } from "../../lib/apiClient";
 import { Badge } from "../../components/ui/badge";
 import type { DrillColumn } from "../../components/ui/DrillDownPanel";
+import { BotaoRelatorio } from "../../components/relatorio/BotaoRelatorio";
 
 const WEEKDAYS = ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'];
 
@@ -108,7 +109,8 @@ export default function ClinicasDashboard() {
       title="Gestão de Clínicas S.P.Y."
       description="Acompanhe em tempo real a operação da clínica: eficiência do atendimento e a jornada do paciente."
       actions={
-        <div className="flex items-center gap-4">
+        <div className="flex flex-wrap items-center gap-4">
+          <BotaoRelatorio area="clinicas" />
           <Button onClick={() => setIsBookingOpen(true)} className="gap-2">
             <Plus className="w-4 h-4" /> Novo Agendamento
           </Button>

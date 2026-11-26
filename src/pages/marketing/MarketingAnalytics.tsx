@@ -17,6 +17,7 @@ import { AquisicaoPanel } from "./AquisicaoPanel";
 import { GeradorLinkUtm } from "./GeradorLinkUtm";
 import { EmailResumoPanel } from "./EmailResumoPanel";
 import { apiFetch } from "../../lib/apiClient";
+import { BotaoRelatorio } from "../../components/relatorio/BotaoRelatorio";
 
 const COLORS = ['#3b82f6', '#f43f5e', '#10b981', '#8b5cf6', '#f59e0b', '#06b6d4'];
 const WEEKDAYS = ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'];
@@ -166,6 +167,7 @@ export default function MarketingAnalytics() {
   return (
     <PageContainer
       title="Análises de Marketing"
+      actions={<BotaoRelatorio area="marketing" />}
       subtitle="De onde vêm seus leads, quanto custam e quanto viram venda. CPL = custo por lead · CAC = custo para conquistar um cliente · ROAS/ROI = retorno sobre o investimento."
     >
       <Tabs value={aba} onValueChange={setAba}>

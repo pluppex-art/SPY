@@ -24,6 +24,7 @@ import { saldoDaConta, transferenciasDaConta, previstoRealizado, comparativoMesA
 import { apiFetch } from "../../lib/apiClient";
 import { useAuth } from "../../contexts/AuthContext";
 import { useMaxdataStats, MAXDATA_TODAS } from "../../lib/useMaxdataPage";
+import { BotaoRelatorio } from "../../components/relatorio/BotaoRelatorio";
 
 interface VisaoGeralServerSummary {
   kpis: {
@@ -433,6 +434,7 @@ export default function FinanceiroVisaoGeral() {
               {clienteOptions.map((c) => <option key={c} value={c}>{c}</option>)}
             </select>
           </div>
+          <BotaoRelatorio area="financeiro" periodo={{ de: periodoFrom, ate: periodoTo }} />
           <Button variant="outline" onClick={() => window.print()} className="h-9 px-3 text-xs font-medium" title="Imprimir relatório">
             <Printer className="w-3.5 h-3.5" />
           </Button>

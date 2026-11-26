@@ -13,6 +13,7 @@ import { SprintVelocityChart } from "./components/SprintVelocityChart";
 import { TarefasSemanaChart } from "./components/TarefasSemanaChart";
 import { DevRecentActivity } from "./components/DevRecentActivity";
 import { DevEnvironmentStatus } from "./components/DevEnvironmentStatus";
+import { BotaoRelatorio } from "../../components/relatorio/BotaoRelatorio";
 
 export default function PainelDev() {
   const navigate = useNavigate();
@@ -27,7 +28,8 @@ export default function PainelDev() {
       title="Painel Dev & Tecnologia"
       description="Visão geral do desenvolvimento da empresa selecionada: tarefas do sprint, bugs, pendências e a situação dos ambientes."
       actions={
-        <div className="flex items-center gap-3">
+        <div className="flex flex-wrap items-center gap-3">
+          <BotaoRelatorio area="dev" />
           <Button onClick={() => navigate("/app/dev/sprints")} variant="outline" className="h-10 rounded-xl border-white/5 text-xs gap-2">
             <Terminal className="w-4 h-4" /> Sprint Atual
           </Button>

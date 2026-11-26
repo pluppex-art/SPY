@@ -11,6 +11,7 @@ import { useNavigate } from "react-router-dom";
 import { useLocalization } from "../../contexts/LocalizationContext";
 import { apiFetch } from "../../lib/apiClient";
 import { DrillDownPanel, type DrillColumn } from "../../components/ui/DrillDownPanel";
+import { BotaoRelatorio } from "../../components/relatorio/BotaoRelatorio";
 
 const COLORS = ['#3b82f6', '#10b981', '#8b5cf6', '#f59e0b', '#06b6d4', '#ec4899'];
 
@@ -103,7 +104,8 @@ export default function PainelGeralEducation() {
       title="Painel Educacional S.P.Y." 
       description="Visão geral da operação pedagógica: turmas ativas, base de alunos e controle das mensalidades."
       actions={
-        <div className="flex items-center gap-3">
+        <div className="flex flex-wrap items-center gap-3">
+          <BotaoRelatorio area="educacao" />
           <Button 
             variant="outline" 
             onClick={() => navigate('/app/educacao/mensalidades')}

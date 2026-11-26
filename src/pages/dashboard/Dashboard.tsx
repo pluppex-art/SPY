@@ -6,6 +6,7 @@ import { DashboardGoalAlerts } from "./components/DashboardGoalAlerts";
 import { DashboardActionsTabs } from "./components/DashboardActionsTabs";
 import { DashboardTabContent } from "./components/DashboardTabContent";
 import { DashboardStatsSection } from "./components/DashboardStatsSection";
+import { BotaoRelatorio } from "../../components/relatorio/BotaoRelatorio";
 
 
 
@@ -42,7 +43,10 @@ export default function Dashboard() {
       title="Inteligência S.P.Y."
       description="O painel estratégico da empresa, para decidir com base em dados."
       actions={
-        <DashboardActionsTabs activeTab={activeTab as any} onTabChange={setActiveTab as any} />
+        <div className="flex flex-wrap items-center gap-2">
+          <BotaoRelatorio periodo={{ de: dateFrom, ate: dateTo }} />
+          <DashboardActionsTabs activeTab={activeTab as any} onTabChange={setActiveTab as any} />
+        </div>
       }
     >
       <div className="space-y-4 md:space-y-6 max-w-[1600px] mx-auto pb-10">

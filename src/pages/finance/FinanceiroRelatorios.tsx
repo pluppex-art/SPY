@@ -18,6 +18,7 @@ import { useFinanceiroFiltro } from "./FinanceiroFilterContext";
 import { FinancePeriodFilter } from "./components/FinancePeriodFilter";
 import { cn } from "../../lib/utils";
 import { SecaoCard } from "./components/SecaoCard";
+import { BotaoRelatorio } from "../../components/relatorio/BotaoRelatorio";
 
 interface ReportLink { title: string; href: string; icon: LucideIcon; }
 interface ReportGroup { title: string; tone: "danger" | "success" | "info" | "neutral"; reports: ReportLink[]; }
@@ -88,7 +89,7 @@ const EXTRAS: ReportLink[] = [
 export default function FinanceiroRelatorios() {
   const { financeEntries, financeBankAccounts, financeTransfers, financeCategories } = useData();
   const { formatCurrency } = useLocalization();
-  const { dataInicio, dataFim, label: periodoLabel, preset, setPreset } = useFinanceiroFiltro();
+  const { dataInicio, dataFim, label: periodoLabel, preset, setPreset, periodoFrom, periodoTo } = useFinanceiroFiltro();
   const [busca, setBusca] = useState("");
 
   const catMap = useMemo(() => categoriesById(financeCategories as FinanceCategoryLike[]), [financeCategories]);
@@ -150,7 +151,7 @@ export default function FinanceiroRelatorios() {
       title="Central de Relatórios"
       description="Todos os relatórios financeiros disponíveis, organizados por área."
       breadcrumb={[{ label: "Financeiro", path: "/app/financeiro/dashboard" }, { label: "Central de Relatórios" }]}
-      actions={<FinancePeriodFilter />}
+      actions={<div className="flex flex-wrap items-center gap-2"><FinancePeriodFilter /><BotaoRelatorio area="financeiro" periodo={{ de: periodoFrom, ate: periodoTo }} /></div>}
     >
       <div className="space-y-8 max-w-[1700px] mx-auto pb-12">
         <FinanceKpiFilter id="finRelatorios" kpis={kpiCards} activeCount={activeCount} onClear={() => { setPreset("tudo"); setBusca(""); }}>

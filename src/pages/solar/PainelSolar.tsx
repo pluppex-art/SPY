@@ -8,6 +8,7 @@ import { useAuth } from "../../contexts/AuthContext";
 import { useLocalization } from "../../contexts/LocalizationContext";
 import { supabase } from "../../lib/supabase";
 import { DrillDownPanel, type DrillColumn } from "../../components/ui/DrillDownPanel";
+import { BotaoRelatorio } from "../../components/relatorio/BotaoRelatorio";
 
 interface SolarRow {
   id: string;
@@ -132,7 +133,8 @@ export default function PainelSolar() {
       title="Painel Executivo de Energia Solar"
       description="Visão analítica dos projetos fotovoltaicos, da potência instalada (kWp), do funil de contratos e das homologações."
       actions={
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2">
+          <BotaoRelatorio area="solar" />
           <Link
             to="/app/energia-solar/dimensionamentos"
             className="h-9 px-3.5 text-xs font-semibold gap-1.5 inline-flex items-center rounded-xl bg-[var(--color-surface-sunken)] border border-[var(--color-border-subtle)] text-[var(--color-text-primary)] hover:bg-[var(--color-surface-elevated)] transition-colors"

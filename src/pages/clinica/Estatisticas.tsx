@@ -6,8 +6,8 @@ import { Button } from "../../components/ui/button";
 import { PageContainer } from "../../components/PageContainer";
 import { useData } from "../../contexts/DataContext";
 import { useAuth } from "../../contexts/AuthContext";
-import { toast } from "sonner";
 import { apiFetch } from "../../lib/apiClient";
+import { BotaoRelatorio } from "../../components/relatorio/BotaoRelatorio";
 
 const COLORS = ['#2563EB', '#10B981', '#8B5CF6', '#F59E0B', '#64748B'];
 
@@ -100,15 +100,7 @@ export default function EstatisticasClinicas() {
     <PageContainer 
       title="BI & Desempenho Clínica" 
       description="Indicadores da clínica: fluxo de pacientes, produtividade dos médicos e números de saúde."
-      actions={
-        <Button 
-          variant="outline" 
-          onClick={() => toast.success("Relatório de BI exportado!")}
-          className="h-9 px-4 text-xs font-bold gap-1.5"
-        >
-          <Download className="w-3.5 h-3.5" /> Exportar BI
-        </Button>
-      }
+      actions={<BotaoRelatorio area="clinicas" />}
     >
       <div className="space-y-6 max-w-[1700px] mx-auto pb-12">
         

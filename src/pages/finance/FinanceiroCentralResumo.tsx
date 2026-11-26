@@ -14,6 +14,7 @@ import { hojeISO, statusDoLancamento, useFinanceEntriesResumo } from "./hooks/us
 import { SecaoCard } from "./components/SecaoCard";
 import { FinanceiroFilterBar } from "./components/FinanceiroFilterBar";
 import { useFinanceiroFiltro } from "./FinanceiroFilterContext";
+import { BotaoRelatorio } from "../../components/relatorio/BotaoRelatorio";
 
 const soma = (xs: { value: number }[]) => xs.reduce((a, x) => a + x.value, 0);
 const dataBR = (iso: string | null) => (iso ? iso.split("-").reverse().join("/") : "—");
@@ -135,6 +136,7 @@ export default function FinanceiroCentralResumo() {
       actions={
         <div className="flex flex-wrap items-center justify-end gap-2">
           <FinanceiroFilterBar />
+          <BotaoRelatorio area="financeiro" periodo={{ de: periodoFrom, ate: periodoTo }} />
           <Button variant="outline" onClick={exportar}><FileSpreadsheet className="mr-2 h-4 w-4" />Planilha</Button>
           <Button variant="outline" onClick={copiar}><Copy className="mr-2 h-4 w-4" />Copiar</Button>
           <Button onClick={abrirWhatsApp}><MessageCircle className="mr-2 h-4 w-4" />Gerar resumo para WhatsApp</Button>

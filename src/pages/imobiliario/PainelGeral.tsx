@@ -14,6 +14,7 @@ import { fetchImoveisCatalogo } from "../../lib/ativosCatalogo";
 import { useAuth } from "../../contexts/AuthContext";
 import { DrillDownPanel, type DrillColumn } from "../../components/ui/DrillDownPanel";
 import { fetchVeiculosCatalogo } from "../../lib/veiculosCatalogo";
+import { BotaoRelatorio } from "../../components/relatorio/BotaoRelatorio";
 
 type ImovelRow = {
   id: string; titulo: string; tipo: string; status: string;
@@ -235,6 +236,7 @@ export default function ImobiliarioPainel() {
     <PageContainer
       title="Painel Geral"
       description="Visão geral do portfólio de imóveis e veículos, do desempenho da equipe e do funil de vendas."
+      actions={<BotaoRelatorio area="imobiliario" />}
     >
       <div className="space-y-6 max-w-[1700px] mx-auto pb-10">
 

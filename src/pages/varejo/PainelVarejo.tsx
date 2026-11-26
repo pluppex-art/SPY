@@ -14,6 +14,7 @@ import { useVarejoConfig } from "../../lib/varejoConfig";
 import { useData } from "../../contexts/DataContext";
 import { supabase } from "../../lib/supabase";
 import { DrillDownPanel, type DrillColumn } from "../../components/ui/DrillDownPanel";
+import { BotaoRelatorio } from "../../components/relatorio/BotaoRelatorio";
 
 type PeriodoId = "hoje" | "ontem" | "7d" | "30d" | "mes" | "mes_passado" | "ano" | "custom";
 const PERIODOS: { id: PeriodoId; label: string }[] = [
@@ -391,6 +392,7 @@ export default function PainelVarejo() {
       actions={
         <div className="flex items-center gap-2 flex-wrap justify-end">
           <DateRangeFilter dateFrom={customDe || null} setDateFrom={(v) => setCustomDe(v ?? "")} dateTo={customAte || null} setDateTo={(v) => setCustomAte(v ?? "")} />
+          <BotaoRelatorio area="varejo" periodo={{ de: customDe || null, ate: customAte || null }} />
           <Link
             to="/app/produtos?vista=estoque"
             className="h-9 px-3.5 text-xs font-semibold gap-1.5 inline-flex items-center rounded-xl bg-[var(--color-surface-sunken)] border border-[var(--color-border-subtle)] text-[var(--color-text-primary)] hover:bg-[var(--color-surface-elevated)] transition-colors"

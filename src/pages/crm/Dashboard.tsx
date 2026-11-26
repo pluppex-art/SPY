@@ -12,6 +12,7 @@ import type { DrillColumn } from "../../components/ui/DrillDownPanel";
 
 import { KpiCards } from "./components/PerformanceDashboard/KpiCards";
 import { PerformanceScoreChart, HotLeadsPanel, LeadsVolumeChart } from "./components/PerformanceDashboard/PerformanceCharts";
+import { BotaoRelatorio } from "../../components/relatorio/BotaoRelatorio";
 
 interface MesPerformanceCRM { month: string; avgScore: number; conversionRate: number; leads: number }
 interface DashboardPerformanceServerSummary {
@@ -102,6 +103,7 @@ export default function Dashboard() {
   return (
     <PageContainer
       title="Painel de Desempenho"
+      actions={<BotaoRelatorio area="vendas" />}
       description="Mostra como a pré-qualificação feita pela IA se relaciona com a conversão em venda, para você ver se as notas da IA estão acertando."
     >
       <KpiCards stats={stats} />

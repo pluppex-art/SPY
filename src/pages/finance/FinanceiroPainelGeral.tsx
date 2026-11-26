@@ -16,6 +16,7 @@ import { kpiSimples } from "./components/kpiSimples";
 import { LegendaStatusFinanceiro } from "./components/StatusFinanceiroBadge";
 import { hojeISO, statusDoLancamento, useFinanceEntriesResumo, type LancamentoResumo } from "./hooks/useFinanceEntriesResumo";
 import { saldoDaConta, transferenciasDaConta, type FinanceEntryLike } from "./lib/financeEngine";
+import { BotaoRelatorio } from "../../components/relatorio/BotaoRelatorio";
 
 const base = "/app/financeiro";
 const soma = (xs: { value: number }[]) => xs.reduce((a, x) => a + x.value, 0);
@@ -193,6 +194,7 @@ export default function FinanceiroPainelGeral() {
       actions={
         <div className="flex flex-wrap items-center justify-end gap-2">
           <FinanceiroFilterBar />
+          <BotaoRelatorio area="financeiro" periodo={{ de: periodoFrom, ate: periodoTo }} />
           <Link to={`${base}/resumo`}><Button variant="outline">Central de Resumo</Button></Link>
           <Link to={`${base}/visao-geral`}><Button variant="outline"><BarChart3 className="mr-2 h-4 w-4" />Análise detalhada</Button></Link>
         </div>
