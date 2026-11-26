@@ -10,34 +10,51 @@ import { criarMotorBackup, lerOpenApiDe, redigir, type Manifest } from "./backup
 export const VALIDADE_BACKUP_H = 24;
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
-export interface Fluxo { id: string; name: string; active?: boolean; tags?: { name: string }[]; nodes?: unknown }
+export interface Fluxo { id: string; name: string; active?: boolean; tags?: { name: string }[]; nodes?: unknown; parentFolder?: { id: string } | null }
+export interface PastaN8n { id: string; name: string; parentFolderId?: string | null }
 export interface ItemFluxo { id: string; nome: string; ativo: boolean }
 export interface Empresa { id: string; name: string }
 
 const igual = (s: string) => s.normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase().replace(/\s+/g, " ").trim();
 
+const nomeUnicoDe = (empresa: Empresa, empresas: Empresa[]) => !empresas.some((e) => e.id !== empresa.id && igual(e.name) === igual(empresa.name));
+
+/** A pasta do cliente no n8n: dentro de "Clientes", com o nome exato da empresa (pode haver repetidas). */
+export function pastasDaEmpresa(pastas: PastaN8n[], empresa: Empresa, empresas: Empresa[]): PastaN8n[] {
+  if (!nomeUnicoDe(empresa, empresas)) return [];
+  const raizes = new Set(pastas.filter((p) => !p.parentFolderId && igual(p.name) === "clientes").map((p) => p.id));
+  return pastas.filter((p) => raizes.has(p.parentFolderId || "") && igual(p.name) === igual(empresa.name));
+}
+
 /**
- * Quais fluxos do n8n são desta empresa. Apaga só o que tem "[Nome exato da empresa]" no começo, não é modelo/padrão, não cita
- * outra empresa e é uma cópia de cliente (ou cita o id desta). O que só cita a empresa vai para conferência manual, intocado.
+ * Quais fluxos do n8n são desta empresa: os da pasta dela, os "[Nome exato da empresa] …" e os "[SPY] …: Nome exato".
+ * Nunca apaga modelo/padrão nem fluxo que cita outra empresa. Pelo nome, fora da pasta, ainda precisa ser uma cópia de cliente
+ * (ou citar o id desta). O que sobra e tem ligação com a empresa vai para conferência manual, intocado.
  */
-export function fluxosDaEmpresa(fluxos: Fluxo[], empresa: Empresa, empresas: Empresa[], tenantRaiz: string) {
+export function fluxosDaEmpresa(fluxos: Fluxo[], empresa: Empresa, empresas: Empresa[], tenantRaiz: string, pastas: PastaN8n[] = []) {
   const nome = igual(empresa.name);
-  const nomeUnico = !empresas.some((e) => e.id !== empresa.id && igual(e.name) === nome);
-  const apagar: ItemFluxo[] = [], revisar: ItemFluxo[] = [];
+  const nomeUnico = nomeUnicoDe(empresa, empresas);
+  const daPasta = new Set(pastas.map((p) => p.id));
+  const apagar: ItemFluxo[] = [], revisar: ItemFluxo[] = [], comSobra = new Set<string>();
   for (const f of fluxos) {
     const corpo = JSON.stringify(f.nodes ?? []);
     const cita = corpo.includes(empresa.id);
     const prefixo = /^\s*\[([^\]]+)\]/.exec(f.name)?.[1] ?? "";
-    const bate = nomeUnico && igual(prefixo) === nome;
+    const naPasta = daPasta.has(f.parentFolder?.id ?? "");
+    const doSistema = nomeUnico && igual(/^\s*\[SPY\][^:]*:(.+)$/i.exec(f.name)?.[1] ?? "") === nome; // criado pelo próprio SPY
+    const bate = naPasta || doSistema || (nomeUnico && igual(prefixo) === nome);
     if (!bate && !cita) continue;
     const tags = (f.tags ?? []).map((t) => igual(t.name));
     const protegido = tags.some((t) => t.startsWith("padrao") || t.startsWith("rodrigo")) || /pluppex|modelo|produto/.test(igual(prefixo));
-    const copia = tags.includes("copia-cliente");
-    const citaOutra = empresas.some((e) => e.id !== empresa.id && corpo.includes(e.id) && (e.id !== tenantRaiz || !copia));
+    const seguro = naPasta || doSistema || tags.includes("copia-cliente");
+    const citaOutra = empresas.some((e) => e.id !== empresa.id && corpo.includes(e.id) && (e.id !== tenantRaiz || !seguro));
     const item = { id: f.id, nome: f.name, ativo: !!f.active };
-    if (bate && !protegido && !citaOutra && (copia || cita)) apagar.push(item); else revisar.push(item);
+    if (bate && !protegido && !citaOutra && (seguro || cita)) apagar.push(item);
+    else { revisar.push(item); if (naPasta) comSobra.add(f.parentFolder!.id); }
   }
-  return { apagar, revisar };
+  // A pasta só sai se tudo que está nela sair.
+  const item = (p: PastaN8n) => ({ id: p.id, nome: p.name });
+  return { apagar, revisar, pastas: pastas.filter((p) => !comSobra.has(p.id)).map(item), pastasMantidas: pastas.filter((p) => comSobra.has(p.id)).map(item) };
 }
 
 export interface Instancia { id: string; tenant_id: string; name: string | null; colaborador_id?: string | null }
@@ -47,13 +64,16 @@ export interface Bot { tenant_id: string; whatsapp_session: string | null }
  * Nomes que a sessão de WhatsApp da empresa pode ter no WAHA (o id da linha ou o nome dela). O servidor WAHA é compartilhado:
  * um nome que também aparece em outra empresa fica de fora.
  */
-export function sessoesDaEmpresa(instancias: Instancia[], bots: Bot[], tenantId: string) {
+export function sessoesDaEmpresa(instancias: Instancia[], bots: Bot[], tenantId: string, noWaha: string[] = [], nomeDaEmpresa = "") {
   const deOutros = new Set<string>();
   for (const i of instancias) if (i.tenant_id !== tenantId) { deOutros.add(i.id); if (i.name) deOutros.add(i.name); }
   for (const b of bots) if (b.tenant_id !== tenantId && b.whatsapp_session) deOutros.add(b.whatsapp_session);
   const minhas = new Set<string>();
   for (const i of instancias) if (i.tenant_id === tenantId) { if (!i.colaborador_id) minhas.add(i.id); if (i.name) minhas.add(i.name); }
   for (const b of bots) if (b.tenant_id === tenantId && b.whatsapp_session) minhas.add(b.whatsapp_session);
+  // Sessões dos agentes que ficaram no WAHA sem cadastro: "closer-nome-da-empresa", "radar-nome-da-empresa"...
+  const slug = igual(nomeDaEmpresa).replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "");
+  if (slug) for (const s of noWaha) if (new RegExp(`^(agente[_-]secreto|closer|cs|radar|sdr)-${slug}$`, "i").test(s)) minhas.add(s);
   const todas = [...minhas];
   return { apagar: todas.filter((s) => !deOutros.has(s)), compartilhadas: todas.filter((s) => deOutros.has(s)) };
 }
@@ -68,9 +88,9 @@ export function problemaDoBackup(m: Manifest | null, tenantId: string, tabelas: 
   return faltam.length ? `Há dados que não estão no backup (${faltam.slice(0, 6).join(", ")}${faltam.length > 6 ? "…" : ""}). Gere um novo.` : null;
 }
 
-type Categoria = "fluxos" | "sessoes" | "arquivos" | "usuarios" | "cobrancas";
-const CATEGORIAS: Categoria[] = ["fluxos", "sessoes", "arquivos", "usuarios", "cobrancas"];
-export const ROTULO: Record<Categoria, string> = { fluxos: "Fluxo do n8n", sessoes: "Sessão de WhatsApp", arquivos: "Arquivo", usuarios: "Login", cobrancas: "Assinatura no Asaas" };
+type Categoria = "fluxos" | "pastas" | "sessoes" | "arquivos" | "usuarios" | "cobrancas";
+const CATEGORIAS: Categoria[] = ["fluxos", "pastas", "sessoes", "arquivos", "usuarios", "cobrancas"]; // a pasta depois dos fluxos
+export const ROTULO: Record<Categoria, string> = { fluxos: "Fluxo do n8n", pastas: "Pasta do n8n", sessoes: "Sessão de WhatsApp", arquivos: "Arquivo", usuarios: "Login", cobrancas: "Assinatura no Asaas" };
 
 export interface Plano {
   statusAnterior: string;
@@ -84,7 +104,12 @@ export interface Registro { id: string; empresa_id: string; empresa_nome: string
 
 export interface Externos {
   /** null = n8n não configurado neste servidor. */
-  n8n: null | { listar(): Promise<Fluxo[]>; ler(id: string): Promise<Fluxo | null>; ativar(id: string, ativo: boolean): Promise<void>; apagar(id: string): Promise<void> };
+  n8n: null | {
+    listar(): Promise<Fluxo[]>; ler(id: string): Promise<Fluxo | null>; ativar(id: string, ativo: boolean): Promise<void>; apagar(id: string): Promise<void>;
+    pastas(): Promise<PastaN8n[]>;
+    /** Quanto há dentro da pasta (contando subpastas); null = não existe mais. */
+    pasta(id: string): Promise<{ fluxos: number; subpastas: number } | null>; apagarPasta(id: string): Promise<void>;
+  };
   whatsapp: null | { listar(): Promise<string[]>; apagar(sessao: string): Promise<void> };
   cobranca: null | { cancelar(id: string): Promise<void> };
 }
@@ -156,18 +181,22 @@ export function criarMotorExclusao(deps: { db: any; externos: Externos; lerBacku
       todas("chatbots", "id, tenant_id, whatsapp_session"),
       ok<any[]>(db.from("users").select("id, is_master").eq("tenant_id", tenantId)),
     ]);
-    let fluxos = { apagar: [] as ItemFluxo[], revisar: [] as ItemFluxo[] };
+    let fluxos = fluxosDaEmpresa([], empresa, empresas, tenantRaiz);
     if (externos.n8n) {
-      try { fluxos = fluxosDaEmpresa(await externos.n8n.listar(), empresa, empresas, tenantRaiz); }
-      catch (e) { throw new Recusa(`O n8n não respondeu (${texto(e)}). Tente de novo em instantes.`, 502); }
+      try {
+        const [lista, pastas] = await Promise.all([externos.n8n.listar(), externos.n8n.pastas()]);
+        fluxos = fluxosDaEmpresa(lista, empresa, empresas, tenantRaiz, pastasDaEmpresa(pastas, empresa, empresas));
+      } catch (e) { throw new Recusa(`O n8n não respondeu (${texto(e)}). Tente de novo em instantes.`, 502); }
     }
-    const sessoes = sessoesDaEmpresa(instancias, bots, tenantId);
+    let noWaha: string[] | null = null;
+    if (externos.whatsapp) { try { noWaha = await externos.whatsapp.listar(); } catch { /* a conferência avisa; a limpeza tenta de novo */ } }
+    const sessoes = sessoesDaEmpresa(instancias, bots, tenantId, noWaha ?? [], empresa.name);
     const locais = await locaisDosArquivos(db, tenantId);
     const arquivos: Arquivo[] = [...locais.soltos];
     for (const p of locais.pastas) arquivos.push(...await arquivosDaPasta(db, p));
     const assinatura: any = await ok(db.from("tenant_subscriptions").select("gateway, gateway_subscription_id").eq("tenant_id", tenantId).maybeSingle());
     return {
-      empresa, fluxos, sessoes, arquivos,
+      empresa, fluxos, sessoes, noWaha, arquivos,
       usuarios: (usuarios || []).filter((u) => !u.is_master).map((u) => String(u.id)),
       cobrancas: assinatura?.gateway === "asaas" && assinatura.gateway_subscription_id ? [String(assinatura.gateway_subscription_id)] : [],
     };
@@ -179,15 +208,14 @@ export function criarMotorExclusao(deps: { db: any; externos: Externos; lerBacku
     if (andamento) return { andamento: resumo(andamento) };
     const banco = await conferirNoBanco(tenantId);
     const l = await levantar(tenantId);
-    let sessoes = l.sessoes.apagar, aviso = "";
-    if (externos.whatsapp) {
-      try { const vivas = new Set(await externos.whatsapp.listar()); sessoes = sessoes.filter((s) => vivas.has(s)); }
-      catch { aviso = "O servidor de WhatsApp não respondeu: a lista mostra todas as sessões cadastradas."; }
-    }
+    const vivas = l.noWaha && new Set(l.noWaha);
+    const sessoes = vivas ? l.sessoes.apagar.filter((s) => vivas.has(s)) : l.sessoes.apagar;
+    const aviso = externos.whatsapp && !vivas ? "O servidor de WhatsApp não respondeu: a lista mostra todas as sessões cadastradas." : "";
     return {
       empresa: l.empresa.name, bloqueios: banco.bloqueios, registros: banco.registros, tabelas: Object.keys(banco.tabelas).length,
       usuarios: l.usuarios.length, arquivos: l.arquivos.length, sessoes, compartilhadas: l.sessoes.compartilhadas,
       fluxos: l.fluxos.apagar.map((f) => f.nome), revisar: l.fluxos.revisar.map((f) => f.nome), cobrancas: l.cobrancas.length,
+      pastas: l.fluxos.pastas.map((p) => p.nome), pastasMantidas: l.fluxos.pastasMantidas.map((p) => p.nome),
       avisos: [aviso, externos.n8n ? "" : "O n8n não está configurado neste servidor: os fluxos não serão apagados.", externos.whatsapp ? "" : "O WhatsApp (WAHA) não está configurado neste servidor: as sessões ficam pendentes."].filter(Boolean),
     };
   }
@@ -230,7 +258,7 @@ export function criarMotorExclusao(deps: { db: any; externos: Externos; lerBacku
     const fila = <T,>(pendentes: T[]) => ({ pendentes, falhas: [], feitos: 0 });
     const plano: Plano = {
       statusAnterior: empresa.status || "Active", desativados: [], revisar: l.fluxos.revisar, compartilhadas: l.sessoes.compartilhadas,
-      itens: { fluxos: fila(l.fluxos.apagar), sessoes: fila(l.sessoes.apagar), arquivos: fila(l.arquivos), usuarios: fila(l.usuarios), cobrancas: fila(l.cobrancas) },
+      itens: { fluxos: fila(l.fluxos.apagar), pastas: fila(l.fluxos.pastas), sessoes: fila(l.sessoes.apagar), arquivos: fila(l.arquivos), usuarios: fila(l.usuarios), cobrancas: fila(l.cobrancas) },
     };
     const r: Registro = await ok(db.from("empresa_exclusoes").insert({ empresa_id: tenantId, empresa_nome: empresa.name, backup_id: pedido.backupId, excluido_por: por, plano }).select("*").single());
     try {
@@ -258,6 +286,13 @@ export function criarMotorExclusao(deps: { db: any; externos: Externos; lerBacku
       const { error } = await db.storage.from(BUCKET_BACKUP).upload(`${r.empresa_id}/${r.backup_id}/n8n/${item.id}.json`, Buffer.from(JSON.stringify(redigir(fluxo))), { upsert: true, contentType: "application/json" });
       if (error) throw new Error(`não foi possível guardar o fluxo antes de apagar: ${error.message}`);
       await externos.n8n.apagar(item.id);
+    } else if (categoria === "pastas") {
+      if (!externos.n8n) throw new Error("n8n não configurado neste servidor");
+      const dentro = await externos.n8n.pasta(item.id);
+      if (!dentro) return;
+      // Apagar pasta com conteúdo arquivaria os fluxos: só sai vazia.
+      if (dentro.fluxos || dentro.subpastas) throw new Error(`ainda tem ${dentro.fluxos} fluxo(s) e ${dentro.subpastas} subpasta(s) dentro`);
+      await externos.n8n.apagarPasta(item.id);
     } else if (categoria === "sessoes") {
       if (!externos.whatsapp) throw new Error("WhatsApp (WAHA) não configurado neste servidor");
       if ((await vivas()).has(item)) await externos.whatsapp.apagar(item);
@@ -344,6 +379,7 @@ export function externosDoServidor(whatsapp: Externos["whatsapp"]): Externos {
   const chave = process.env.N8N_API_KEY || "";
   const n8nCfg = { headers: { "X-N8N-API-KEY": chave }, timeout: 30_000 };
   const url = (id: string) => `${api}/workflows/${encodeURIComponent(id)}`;
+  const pastas = `${api}/projects/personal/folders`; // projeto da conta dona da chave
   const asaas = process.env.ASAAS_API_KEY || "";
   return {
     whatsapp,
@@ -352,7 +388,7 @@ export function externosDoServidor(whatsapp: Externos["whatsapp"]): Externos {
         const todos: Fluxo[] = [];
         let cursor = "";
         do {
-          const { data } = await axios.get(`${api}/workflows`, { ...n8nCfg, params: { limit: 100, excludePinnedData: true, ...(cursor ? { cursor } : {}) } });
+          const { data } = await axios.get(`${api}/workflows`, { ...n8nCfg, params: { limit: 100, excludePinnedData: true, includeParentFolder: true, ...(cursor ? { cursor } : {}) } });
           todos.push(...(data.data || []));
           cursor = data.nextCursor || "";
         } while (cursor);
@@ -364,6 +400,21 @@ export function externosDoServidor(whatsapp: Externos["whatsapp"]): Externos {
       },
       async ativar(id, ativo) { await axios.post(`${url(id)}/${ativo ? "activate" : "deactivate"}`, {}, n8nCfg); },
       async apagar(id) { await axios.delete(url(id), n8nCfg); },
+      async pastas() {
+        const todas: PastaN8n[] = [];
+        for (let skip = 0; ; skip += 100) {
+          const { data } = await axios.get(pastas, { ...n8nCfg, params: { take: 100, skip } });
+          todas.push(...(data.data || []).map((p: any) => ({ id: p.id, name: p.name, parentFolderId: p.parentFolderId ?? p.parentFolder?.id ?? null })));
+          if ((data.data || []).length < 100) return todas;
+        }
+      },
+      async pasta(id) {
+        try {
+          const { data } = await axios.get(`${pastas}/${encodeURIComponent(id)}`, n8nCfg);
+          return { fluxos: Number(data.totalWorkflows), subpastas: Number(data.totalSubFolders) };
+        } catch (e: any) { if (e?.response?.status === 404) return null; throw e; }
+      },
+      async apagarPasta(id) { await axios.delete(`${pastas}/${encodeURIComponent(id)}`, n8nCfg); },
     },
     cobranca: !asaas ? null : {
       async cancelar(id) {

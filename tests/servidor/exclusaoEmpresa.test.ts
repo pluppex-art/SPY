@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { criarMotorExclusao, fluxosDaEmpresa, sessoesDaEmpresa, problemaDoBackup, type Externos } from "../../server/exclusaoEmpresa.js";
+import { criarMotorExclusao, fluxosDaEmpresa, pastasDaEmpresa, sessoesDaEmpresa, problemaDoBackup, type Externos } from "../../server/exclusaoEmpresa.js";
 
 const RAIZ = "27ef95ee-0000-0000-0000-000000000000";
 const A = "aaaaaaaa-0000-0000-0000-000000000000";
@@ -110,6 +110,9 @@ function mundo(o: { erroBanco?: string; bloqueios?: string[]; erroWhats?: boolea
       ler: async (id) => fluxo(id, "[Loja A] Radar"),
       ativar: async (id, a) => { feito.push(`${a ? "liga" : "desliga"} ${id}`); },
       apagar: async (id) => { feito.push(`apaga fluxo ${id}`); },
+      pastas: async () => [{ id: "c", name: "Clientes" }, { id: "p1", name: "Loja A", parentFolderId: "c" }],
+      pasta: async () => ({ fluxos: feito.includes("apaga fluxo f1") ? 0 : 1, subpastas: 0 }),
+      apagarPasta: async (id) => { feito.push(`apaga pasta ${id}`); },
     },
     whatsapp: { listar: async () => ["loja-a"], apagar: async (s) => { if (o.erroWhats) throw new Error("fora do ar"); feito.push(`sessao ${s}`); } },
     cobranca: { cancelar: async (id) => { feito.push(`asaas ${id}`); } },
@@ -135,7 +138,7 @@ test("caminho completo: desliga os fluxos, apaga o banco e só depois o que est�
   assert.equal((await m.motor.avancar(r.id)).status, "banco_apagado");
   const fim = await m.motor.avancar(r.id);
   assert.deepEqual([fim.status, fim.pendencias, fim.registrosApagados], ["concluida", [], 4]);
-  assert.deepEqual(m.feito, ["desliga f1", "banco", `guardou ${A}/20261126-100000/n8n/f1.json`, "apaga fluxo f1", "sessao loja-a", `arquivo ${A}/a.pdf`, "login u1", "asaas sub_1"]);
+  assert.deepEqual(m.feito, ["desliga f1", "banco", `guardou ${A}/20261126-100000/n8n/f1.json`, "apaga fluxo f1", "apaga pasta p1", "sessao loja-a", `arquivo ${A}/a.pdf`, "login u1", "asaas sub_1"]);
 });
 
 test("erro no banco antes de apagar: nada é excluído, fluxo religado e empresa volta ao que era", async () => {
@@ -178,6 +181,7 @@ test("erro 'not found' ao guardar o fluxo não conta como apagado", async () => 
   m.semPastaDeBackup();
   const fim = await m.motor.avancar(r.id);
   assert.match(fim.pendencias.join(), /Fluxo do n8n \[Loja A\] Radar: não foi possível guardar/);
+  assert.match(fim.pendencias.join(), /Pasta do n8n Loja A: ainda tem 1 fluxo/);
   assert.ok(!m.feito.some((x) => x.startsWith("apaga fluxo")));
 });
 
@@ -188,4 +192,29 @@ test("sem a migração no banco: avisa que falta instalar e não mostra lista de
   const motor = criarMotorExclusao({ db: { from: () => q }, externos: { n8n: null, whatsapp: null, cobranca: null }, lerBackup: async () => null, tenantRaiz: RAIZ });
   await assert.rejects(motor.conferir(A), /falta aplicar a migração/);
   assert.deepEqual(await motor.listar(), []);
+});
+
+test("n8n: a pasta do cliente leva tudo que é dele, inclusive o Radar criado pelo SPY; com sobra, a pasta fica", () => {
+  const todas = [
+    { id: "c", name: "Clientes" }, { id: "g", name: "GIRASSOL CORRETORA DE SEGUROS", parentFolderId: "c" },
+    { id: "n", name: "Nicolas Rocha", parentFolderId: "c" }, { id: "x", name: "Girassol Corretora de Seguros", parentFolderId: "outra" },
+  ];
+  const pastas = pastasDaEmpresa(todas, EMPRESAS[1], EMPRESAS);
+  assert.deepEqual(pastas.map((p) => p.id), ["g"]);
+  const naPasta = (f: any, id = "g") => ({ ...f, parentFolder: { id } });
+  const r = fluxosDaEmpresa([
+    naPasta(fluxo("1", "[SPY] Radar: GIRASSOL CORRETORA DE SEGUROS")),
+    naPasta(fluxo("2", "Fluxo avulso", [], [RAIZ])),
+    fluxo("3", "[SPY] Radar: Girassol Corretora de Seguros"),
+    fluxo("4", "[SPY] Radar: Nicolas"),
+  ], EMPRESAS[1], EMPRESAS, RAIZ, pastas);
+  assert.deepEqual([r.apagar.map((f) => f.id), r.revisar, r.pastas.map((p) => p.id)], [["1", "2", "3"], [], ["g"]]);
+  const comSobra = fluxosDaEmpresa([naPasta(fluxo("5", "Misto", [], [B])), naPasta(fluxo("6", "[PLUPPEX AI OS] Radar", ["padrao-cliente"]))], EMPRESAS[1], EMPRESAS, RAIZ, pastas);
+  assert.deepEqual([comSobra.apagar, comSobra.revisar.length, comSobra.pastas, comSobra.pastasMantidas.map((p) => p.id)], [[], 2, [], ["g"]]);
+});
+
+test("WhatsApp: acha sessão de agente sem cadastro pelo nome exato da empresa", () => {
+  const vivas = ["closer-nicolas", "radar-nicolas-rocha", "sdr-nicolas", "Nicolas-Secreto", "cs-girassol"];
+  assert.deepEqual(sessoesDaEmpresa([], [], B, vivas, "Nicolas").apagar, ["closer-nicolas", "sdr-nicolas"]);
+  assert.deepEqual(sessoesDaEmpresa([{ id: "i", tenant_id: A, name: "sdr-nicolas" }], [], B, vivas, "Nicolas"), { apagar: ["closer-nicolas"], compartilhadas: ["sdr-nicolas"] });
 });

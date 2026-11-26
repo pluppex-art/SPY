@@ -10,7 +10,7 @@ interface Exclusao { id: string; empresa: string; status: string; parado: boolea
 interface Previa {
   andamento?: Exclusao;
   empresa: string; bloqueios: string[]; registros: number; tabelas: number; usuarios: number; arquivos: number; cobrancas: number;
-  sessoes: string[]; compartilhadas: string[]; fluxos: string[]; revisar: string[]; avisos: string[];
+  sessoes: string[]; compartilhadas: string[]; fluxos: string[]; revisar: string[]; avisos: string[]; pastas: string[]; pastasMantidas: string[];
 }
 interface Backup { id: string; status: string; criadoEm: string }
 
@@ -134,10 +134,12 @@ export function ExcluirEmpresaModal({ empresa, onClose, onBackup, onMudou }: {
             <div className="rounded-xl border border-[var(--color-border-default)] bg-[var(--color-surface-elevated)] p-3 space-y-2">
               <p className="text-xs font-black text-[var(--color-text-primary)]">Será apagado</p>
               <p className="text-xs text-[var(--color-text-muted)]">
-                {n(previa.registros)} registros em {previa.tabelas} tabelas · {previa.usuarios} login(s) · {previa.arquivos} arquivo(s) · {previa.sessoes.length} sessão(ões) de WhatsApp · {previa.fluxos.length} fluxo(s) no n8n{previa.cobrancas ? " · cobrança recorrente no Asaas" : ""}
+                {n(previa.registros)} registros em {previa.tabelas} tabelas · {previa.usuarios} login(s) · {previa.arquivos} arquivo(s) · {previa.sessoes.length} sessão(ões) de WhatsApp · {previa.fluxos.length} fluxo(s) e {previa.pastas.length} pasta(s) no n8n{previa.cobrancas ? " · cobrança recorrente no Asaas" : ""}
               </p>
               <Lista titulo="Sessões de WhatsApp" itens={previa.sessoes} />
               <Lista titulo="Fluxos do n8n" itens={previa.fluxos} />
+              <Lista titulo="Pastas do n8n" itens={previa.pastas} />
+              <Lista titulo="Pastas que ficam, porque têm fluxo que não será apagado" itens={previa.pastasMantidas} />
               <Lista titulo="Fluxos que citam a empresa e NÃO serão apagados (confira no n8n)" itens={previa.revisar} />
               <Lista titulo="Sessões usadas também por outra empresa (ficam)" itens={previa.compartilhadas} />
             </div>
