@@ -1,10 +1,8 @@
 /** Passo "Funil de vendas" do cadastro de empresa: escolher um modelo e ajustar as etapas antes de criar. */
-import { ArrowDown, ArrowUp, Ban, Check, Lock, Plus, Trash2 } from "lucide-react";
+import { ArrowDown, ArrowUp, Check, Lock, Plus, Trash2 } from "lucide-react";
 import { ETAPA_DOT_COLORS, ETAPAS_SISTEMA } from "../../../lib/funilStages";
 import { ETAPAS_SDR, MAX_ETAPAS, MODELOS_DE_FUNIL, type EtapaDoFunil } from "../../../lib/modelosDeFunil";
 import { cn } from "../../../lib/utils";
-
-export const SEM_FUNIL = "nenhum";
 
 export interface FunilEscolhido {
   modelo: string;
@@ -17,8 +15,8 @@ let contador = 0;
 const comChave = (e: EtapaDoFunil) => ({ ...e, chave: `etapa-${++contador}` });
 
 export function funilDoModelo(id: string, comSdr = false): FunilEscolhido {
-  const m = MODELOS_DE_FUNIL.find((x) => x.id === id);
-  return { modelo: m?.id ?? SEM_FUNIL, nome: m?.nomeDoFunil ?? "", etapas: (m?.etapas ?? []).map(comChave), comSdr };
+  const m = MODELOS_DE_FUNIL.find((x) => x.id === id) ?? MODELOS_DE_FUNIL[0];
+  return { modelo: m.id, nome: m.nomeDoFunil, etapas: m.etapas.map(comChave), comSdr };
 }
 
 const CORES = Object.keys(ETAPA_DOT_COLORS);
@@ -48,17 +46,13 @@ export function FunilInicialStep({ valor, onChange }: { valor: FunilEscolhido; o
     [novas[i], novas[i + passo]] = [novas[i + passo], novas[i]];
     mudarEtapas(novas);
   };
-  const opcoes = [
-    ...MODELOS_DE_FUNIL.map((m) => ({ id: m.id, titulo: m.titulo, descricao: m.descricao, etapas: m.etapas })),
-    { id: SEM_FUNIL, titulo: "Não criar agora", descricao: "A empresa configura o funil depois, em Configurações.", etapas: [] as EtapaDoFunil[] },
-  ];
 
   return (
     <div className="space-y-5">
       <div>
         <span className={labelClass}>Modelo de funil</span>
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-          {opcoes.map((o) => {
+          {MODELOS_DE_FUNIL.map((o) => {
             const ativo = valor.modelo === o.id;
             return (
               <button key={o.id} type="button" aria-pressed={ativo}
@@ -66,52 +60,48 @@ export function FunilInicialStep({ valor, onChange }: { valor: FunilEscolhido; o
                 className={cn("text-left p-3 rounded-xl border cursor-pointer transition-colors flex flex-col justify-start",
                   ativo ? "border-[var(--color-primary-blue)] bg-[var(--color-primary-blue)]/5" : "border-[var(--color-border-default)] bg-[var(--color-surface-sunken)] hover:border-[var(--color-primary-blue)]/40")}>
                 <span className="flex items-center justify-between gap-2">
-                  <span className="flex items-center gap-1.5 text-xs font-black text-[var(--color-text-primary)]">
-                    {o.id === SEM_FUNIL && <Ban className="w-3.5 h-3.5 text-[var(--color-text-faint)]" />}{o.titulo}
-                  </span>
+                  <span className="text-xs font-black text-[var(--color-text-primary)]">{o.titulo}</span>
                   {ativo && <Check className="w-4 h-4 text-[var(--color-primary-blue)] shrink-0" />}
                 </span>
                 <span className="block mt-1 text-[11px] leading-snug text-[var(--color-text-muted)]">{o.descricao}</span>
-                {o.etapas.length > 0 && <Trilha nomes={o.etapas} />}
+                <Trilha nomes={o.etapas} />
               </button>
             );
           })}
         </div>
       </div>
 
-      {valor.modelo !== SEM_FUNIL && (
-        <div className="pt-3 border-t border-[var(--color-border-subtle)] space-y-3">
-          <div>
-            <label className={labelClass} htmlFor="funil-nome">Nome do funil</label>
-            <input id="funil-nome" value={valor.nome} maxLength={80} onChange={(e) => onChange({ ...valor, nome: e.target.value })} className={cn(campo, "w-full")} />
-          </div>
-
-          <div className="space-y-1.5">
-            <span className={labelClass}>Etapas (ajuste como quiser)</span>
-            {etapas.map((e, i) => (
-              <div key={e.chave} className="flex items-center gap-1.5">
-                <button type="button" title="Trocar a cor" aria-label={`Trocar a cor da etapa ${i + 1}`}
-                  onClick={() => editar(e.chave, { cor: CORES[(CORES.indexOf(e.cor) + 1) % CORES.length] })} className={botaoIcone}>
-                  <span className="w-3 h-3 rounded-full" style={{ backgroundColor: ETAPA_DOT_COLORS[e.cor] }} />
-                </button>
-                <input aria-label={`Nome da etapa ${i + 1}`} value={e.nome} maxLength={40} onChange={(ev) => editar(e.chave, { nome: ev.target.value })} className={cn(campo, "flex-1 min-w-0")} />
-                <button type="button" aria-label="Subir etapa" disabled={i === 0} onClick={() => mover(i, -1)} className={botaoIcone}><ArrowUp className="w-3.5 h-3.5" /></button>
-                <button type="button" aria-label="Descer etapa" disabled={i === etapas.length - 1} onClick={() => mover(i, 1)} className={botaoIcone}><ArrowDown className="w-3.5 h-3.5" /></button>
-                <button type="button" aria-label="Remover etapa" disabled={etapas.length === 1} onClick={() => mudarEtapas(etapas.filter((x) => x.chave !== e.chave))} className={botaoIcone}><Trash2 className="w-3.5 h-3.5" /></button>
-              </div>
-            ))}
-            <button type="button" disabled={etapas.length >= MAX_ETAPAS}
-              onClick={() => mudarEtapas([...etapas, comChave({ nome: "", cor: CORES[etapas.length % CORES.length], iniciarMinimizado: false })])}
-              className="flex items-center gap-1 text-[11px] font-bold text-[var(--color-primary-blue)] bg-transparent border-0 cursor-pointer hover:underline disabled:opacity-40 py-1">
-              <Plus className="w-3.5 h-3.5" /> Adicionar etapa
-            </button>
-          </div>
-
-          <p className="flex flex-wrap items-center gap-1.5 text-[11px] text-[var(--color-text-faint)]">
-            <Lock className="w-3 h-3" /> Entram sozinhas no fim: {ETAPAS_SISTEMA.map((s) => s.nome).join(", ")}.
-          </p>
+      <div className="pt-3 border-t border-[var(--color-border-subtle)] space-y-3">
+        <div>
+          <label className={labelClass} htmlFor="funil-nome">Nome do funil</label>
+          <input id="funil-nome" value={valor.nome} maxLength={80} onChange={(e) => onChange({ ...valor, nome: e.target.value })} className={cn(campo, "w-full")} />
         </div>
-      )}
+
+        <div className="space-y-1.5">
+          <span className={labelClass}>Etapas (ajuste como quiser)</span>
+          {etapas.map((e, i) => (
+            <div key={e.chave} className="flex items-center gap-1.5">
+              <button type="button" title="Trocar a cor" aria-label={`Trocar a cor da etapa ${i + 1}`}
+                onClick={() => editar(e.chave, { cor: CORES[(CORES.indexOf(e.cor) + 1) % CORES.length] })} className={botaoIcone}>
+                <span className="w-3 h-3 rounded-full" style={{ backgroundColor: ETAPA_DOT_COLORS[e.cor] }} />
+              </button>
+              <input aria-label={`Nome da etapa ${i + 1}`} value={e.nome} maxLength={40} onChange={(ev) => editar(e.chave, { nome: ev.target.value })} className={cn(campo, "flex-1 min-w-0")} />
+              <button type="button" aria-label="Subir etapa" disabled={i === 0} onClick={() => mover(i, -1)} className={botaoIcone}><ArrowUp className="w-3.5 h-3.5" /></button>
+              <button type="button" aria-label="Descer etapa" disabled={i === etapas.length - 1} onClick={() => mover(i, 1)} className={botaoIcone}><ArrowDown className="w-3.5 h-3.5" /></button>
+              <button type="button" aria-label="Remover etapa" disabled={etapas.length === 1} onClick={() => mudarEtapas(etapas.filter((x) => x.chave !== e.chave))} className={botaoIcone}><Trash2 className="w-3.5 h-3.5" /></button>
+            </div>
+          ))}
+          <button type="button" disabled={etapas.length >= MAX_ETAPAS}
+            onClick={() => mudarEtapas([...etapas, comChave({ nome: "", cor: CORES[etapas.length % CORES.length], iniciarMinimizado: false })])}
+            className="flex items-center gap-1 text-[11px] font-bold text-[var(--color-primary-blue)] bg-transparent border-0 cursor-pointer hover:underline disabled:opacity-40 py-1">
+            <Plus className="w-3.5 h-3.5" /> Adicionar etapa
+          </button>
+        </div>
+
+        <p className="flex flex-wrap items-center gap-1.5 text-[11px] text-[var(--color-text-faint)]">
+          <Lock className="w-3 h-3" /> Entram sozinhas no fim: {ETAPAS_SISTEMA.map((s) => s.nome).join(", ")}.
+        </p>
+      </div>
 
       <label className="flex items-start gap-2.5 p-3 rounded-xl border border-[var(--color-border-subtle)] bg-[var(--color-surface-sunken)] cursor-pointer">
         <input type="checkbox" checked={valor.comSdr} onChange={(e) => onChange({ ...valor, comSdr: e.target.checked })} className="mt-0.5 accent-[var(--color-primary-blue)]" />

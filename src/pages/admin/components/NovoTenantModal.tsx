@@ -13,7 +13,7 @@ import { toast } from "sonner";
 import { Copy, CalendarCheck, Radar } from "lucide-react";
 import { fetchCnpj, formatCnpjMask, isValidCnpj, onlyDigits } from "../../../lib/brLookup";
 import { montarFunil } from "../../../lib/modelosDeFunil";
-import { FunilInicialStep, funilDoModelo, SEM_FUNIL } from "./FunilInicialStep";
+import { FunilInicialStep, funilDoModelo } from "./FunilInicialStep";
 
 interface NovoTenantModalProps {
   isOpen: boolean;
@@ -118,7 +118,7 @@ export function NovoTenantModal({ isOpen, onClose, onCreated, implementation }: 
   const [empresa, setEmpresa] = useState(DADOS_VAZIOS);
   const [fuso, setFuso] = useState(FUSOS[0].id);
   const [buscandoCnpj, setBuscandoCnpj] = useState(false);
-  const [funil, setFunil] = useState(() => funilDoModelo("comercial_padrao"));
+  const [funil, setFunil] = useState(() => funilDoModelo("vendas_consultivas"));
   const [adminName, setAdminName] = useState("");
   const [adminPhone, setAdminPhone] = useState("");
   const [iniciarWhatsapp, setIniciarWhatsapp] = useState(false);
@@ -170,7 +170,7 @@ export function NovoTenantModal({ isOpen, onClose, onCreated, implementation }: 
     setPasso(0);
     setEmpresa(DADOS_VAZIOS);
     setFuso(FUSOS[0].id);
-    setFunil(funilDoModelo("comercial_padrao"));
+    setFunil(funilDoModelo("vendas_consultivas"));
     setAdminName("");
     setAdminPhone("");
     setIniciarWhatsapp(false);
@@ -223,7 +223,7 @@ export function NovoTenantModal({ isOpen, onClose, onCreated, implementation }: 
       if (!name.trim()) return "Informe o nome da empresa.";
       if (!implementation && empresa.cnpj && !isValidCnpj(empresa.cnpj)) return "CNPJ inválido — confira os dígitos ou deixe em branco.";
     }
-    if (i === 1 && funil.modelo !== SEM_FUNIL && !montarFunil(funil)) return "O funil precisa ter pelo menos uma etapa com nome.";
+    if (i === 1 && !montarFunil(funil)) return "O funil precisa ter pelo menos uma etapa com nome.";
     if (i === 3) {
       if (!/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(adminEmail.trim())) return "Informe um e-mail válido para o administrador.";
       if (adminPassword.length < 8) return "A senha do administrador deve conter pelo menos 8 caracteres.";
@@ -245,7 +245,7 @@ export function NovoTenantModal({ isOpen, onClose, onCreated, implementation }: 
       if (problema) { setPasso(i); toast.error(problema); return; }
     }
 
-    const funilFinal = funil.modelo !== SEM_FUNIL ? montarFunil(funil) : null;
+    const funilFinal = montarFunil(funil);
     setLoading(true);
     try {
       const res = await createTenantAdmin(name.trim(), niche, adminEmail.trim(), adminPassword, {
@@ -648,8 +648,8 @@ export function NovoTenantModal({ isOpen, onClose, onCreated, implementation }: 
         <dl className="rounded-xl border border-[var(--color-border-default)] p-3 grid grid-cols-[auto_1fr] gap-x-4 gap-y-1 text-[11px]">
           {([
             ["Empresa", `${name.trim()} · ${niche}`],
-            ["Funil", [funil.modelo === SEM_FUNIL ? "" : montarFunil(funil)?.nome, funil.comSdr ? "Funil SDR IA" : ""].filter(Boolean).join(" e ") || "Nenhum por enquanto"],
-            ["Etapas", funil.modelo === SEM_FUNIL ? "—" : montarFunil(funil)?.etapas.join(" → ") ?? "—"],
+            ["Funil", [montarFunil(funil)?.nome, funil.comSdr ? "Funil SDR IA" : ""].filter(Boolean).join(" e ") || "—"],
+            ["Etapas", montarFunil(funil)?.etapas.join(" → ") ?? "—"],
             ["Plano", plans.find(p => p.id === planId)?.name ?? (implementation ? "O da proposta vendida (se houver)" : "Sem plano definido")],
             ["Módulos", MODULES.filter(m => modules[m.id]).map(m => m.label).join(", ") || "Nenhum"],
           ] as [string, string][]).map(([rotulo, valor]) => (

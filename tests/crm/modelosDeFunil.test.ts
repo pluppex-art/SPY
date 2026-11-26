@@ -14,8 +14,9 @@ test("todo modelo vira um funil com Novo Lead na entrada e as três etapas de si
   }
 });
 
-test("modelo Luminar repete as etapas e cores do funil comercial da Luminar", () => {
-  const m = MODELOS_DE_FUNIL.find((x) => x.id === "orcamento_luminar")!;
+test("só dois tipos: consultivas e rápidas, esta com as etapas e cores do funil comercial da Luminar", () => {
+  assert.deepEqual(MODELOS_DE_FUNIL.map((x) => x.titulo), ["Vendas consultivas", "Vendas rápidas"]);
+  const m = MODELOS_DE_FUNIL.find((x) => x.id === "vendas_rapidas")!;
   assert.deepEqual(m.etapas.map((e) => [e.nome, e.cor]), [["Novo Lead", "blue"], ["Orçamento", "orange"], ["Repescagem", "cyan"]]);
 });
 

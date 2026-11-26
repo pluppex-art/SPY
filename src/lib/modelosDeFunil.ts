@@ -17,27 +17,6 @@ const etapa = (nome: string, cor: string, iniciarMinimizado = false): EtapaDoFun
 
 export const MODELOS_DE_FUNIL: ModeloDeFunil[] = [
   {
-    id: "comercial_padrao",
-    titulo: "Comercial padrão",
-    descricao: "Do primeiro contato ao fechamento. Serve para a maioria das empresas.",
-    nomeDoFunil: "Funil Comercial Principal",
-    etapas: [etapa("Novo Lead", "blue"), etapa("Qualificação", "orange"), etapa("Apresentação", "cyan"), etapa("Negociação", "purple"), etapa("Fechamento", "indigo")],
-  },
-  {
-    id: "orcamento_luminar",
-    titulo: "Orçamento (modelo Luminar)",
-    descricao: "Loja que recebe o pedido, manda orçamento e volta a chamar quem não respondeu.",
-    nomeDoFunil: "Funil Comercial Principal",
-    etapas: [etapa("Novo Lead", "blue"), etapa("Orçamento", "orange"), etapa("Repescagem", "cyan")],
-  },
-  {
-    id: "vendas_rapidas",
-    titulo: "Vendas rápidas",
-    descricao: "Venda decidida na própria conversa: atende, envia a proposta e recebe.",
-    nomeDoFunil: "Vendas Rápidas",
-    etapas: [etapa("Novo Lead", "blue"), etapa("Em Atendimento", "orange"), etapa("Proposta Enviada", "purple"), etapa("Aguardando Pagamento", "amber")],
-  },
-  {
     id: "vendas_consultivas",
     titulo: "Vendas consultivas",
     descricao: "Venda mais longa: diagnóstico, reunião, proposta, negociação e contrato.",
@@ -46,6 +25,14 @@ export const MODELOS_DE_FUNIL: ModeloDeFunil[] = [
       etapa("Novo Lead", "blue"), etapa("Qualificação", "orange"), etapa("Diagnóstico", "cyan"), etapa("Reunião / Apresentação", "indigo"),
       etapa("Proposta", "purple"), etapa("Follow-Up", "pink", true), etapa("Negociação", "amber"), etapa("Contrato", "emerald"),
     ],
+  },
+  {
+    // Mesmas etapas e cores do funil comercial da Luminar.
+    id: "vendas_rapidas",
+    titulo: "Vendas rápidas",
+    descricao: "Recebe o pedido, manda o orçamento e volta a chamar quem não respondeu.",
+    nomeDoFunil: "Vendas Rápidas",
+    etapas: [etapa("Novo Lead", "blue"), etapa("Orçamento", "orange"), etapa("Repescagem", "cyan")],
   },
 ];
 
