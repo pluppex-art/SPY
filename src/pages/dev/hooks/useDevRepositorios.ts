@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback, useRef } from 'react';
 import { supabase } from '../../../lib/supabase';
 import { useAuth } from '../../../contexts/AuthContext';
 import { toast } from 'sonner';
-import { buscarRepositorios, type Linguagem, type RepoGitHub } from '../lib/github';
+import { buscarRepositorios, buscarDetalhes, type Linguagem, type RepoGitHub } from '../lib/github';
 import type { NovoRepositorioPayload } from '../modals/NovoRepositorioDevModal';
 
 export interface DevRepo {
@@ -105,6 +105,7 @@ export function useDevRepositorios() {
   const [githubErro, setGithubErro] = useState<string | null>(null);
   const [githubAvisos, setGithubAvisos] = useState<string[]>([]);
   const pedido = useRef(0); // resposta de um pedido antigo (outra empresa, ou já desconectado) é descartada
+  const token = useRef('');
 
   const recarregar = useCallback(async () => {
     if (!supabase || !activeTenantId) return;
@@ -129,6 +130,7 @@ export function useDevRepositorios() {
         setRepos(manuais);
         return;
       }
+      token.current = cfg.pat;
       setGithubConn({ username: cfg.username, avatar: cfg.avatar, connected_at: cfg.connected_at });
       setRepos(prev => [...prev.filter(r => r.fromGitHub), ...manuais]);
 
@@ -150,6 +152,11 @@ export function useDevRepositorios() {
     setGithubConn(null);
     void recarregar();
   }, [recarregar]);
+
+  const detalhar = useCallback(
+    (repo: DevRepo) => buscarDetalhes(token.current, String(repo.id).replace(/^gh-/, ''), repo.owner ?? '', repo.name),
+    [],
+  );
 
   async function addRepo(payload: NovoRepositorioPayload) {
     const visibility = payload.visibility === 'Público' ? 'public' : 'private';
@@ -177,6 +184,7 @@ export function useDevRepositorios() {
       if (error) { toast.error('Não foi possível desconectar o GitHub.'); return; }
     }
     pedido.current++;
+    token.current = '';
     setLoading(false);
     setGithubConn(null);
     setGithubErro(null);
@@ -185,5 +193,5 @@ export function useDevRepositorios() {
     toast.success('GitHub desconectado.');
   }
 
-  return { repos, loading, addRepo, githubConn, githubErro, githubAvisos, recarregar, disconnectGitHub };
+  return { repos, loading, addRepo, githubConn, githubErro, githubAvisos, recarregar, detalhar, disconnectGitHub };
 }

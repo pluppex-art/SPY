@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { buscarRepositorios, repoDoGitHub, somarLinguagens, MAX_PAGINAS } from "../../src/pages/dev/lib/github.js";
+import { buscarRepositorios, repoDoGitHub, somarLinguagens, MAX_PAGINAS, tecnologias, blocosDoReadme, resumoDoProjeto, buscarDetalhes } from "../../src/pages/dev/lib/github.js";
 
 const no = (id: string, extra: any = {}) => ({ id, name: `r${id}`, url: `https://github.com/a/r${id}`, owner: { login: "a" }, ...extra });
 const resposta = (nodes: any[], mais = false, cursor = "c", extra: { status?: number; escopos?: string; errors?: any[] } = {}) =>
@@ -61,4 +61,56 @@ test("busca: 502 repete com página menor; muitas páginas param no teto com avi
   const r = await buscarRepositorios("t", async () => resposta([no(String(++n))], true, `c${n}`));
   assert.equal(n, MAX_PAGINAS);
   assert.match(r.avisos[0], /mais recentemente/);
+});
+
+test("tecnologias pelo package.json e pelos arquivos da raiz, sem repetir", () => {
+  const pkg = JSON.stringify({ dependencies: { react: "19", pg: "8", lodash: "4" }, devDependencies: { vite: "6", prisma: "6", "@prisma/client": "6" } });
+  assert.deepEqual(tecnologias(pkg, ["Dockerfile", "docker-compose.yml", "src"]), ["Docker", "PostgreSQL", "Prisma", "React", "Vite"]);
+  assert.deepEqual(tecnologias("isto não é json", ["go.mod"]), ["Go"]);
+  assert.deepEqual(tecnologias(null, []), []);
+});
+
+const README = `<!-- oculto -->
+<p align="center"><img src="x.png"></p>
+
+[![build](https://selo)](https://ci)
+
+# Meu **Projeto**
+
+Sistema de [vendas](https://x) para clínicas
+com painel financeiro.
+
+- Item um
+1. Item dois
+
+\`\`\`bash
+npm i
+\`\`\`
+<script>alert(1)</script>`;
+
+test("README vira blocos de texto, sem HTML, imagens, selos nem comentários", () => {
+  const b = blocosDoReadme(README);
+  assert.deepEqual(b.slice(0, 5), [
+    { tipo: "titulo", texto: "Meu Projeto" }, { tipo: "texto", texto: "Sistema de vendas para clínicas com painel financeiro." },
+    { tipo: "item", texto: "Item um" }, { tipo: "item", texto: "Item dois" }, { tipo: "codigo", texto: "npm i" },
+  ]);
+  assert.ok(b.every((x) => !x.texto.includes("<") && !x.texto.includes("oculto")));
+});
+
+test("resumo do projeto: descrição; curta ou ausente, completa com o README; senão vazio", () => {
+  const longa = "Plataforma completa de vendas, atendimento e financeiro para clínicas.";
+  assert.equal(resumoDoProjeto(longa, README), longa);
+  assert.equal(resumoDoProjeto(" CRM ", README), "CRM\n\nSistema de vendas para clínicas com painel financeiro.");
+  assert.equal(resumoDoProjeto("CRM", ""), "CRM");
+  assert.equal(resumoDoProjeto("", README), "Sistema de vendas para clínicas com painel financeiro.");
+  assert.equal(resumoDoProjeto("", "# Só título\n\ncurto"), "");
+});
+
+test("detalhes: junta consulta e README; sem README fica vazio; site perigoso é ignorado", async () => {
+  const node = { homepageUrl: "javascript:alert(1)", refs: { nodes: [{ name: "main" }] }, defaultBranchRef: { target: { history: { totalCount: 7, nodes: [{ messageHeadline: "m", url: "u", committedDate: "2026-01-01", author: { name: "Ana" } }] } } } };
+  const fetchFn = (temReadme: boolean) => async (u: any) => String(u).endsWith("/graphql") ? new Response(JSON.stringify({ data: { node } })) : new Response(temReadme ? "# Oi" : "{}", { status: temReadme ? 200 : 404 });
+  const d = await buscarDetalhes("t", "ID", "a", "r", fetchFn(true));
+  assert.deepEqual([d.site, d.readme, d.totalCommits, d.branches, d.commits[0].autor], [null, "# Oi", 7, ["main"], "Ana"]);
+  assert.equal((await buscarDetalhes("t", "ID", "a", "r", fetchFn(false))).readme, "");
+  await assert.rejects(buscarDetalhes("t", "ID", "a", "r", async () => new Response("{}", { status: 401 })), /401/);
 });

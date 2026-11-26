@@ -9,6 +9,7 @@ import { ConectarGitHubModal } from "./modals/ConectarGitHubModal";
 import { useDevRepositorios } from "./hooks/useDevRepositorios";
 import { useAuth } from "../../contexts/AuthContext";
 import { somarLinguagens } from "./lib/github";
+import { RepositorioPainel } from "./components/RepositorioPainel";
 
 // Cores usadas só nos repositórios cadastrados à mão (os do GitHub já vêm com a cor da linguagem).
 const LANG_COLORS: Record<string, string> = {
@@ -29,7 +30,8 @@ const STATUS_STYLE: Record<string, string> = {
 
 export default function Repositorios() {
   const { user, activeTenantId } = useAuth();
-  const { repos, loading, addRepo, githubConn, githubErro, githubAvisos, recarregar, disconnectGitHub } = useDevRepositorios();
+  const { repos, loading, addRepo, githubConn, githubErro, githubAvisos, recarregar, detalhar, disconnectGitHub } = useDevRepositorios();
+  const [aberto, setAberto] = useState<string | number | null>(null);
   const [search, setSearch] = useState('');
   const [filterVisibility, setFilterVisibility] = useState<'todos' | 'public' | 'private'>('todos');
   const [filterLang, setFilterLang] = useState('');
@@ -174,7 +176,10 @@ export default function Repositorios() {
               </div>
             )}
             {filtered.map(repo => (
-              <div key={String(repo.id)} className="flex items-start gap-4 p-5 hover:bg-[var(--color-surface-sunken)]/50 transition-colors">
+              <div key={String(repo.id)} role="button" tabIndex={0} title="Ver detalhes do projeto"
+                onClick={() => setAberto(repo.id)}
+                onKeyDown={e => { if (e.target === e.currentTarget && (e.key === 'Enter' || e.key === ' ')) { e.preventDefault(); setAberto(repo.id); } }}
+                className="flex items-start gap-4 p-5 hover:bg-[var(--color-surface-sunken)]/50 transition-colors cursor-pointer">
                 <div className="p-2.5 rounded-xl bg-[var(--color-surface-sunken)] shrink-0">
                   {repo.status === 'arquivado'
                     ? <Archive className="w-4 h-4 text-slate-500" />
@@ -247,6 +252,7 @@ export default function Repositorios() {
                       target="_blank"
                       rel="noopener noreferrer"
                       title="Abrir no GitHub"
+                      onClick={e => e.stopPropagation()}
                       className="p-1.5 rounded-lg border border-[var(--color-border-default)] text-[var(--color-text-muted)] hover:text-blue-400 hover:bg-blue-500/10 hover:border-blue-500/25 transition-colors"
                     >
                       <ExternalLink className="w-4 h-4" />
@@ -258,6 +264,8 @@ export default function Repositorios() {
           </div>
         </Card>
       </div>
+
+      <RepositorioPainel repo={repos.find(r => r.id === aberto) ?? null} onClose={() => setAberto(null)} detalhar={detalhar} />
 
       <NovoRepositorioDevModal
         isOpen={isModalOpen}
