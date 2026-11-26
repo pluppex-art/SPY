@@ -1,7 +1,8 @@
+import { BackupEmpresaModal } from "./BackupEmpresaModal";
 import type { Situacao } from "../../../lib/situacaoEmpresa";
 import { apiFetch } from "../../../lib/apiClient";
 import { useState, useEffect, useMemo } from "react";
-import { Search, Server, Plus, Settings, ShieldCheck, RefreshCw, Building2, Pencil, Trash2, Ban, RotateCcw, KeyRound, Layers, LayoutGrid, ListFilter, Filter, X } from "lucide-react";
+import { Search, Server, Plus, Settings, ShieldCheck, RefreshCw, Building2, Pencil, Trash2, Ban, Archive, RotateCcw, KeyRound, Layers, LayoutGrid, ListFilter, Filter, X } from "lucide-react";
 import {
   fetchTenantsDetailed,
   updateTenantInfo,
@@ -80,6 +81,7 @@ export function AdminTenantsTab({
   const [savingEdit, setSavingEdit] = useState(false);
 
   // Situação de cada empresa (em dia, em atraso, desabilitada, pronta para exclusão), calculada no servidor.
+  const [backupDe, setBackupDe] = useState<TenantItem | null>(null);
   const [situacoes, setSituacoes] = useState<Record<string, Situacao>>({});
   const loadSituacoes = async () => {
     try {
@@ -476,6 +478,10 @@ export function AdminTenantsTab({
                     <Pencil className="w-3.5 h-3.5 text-[var(--color-primary-blue)]" />
                   </button>
 
+                  <button type="button" onClick={() => setBackupDe(tenant)} title="Backup da empresa" aria-label={`Backup de ${tenant.name}`}
+                    className="p-2 rounded-xl bg-[var(--color-surface-sunken)] hover:bg-[var(--color-surface)] border border-[var(--color-border-default)] text-[var(--color-text-muted)] hover:text-[var(--color-primary-blue)] transition-all cursor-pointer">
+                    <Archive className="w-3.5 h-3.5" />
+                  </button>
                   {!isMaster && (tenant.status === "Inactive" || tenant.status === "Deleted" ? (
                     <button type="button" onClick={() => mudarAcesso(tenant, "reativar")} title="Reativar empresa" aria-label={`Reativar ${tenant.name}`}
                       className="p-2 bg-[var(--color-surface-sunken)] hover:bg-emerald-500/10 border border-[var(--color-border-default)] hover:border-emerald-500/30 text-[var(--color-text-muted)] hover:text-emerald-500 rounded-xl transition-all cursor-pointer">
@@ -504,7 +510,7 @@ export function AdminTenantsTab({
                   <th className="py-3 px-4">Módulos Ativos</th>
                   <th className="py-3 px-4">Segurança & RLS</th>
                   <th className="py-3 px-4">Status</th>
-                  <th className="py-3 px-4 text-right"><span className="inline-flex items-center gap-1">Ações<HelpTip label="O que cada botão faz">Editar Dados: altera o cadastro e as credenciais administrativas da empresa. Desabilitar: os usuários da empresa deixam de entrar, os dados ficam guardados. Reativar: volta a liberar. Nada é excluído.</HelpTip></span></th>
+                  <th className="py-3 px-4 text-right"><span className="inline-flex items-center gap-1">Ações<HelpTip label="O que cada botão faz">Editar Dados: altera o cadastro e as credenciais administrativas da empresa. Desabilitar: os usuários da empresa deixam de entrar, os dados ficam guardados. Reativar: volta a liberar. Backup: copia os dados e arquivos da empresa para baixar. Nada é excluído.</HelpTip></span></th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-[var(--color-border-subtle)]">
@@ -574,6 +580,10 @@ export function AdminTenantsTab({
                           >
                             <Pencil className="w-3.5 h-3.5 text-[var(--color-primary-blue)]" />
                           </button>
+                          <button type="button" onClick={() => setBackupDe(tenant)} title="Backup da empresa" aria-label={`Backup de ${tenant.name}`}
+                            className="p-1.5 rounded-lg bg-[var(--color-surface-sunken)] hover:bg-[var(--color-surface)] border border-[var(--color-border-default)] text-[var(--color-text-muted)] hover:text-[var(--color-primary-blue)] transition-all cursor-pointer">
+                            <Archive className="w-3.5 h-3.5" />
+                          </button>
                           {!isMaster && (tenant.status === "Inactive" || tenant.status === "Deleted" ? (
                             <button type="button" onClick={() => mudarAcesso(tenant, "reativar")} title="Reativar" aria-label={`Reativar ${tenant.name}`}
                               className="p-1.5 bg-[var(--color-surface-sunken)] hover:bg-emerald-500/10 border border-[var(--color-border-default)] text-[var(--color-text-muted)] hover:text-emerald-500 rounded-lg transition-all cursor-pointer">
@@ -595,6 +605,8 @@ export function AdminTenantsTab({
           </div>
         </div>
       )}
+
+      <BackupEmpresaModal empresa={backupDe} onClose={() => setBackupDe(null)} />
 
       {/* Edit Tenant & Admin Credentials Modal */}
       {editingTenant && (
