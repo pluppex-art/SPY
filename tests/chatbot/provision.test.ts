@@ -40,7 +40,8 @@ function deps(db: any, over: any = {}) {
   return { sent, hooks, d: {
     db, planIdFromLead: async () => null, provisionPlan: async () => ({}), publicAppUrl: () => "https://app.spy.com",
     buildAccessMail: (a: any) => ({ subject: "Acesso", html: `<a href="${a.url}">${a.name}</a>` }), sendEmail: async (m: any) => { sent.push(m); },
-    fetchImpl: (async (url: string, init: any) => { hooks.push({ url, init }); return { ok: true, status: 200 }; }) as any, ...over,
+    fetchImpl: (async (url: string, init: any) => { hooks.push({ url, init }); return { ok: true, status: 200 }; }) as any,
+    provisionRadar: (async () => ({ ok: true })) as any, ...over, // nunca fala com o n8n de verdade
   } };
 }
 
@@ -63,6 +64,14 @@ test("dados completos: cria ambiente + admin, link de senha por e-mail (sem senh
   assert.equal(hooks.length, 1); assert.equal(hooks[0].init.headers["X-Webhook-Secret"], "s3");
   const body = JSON.parse(hooks[0].init.body); assert.equal(body.tenant_id, db.t.tenants[0].id); assert.equal(body.implementation_id, "i1");
   assert.match(db.t.implementations[0].internal_notes, /agente de implementação acionado/);
+});
+
+test("Radar que não é criado vira aviso nas notas, sem desfazer o ambiente", async () => {
+  process.env.SPY_IMPLEMENTACAO_WEBHOOK_SECRET = "s3";
+  const db = fakeDb(seed()); const { d } = deps(db, { provisionRadar: async () => ({ ok: false, motivo: "n8n fora do ar" }) });
+  const r = await provisionTenantForImplementation(d, "i1", "OWN");
+  assert.equal(r.status, "created"); assert.equal(db.t.tenants.length, 1);
+  assert.match(db.t.implementations[0].internal_notes, /Radar da empresa não foi criado \(n8n fora do ar\)/);
 });
 
 test("não duplica: já vinculada não cria nem aciona de novo; dados incompletos também não", async () => {

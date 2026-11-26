@@ -27,6 +27,8 @@ export interface ProvisionDeps {
   buildAccessMail: (a: { name: string; company: string; url: string; appHost: string }) => { subject: string; html: string; text?: string };
   sendEmail: (mail: { to: string; subject: string; html: string; text?: string }) => Promise<unknown>;
   fetchImpl?: typeof fetch;
+  /** Cria o webhook de busca do Radar da empresa nova (padrão: API do n8n). */
+  provisionRadar?: typeof provisionarRadarDaEmpresa;
 }
 
 export interface ProvisionResult {
@@ -118,7 +120,7 @@ export async function provisionTenantForImplementation(deps: ProvisionDeps, impl
 
   // Radar da empresa: webhook de busca próprio, criado sozinho (falha vira aviso, não derruba o ambiente).
   try {
-    const radar = await provisionarRadarDaEmpresa(db, tenant.id, company);
+    const radar = await (deps.provisionRadar ?? provisionarRadarDaEmpresa)(db, tenant.id, company);
     if (!radar.ok) problems.push(`o Radar da empresa não foi criado (${radar.motivo})`);
   } catch { problems.push("o Radar da empresa não foi criado"); }
 

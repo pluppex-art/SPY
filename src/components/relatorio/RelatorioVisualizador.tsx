@@ -27,7 +27,8 @@ const CSS_IMPRESSAO = `
   body > *:not(#spy-relatorio) { display: none !important; }
   #spy-relatorio { position: static !important; height: auto !important; overflow: visible !important; background: #fff !important; }
   #spy-relatorio .spy-rel-cards > div { grid-template-columns: repeat(4, minmax(0, 1fr)) !important; }
-  #spy-relatorio * { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+  /* Sombra vira um retângulo cinza em volta dos cartões no PDF. */
+  #spy-relatorio * { -webkit-print-color-adjust: exact; print-color-adjust: exact; box-shadow: none !important; }
 }`;
 
 export default function RelatorioVisualizador({ areas, periodo, onFechar }: {
