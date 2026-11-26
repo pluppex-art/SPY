@@ -18,11 +18,13 @@ interface Props {
   /** Administrador conectando o WhatsApp de um colaborador (o QR é lido no celular dele). Sem isso: o próprio usuário. */
   colaboradorId?: string;
   colaboradorNome?: string;
+  /** "interno" = sessão do Agente Secreto Interno (grupos da equipe). Padrão: vendas. */
+  finalidade?: "interno";
 }
 
 // QR code do Agente Secreto do próprio usuário (sessão resolvida no servidor, nunca enviada pelo navegador).
 // Renova o QR sozinho, religa a sessão se ela caiu e fecha quando o WhatsApp conectar.
-export function AgenteSecretoQrModal({ open, onClose, onConnected, checkConnected, title = "Conectar o Agente Secreto", colaboradorId, colaboradorNome }: Props) {
+export function AgenteSecretoQrModal({ open, onClose, onConnected, checkConnected, title = "Conectar o Agente Secreto", colaboradorId, colaboradorNome, finalidade }: Props) {
   const [qr, setQr] = useState("");
   const [error, setError] = useState("");
   const closedRef = useRef(false);
@@ -37,7 +39,7 @@ export function AgenteSecretoQrModal({ open, onClose, onConnected, checkConnecte
     const refreshQr = async () => {
       let next = QR_REFRESH_MS;
       try {
-        const r = await apiFetch(colaboradorId ? `/api/agente-secreto/sessoes/${encodeURIComponent(colaboradorId)}/qr` : "/api/agente-secreto/minha-sessao/qr", { method: "POST" });
+        const r = await apiFetch((colaboradorId ? `/api/agente-secreto/sessoes/${encodeURIComponent(colaboradorId)}/qr` : "/api/agente-secreto/minha-sessao/qr") + (finalidade ? `?finalidade=${finalidade}` : ""), { method: "POST" });
         const data = await r.json().catch(() => ({}));
         if (closedRef.current) return;
         if (data.status === "CONNECTED") { onConnected(); return; }

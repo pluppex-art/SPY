@@ -1,3 +1,4 @@
+import { isVendedorColab } from "../../../../lib/sellers";
 import { useRef, useState, useMemo } from "react";
 import { Users, UserPlus, Mail, Calendar, MoreVertical, TrendingUp, UserX, Coffee, Plane, Pencil, Phone, Building2 } from "lucide-react";
 import { KpiFilterCard, FilterBar, FilterSearch, FilterSelect, FilterChips } from "../../../../components/ui/kpi-filter-card";
@@ -27,18 +28,22 @@ interface MembrosSectionProps {
   onConectarColaborador?: (colab: any) => void;
   /** Status do Agente Secreto por colaborador (só quem tem sessão aparece). */
   agenteStatus?: Record<string, string>;
+  /** Status do Agente Secreto Interno por colaborador (sessão que lê os grupos da equipe). */
+  agenteInternoStatus?: Record<string, string>;
+  /** Abre os dois Agentes Secretos (Interno e Vendas) da pessoa. */
+  onAbrirAgentes?: (colab: any) => void;
 }
 
 // Ícone próprio do Agente Secreto (símbolo do S.P.Y.: chapéu de espião + mira), separado do status Ativo do
 // colaborador: verde = conectado, vermelho = desconectado, âmbar = pausado (férias/afastado), cinza = sem sessão.
 const AGENTE_COR = { ativo: "#10B981", caiu: "#F43F5E", pausado: "#F59E0B", semSessao: "#94A3B8" } as const;
 
-function AgenteSecretoBadge({ colab, status }: { colab: any; status?: string }) {
-  let hex: string = AGENTE_COR.semSessao, texto = "Agente Secreto: sem sessão";
+function AgenteSecretoBadge({ colab, status, rotulo = "Agente Secreto" }: { colab: any; status?: string; rotulo?: string }) {
+  let hex: string = AGENTE_COR.semSessao, texto = `${rotulo}: sem sessão`;
   if (status) {
-    if (colab.status !== "Ativo") { hex = AGENTE_COR.pausado; texto = "Agente Secreto pausado"; }
-    else if (status === "CONNECTED") { hex = AGENTE_COR.ativo; texto = "Agente Secreto ativo"; }
-    else { hex = AGENTE_COR.caiu; texto = "Agente Secreto desconectado"; }
+    if (colab.status !== "Ativo") { hex = AGENTE_COR.pausado; texto = `${rotulo} pausado`; }
+    else if (status === "CONNECTED") { hex = AGENTE_COR.ativo; texto = `${rotulo} ativo`; }
+    else { hex = AGENTE_COR.caiu; texto = `${rotulo} desconectado`; }
   }
   return (
     <div className="inline-flex items-center gap-1.5 text-[10px] font-bold" style={{ color: hex }} title={texto}>
@@ -51,7 +56,7 @@ function AgenteSecretoBadge({ colab, status }: { colab: any; status?: string }) 
 export function MembrosSection({
   filtered: filteredBySearch, search, onSearchChange,
   menuOpenId, setMenuOpenId, onVerPerfil, onEditColab,
-  onChangeStatus, onDesligar, canManageSessions, podeGerenciar = true, onCriarSessao, currentUserId, onConectarAgente, onConectarColaborador, agenteStatus,
+  onChangeStatus, onDesligar, canManageSessions, podeGerenciar = true, onCriarSessao, currentUserId, onConectarAgente, onConectarColaborador, agenteStatus, agenteInternoStatus, onAbrirAgentes,
 }: MembrosSectionProps) {
   const menuRef = useRef<HTMLDivElement>(null);
   const [depto, setDepto] = useState("");
@@ -113,7 +118,10 @@ export function MembrosSection({
                       ● {colab.status}
                     </Badge>
                   </div>
-                  <div><AgenteSecretoBadge colab={colab} status={agenteStatus?.[colab.id]} /></div>
+                  <div className="space-y-0.5">
+                    <div><AgenteSecretoBadge colab={colab} status={agenteInternoStatus?.[colab.id]} rotulo="Agente Interno" /></div>
+                    {(isVendedorColab(colab) || agenteStatus?.[colab.id] !== undefined) && <div><AgenteSecretoBadge colab={colab} status={agenteStatus?.[colab.id]} rotulo="Agente de Vendas" /></div>}
+                  </div>
                   <h3 className="text-sm font-bold text-[var(--color-text-primary)] truncate">{colab.nome}</h3>
                   <p className="text-[11px] text-[var(--color-text-muted)] font-medium truncate">{colab.cargo}</p>
 
@@ -188,7 +196,12 @@ export function MembrosSection({
                         <Users className="w-3.5 h-3.5 text-emerald-500" /> Marcar como Ativo
                       </button>
                       </>)}
-                      {onConectarAgente && currentUserId && colab.user_id === currentUserId && (
+                      {onAbrirAgentes && (podeGerenciar || (currentUserId && colab.user_id === currentUserId)) && (
+                        <button onClick={() => { setMenuOpenId(null); onAbrirAgentes(colab); }} className="w-full flex items-center gap-2.5 px-3 py-2 text-xs font-bold text-[var(--color-text-muted)] hover:text-[var(--color-text-primary)] hover:bg-[var(--color-surface-sunken)] rounded-lg transition-colors text-left cursor-pointer">
+                          <Logo variant="icon" color={AGENTE_COR.ativo} size={14} className="inline-flex shrink-0" /> Agentes Secretos (Interno{isVendedorColab(colab) ? " e Vendas" : ""})
+                        </button>
+                      )}
+                      {onConectarAgente && currentUserId && colab.user_id === currentUserId && (isVendedorColab(colab) || agenteStatus?.[colab.id] !== undefined) && (
                         <button onClick={() => { setMenuOpenId(null); onConectarAgente(); }} className="w-full flex items-center gap-2.5 px-3 py-2 text-xs font-bold text-[var(--color-text-muted)] hover:text-[var(--color-text-primary)] hover:bg-[var(--color-surface-sunken)] rounded-lg transition-colors text-left cursor-pointer">
                           {agenteStatus?.[colab.id] === "CONNECTED"
                           ? <><Logo variant="icon" color={AGENTE_COR.ativo} size={14} className="inline-flex shrink-0" /> Agente Secreto conectado</>
@@ -205,7 +218,7 @@ export function MembrosSection({
                           <Phone className="w-3.5 h-3.5 text-emerald-500/60" /> Sessão do Agente Secreto já criada
                         </div>
                       )}
-                      {canManageSessions && onCriarSessao && agenteStatus?.[colab.id] === undefined && (
+                      {canManageSessions && onCriarSessao && agenteStatus?.[colab.id] === undefined && isVendedorColab(colab) && (
                         <button onClick={() => onCriarSessao(colab)} className="w-full flex items-center gap-2.5 px-3 py-2 text-xs font-bold text-[var(--color-text-muted)] hover:text-[var(--color-text-primary)] hover:bg-[var(--color-surface-sunken)] rounded-lg transition-colors text-left cursor-pointer">
                           <Phone className="w-3.5 h-3.5 text-emerald-500" /> Criar sessão do Agente Secreto
                         </button>

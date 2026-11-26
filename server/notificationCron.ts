@@ -136,7 +136,7 @@ export async function runNotificationReminders(db: any, baseUrl: string): Promis
   // responder, não alarma ninguém: seria um falso positivo para todos de uma vez.
   if (isWahaConfigured()) {
     const { data: sessoes } = await db.from("whatsapp_instances")
-      .select("id, name, colaborador_id, status").not("colaborador_id", "is", null).limit(200);
+      .select("id, name, colaborador_id, status").not("colaborador_id", "is", null).eq("finalidade", "vendas").limit(200);
     const ids = (sessoes || []).map((s: any) => s.colaborador_id);
     const { data: colabs } = ids.length
       ? await db.from("colaboradores").select("id, tenant_id, nome, user_id").in("id", ids).eq("status", "Ativo")
@@ -154,7 +154,7 @@ export async function runNotificationReminders(db: any, baseUrl: string): Promis
     // Um e-mail por QUEDA (não mais um por dia): a "queda" é identificada pelo momento em que a sessão passou a não
     // conectada (whatsapp_instances.updated_at só muda quando o status muda). Se reconectar e cair de novo, sai outro
     // e-mail. Se a sessão oscilar entre estados desconectados, no máximo um e-mail a cada 6 h por colaborador.
-    const { data: atuais } = await db.from("whatsapp_instances").select("colaborador_id, updated_at").not("colaborador_id", "is", null).limit(200);
+    const { data: atuais } = await db.from("whatsapp_instances").select("colaborador_id, updated_at").not("colaborador_id", "is", null).eq("finalidade", "vendas").limit(200);
     const quedaDesde = new Map<string, string>((atuais || []).map((s: any) => [s.colaborador_id, s.updated_at]));
     const seisHoras = new Date(Date.now() - 6 * 60 * MIN).toISOString();
     await forEachBudgeted((agentes || []) as any[], deadline, async (c) => {

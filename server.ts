@@ -5859,13 +5859,15 @@ app.post("/api/whatsapp/instances/for-user", requireUser, async (req: any, res) 
 // Sessão do Agente Secreto do PRÓPRIO usuário logado (whatsapp_instances.colaborador_id). O nome da sessão
 // nunca vem do cliente: sai do colaborador ligado ao login, então ninguém consegue pedir o QR de outra pessoa.
 // Alimenta o aviso "Agente Secreto desconectado" + o botão Reconectar (QR) para o vendedor se reconectar sozinho.
-async function agenteSecretoSessionOf(req: any): Promise<{ nome: string; session: string; ativo: boolean; instanceId: string } | null> {
+// Cada colaborador tem até duas sessões de WhatsApp: "vendas" (Agente Secreto, padrão) e "interno" (Agente Secreto Interno, lê os grupos da equipe).
+const finalidadeDe = (v: unknown): "vendas" | "interno" => (v === "interno" ? "interno" : "vendas");
+async function agenteSecretoSessionOf(req: any, finalidade: "vendas" | "interno" = "vendas"): Promise<{ nome: string; session: string; ativo: boolean; instanceId: string } | null> {
   if (!isWahaConfigured()) return null;
   const { data: colabs } = await req.supabase.from("colaboradores").select("id, nome, status").eq("user_id", req.user.id).limit(5);
   if (!colabs?.length) return null;
   const { data: inst } = await req.supabase
     .from("whatsapp_instances").select("id, name, colaborador_id")
-    .in("colaborador_id", colabs.map((c: any) => c.id)).limit(1);
+    .in("colaborador_id", colabs.map((c: any) => c.id)).eq("finalidade", finalidade).limit(1);
   const row = inst?.[0];
   if (!row) return null;
   const colab = colabs.find((c: any) => c.id === row.colaborador_id);
@@ -5890,7 +5892,7 @@ const sessionNameOf = (inst: any): string => (inst?.colaborador_id ? inst.name :
 
 app.get("/api/agente-secreto/minha-sessao", requireUser, whatsappLimiter, async (req: any, res) => {
   try {
-    const mine = await agenteSecretoSessionOf(req);
+    const mine = await agenteSecretoSessionOf(req, finalidadeDe(req.query?.finalidade));
     if (!mine) return res.json({ session: null });
     try {
       const state = await getWhatsAppProvider().getConnectionState(mine.session);
@@ -5908,7 +5910,7 @@ app.get("/api/agente-secreto/minha-sessao", requireUser, whatsappLimiter, async 
 
 app.post("/api/agente-secreto/minha-sessao/qr", requireUser, whatsappLimiter, async (req: any, res) => {
   try {
-    const mine = await agenteSecretoSessionOf(req);
+    const mine = await agenteSecretoSessionOf(req, finalidadeDe(req.query?.finalidade ?? req.body?.finalidade));
     if (!mine) return res.status(404).json({ error: "Você não tem uma sessão do Agente Secreto." });
     const provider = getWhatsAppProvider();
     const state = await provider.getConnectionState(mine.session);
@@ -5933,8 +5935,8 @@ app.get("/api/agente-secreto/equipe", requireUser, whatsappLimiter, async (req: 
   try {
     if (!isWahaConfigured()) return res.json({ items: {} });
     const { data: rows } = await req.supabase
-      .from("whatsapp_instances").select("id, name, colaborador_id, status").not("colaborador_id", "is", null).limit(500);
-    if (!rows?.length) return res.json({ items: {} });
+      .from("whatsapp_instances").select("id, name, colaborador_id, status, finalidade").not("colaborador_id", "is", null).limit(1000);
+    if (!rows?.length) return res.json({ items: {}, internos: {} });
     const provider = getWhatsAppProvider();
     let states: Record<string, string> = {};
     try { states = (await provider.listSessionStates?.()) || {}; }
@@ -5942,18 +5944,23 @@ app.get("/api/agente-secreto/equipe", requireUser, whatsappLimiter, async (req: 
       console.error("[agente-secreto/equipe]", err?.message);
       return res.json({ items: {}, indisponivel: true }); // WAHA fora do ar: melhor não mostrar nada do que pintar todos de vermelho
     }
-    const items: Record<string, string> = {};
-    for (const r of rows) items[r.colaborador_id] = states[r.name] || "DISCONNECTED"; // sessão sumiu do WAHA = desconectada
+    const items: Record<string, string> = {}, internos: Record<string, string> = {};
+    const estadoDe = new Map<string, string>();
+    for (const r of rows) {
+      const st = states[r.name] || "DISCONNECTED"; // sessão sumiu do WAHA = desconectada
+      estadoDe.set(r.id, st);
+      (r.finalidade === "interno" ? internos : items)[r.colaborador_id] = st;
+    }
     // O n8n só trata mensagens de sessões com status CONNECTED em whatsapp_instances. Quem conecta pelo WAHA direto
     // (ou reconecta depois de uma queda) não passa pela rota antiga que atualizava essa coluna, então o status daqui
     // acompanha o WAHA: assim "aparece conectado" e "o agente recebe as mensagens" nunca divergem.
     if (supabaseService) {
-      const mudou = rows.filter((r: any) => r.status !== items[r.colaborador_id]);
+      const mudou = rows.filter((r: any) => r.status !== estadoDe.get(r.id));
       await Promise.all(mudou.map((r: any) =>
-        supabaseService!.from("whatsapp_instances").update({ status: items[r.colaborador_id], updated_at: new Date().toISOString() }).eq("id", r.id)
+        supabaseService!.from("whatsapp_instances").update({ status: estadoDe.get(r.id), updated_at: new Date().toISOString() }).eq("id", r.id)
       ));
     }
-    res.json({ items });
+    res.json({ items, internos });
   } catch (err: any) {
     console.error("[agente-secreto/equipe]", err?.message);
     res.status(500).json({ error: "Erro ao consultar o Agente Secreto da equipe." });
@@ -5971,9 +5978,10 @@ const isTenantAdminReq = async (req: any): Promise<boolean> => {
 const criandoSessaoAgente = new Set<string>(); // evita duas sessões do mesmo colaborador por clique duplo/requisições simultâneas
 app.post("/api/agente-secreto/sessoes", requireUser, whatsappLimiter, async (req: any, res) => {
   const colaboradorId = String(req.body?.colaboradorId || "");
+  const finalidade = finalidadeDe(req.body?.finalidade);
   if (!/^[\w-]{1,64}$/.test(colaboradorId)) return res.status(400).json({ error: "colaboradorId inválido." });
-  if (criandoSessaoAgente.has(colaboradorId)) return res.status(409).json({ error: "A sessão deste colaborador já está sendo criada. Aguarde alguns segundos." });
-  criandoSessaoAgente.add(colaboradorId);
+  if (criandoSessaoAgente.has(`${colaboradorId}:${finalidade}`)) return res.status(409).json({ error: "A sessão deste colaborador já está sendo criada. Aguarde alguns segundos." });
+  criandoSessaoAgente.add(`${colaboradorId}:${finalidade}`);
   try {
     if (!(await isTenantAdminReq(req))) return res.status(403).json({ error: "Apenas administradores podem criar sessões do Agente Secreto." });
     const provider = getWhatsAppProvider();
@@ -5983,12 +5991,33 @@ app.post("/api/agente-secreto/sessoes", requireUser, whatsappLimiter, async (req
     const { data: colab } = await req.supabase.from("colaboradores").select("id, nome, tenant_id").eq("id", colaboradorId).maybeSingle();
     if (!colab) return res.status(404).json({ error: "Colaborador não encontrado." });
 
-    const { data: existing } = await req.supabase.from("whatsapp_instances").select("id, name").eq("colaborador_id", colab.id).limit(1);
+    const { data: existing } = await req.supabase.from("whatsapp_instances").select("id, name").eq("colaborador_id", colab.id).eq("finalidade", finalidade).limit(1);
     if (existing?.[0]) return res.json({ created: false, name: existing[0].name });
+
+    // Sessão INTERNA: lê os grupos da equipe e entrega ao SPY (que repassa só as mensagens de grupo ao n8n); nunca as conversas privadas.
+    if (finalidade === "interno") {
+      const { data: row, error: e1 } = await req.supabase.from("whatsapp_instances")
+        .insert({ tenant_id: colab.tenant_id, name: `agente-interno-${String(colab.id).replace(/[^A-Za-z0-9]/g, "").slice(0, 12)}`, status: "DISCONNECTED", provider: provider.name, colaborador_id: colab.id, finalidade: "interno" })
+        .select("id, name, webhook_secret").maybeSingle();
+      if (e1 || !row) { console.error("[agente-secreto/sessoes] insert interno", e1?.message); return res.status(500).json({ error: "Não foi possível registrar a sessão interna." }); }
+      const url = `${PUBLIC_APP_URL}/api/whatsapp/webhook/${row.id}?secret=${row.webhook_secret}`;
+      try {
+        await provider.createSessionWithConfig(row.name, {
+          webhooks: [{ url, events: ["message.any"] }],
+          ignore: { status: true, channels: true, broadcast: true }, // grupos NÃO são ignorados: é para isso que a sessão existe
+          gows: { storage: { messages: true, groups: true, chats: true, labels: true, contacts: true } },
+        });
+      } catch (err: any) {
+        await req.supabase.from("whatsapp_instances").delete().eq("id", row.id);
+        throw err;
+      }
+      await req.supabase.from("whatsapp_instances").update({ webhook_url: url }).eq("id", row.id);
+      return res.status(201).json({ created: true, name: row.name });
+    }
 
     // Modelo do webhook: sessão pessoal de outro colaborador; empresa nova (sem nenhuma) usa a sessão do Agente Secreto da empresa.
     const { data: sessoesDaEmpresa } = await req.supabase.from("whatsapp_instances")
-      .select("name, webhook_url, colaborador_id").eq("tenant_id", colab.tenant_id).limit(60);
+      .select("name, webhook_url, colaborador_id").eq("tenant_id", colab.tenant_id).eq("finalidade", "vendas").limit(60);
     const modelos = sessoesModelo(sessoesDaEmpresa || []);
     let webhooks: any[] | null = null;
     let webhookUrl: string | null = null;
@@ -6030,16 +6059,16 @@ app.post("/api/agente-secreto/sessoes", requireUser, whatsappLimiter, async (req
     console.error("[agente-secreto/sessoes]", err?.message);
     res.status(502).json({ error: "Não foi possível criar a sessão agora." });
   } finally {
-    criandoSessaoAgente.delete(colaboradorId);
+    criandoSessaoAgente.delete(`${colaboradorId}:${finalidade}`);
   }
 });
 
 // Administrador conecta/reconecta o Agente Secreto de UM colaborador da empresa (a sessão vem do colaborador, nunca
 // do nome enviado pelo navegador; a RLS limita à empresa do admin). O QR é lido no celular do colaborador.
-async function sessaoDoColaborador(req: any, colaboradorId: string): Promise<{ nome: string; session: string; instanceId: string } | null> {
+async function sessaoDoColaborador(req: any, colaboradorId: string, finalidade: "vendas" | "interno" = "vendas"): Promise<{ nome: string; session: string; instanceId: string } | null> {
   const { data: colab } = await req.supabase.from("colaboradores").select("id, nome").eq("id", colaboradorId).maybeSingle();
   if (!colab) return null;
-  const { data: inst } = await req.supabase.from("whatsapp_instances").select("id, name").eq("colaborador_id", colab.id).limit(1);
+  const { data: inst } = await req.supabase.from("whatsapp_instances").select("id, name").eq("colaborador_id", colab.id).eq("finalidade", finalidade).limit(1);
   const row = inst?.[0];
   return row ? { nome: colab.nome || "", session: row.name, instanceId: row.id } : null;
 }
@@ -6050,7 +6079,7 @@ app.get("/api/agente-secreto/sessoes/:colaboradorId/status", requireUser, whatsa
   try {
     if (!(await isTenantAdminReq(req))) return res.status(403).json({ error: "Apenas administradores." });
     if (!isWahaConfigured()) return res.status(503).json({ error: "WhatsApp (WAHA) não está configurado neste ambiente." });
-    const sess = await sessaoDoColaborador(req, colaboradorId);
+    const sess = await sessaoDoColaborador(req, colaboradorId, finalidadeDe(req.query?.finalidade));
     if (!sess) return res.json({ session: null });
     const state = await getWhatsAppProvider().getConnectionState(sess.session);
     await syncInstanceStatus(sess.instanceId, state.status, state.phone);
@@ -6067,7 +6096,7 @@ app.post("/api/agente-secreto/sessoes/:colaboradorId/qr", requireUser, whatsappL
   try {
     if (!(await isTenantAdminReq(req))) return res.status(403).json({ error: "Apenas administradores." });
     if (!isWahaConfigured()) return res.status(503).json({ error: "WhatsApp (WAHA) não está configurado neste ambiente." });
-    const sess = await sessaoDoColaborador(req, colaboradorId);
+    const sess = await sessaoDoColaborador(req, colaboradorId, finalidadeDe(req.query?.finalidade ?? req.body?.finalidade));
     if (!sess) return res.status(404).json({ error: "Este colaborador não tem sessão do Agente Secreto. Crie a sessão primeiro." });
     const provider = getWhatsAppProvider();
     const state = await provider.getConnectionState(sess.session);
@@ -6093,7 +6122,7 @@ app.post("/api/agente-secreto/sessoes/:colaboradorId/pausa", requireUser, whatsa
     if (!(await isTenantAdminReq(req))) return res.status(403).json({ error: "Apenas administradores." });
     const { data: colab } = await req.supabase.from("colaboradores").select("id").eq("id", colaboradorId).maybeSingle();
     if (!colab) return res.status(404).json({ error: "Colaborador não encontrado." });
-    const { data: inst } = await req.supabase.from("whatsapp_instances").select("name").eq("colaborador_id", colab.id).limit(1);
+    const { data: inst } = await req.supabase.from("whatsapp_instances").select("name").eq("colaborador_id", colab.id).eq("finalidade", finalidadeDe(req.query?.finalidade ?? req.body?.finalidade)).limit(1);
     if (!inst?.[0]) return res.json({ session: null });
     const provider = getWhatsAppProvider();
     const pausado = req.body?.pausado === true;
@@ -6285,7 +6314,7 @@ app.post("/api/whatsapp/webhook/:instanceId", async (req: any, res) => {
   try {
     const { data: inst } = await supabaseService
       .from("whatsapp_instances")
-      .select("id, tenant_id, webhook_secret")
+      .select("id, tenant_id, webhook_secret, finalidade")
       .eq("id", instanceId)
       .maybeSingle();
     if (!inst || !secret || !safeEqual(secret, inst.webhook_secret)) {
@@ -6304,6 +6333,7 @@ app.post("/api/whatsapp/webhook/:instanceId", async (req: any, res) => {
       if (!r.ok) console.error("[whatsapp/webhook] grupo não encaminhado ao n8n:", r.motivo);
       return;
     }
+    if (inst.finalidade === "interno") return; // sessão do Agente Interno: conversas privadas nunca entram no SPY
     if (body.event !== "message") return; // session.status e outros eventos: só ack, sem processar.
 
     const payload = body.payload ?? {};
@@ -6413,7 +6443,7 @@ async function resolverMidiaWhatsapp(req: any, leadId: string, session: unknown,
   if (!lead) return { erro: { status: 404, msg: "Lead não encontrado." } };
   const fones = await telefonesDoLead(req, lead);
   if (!fones.some((f) => foneVariantes(f.digits).includes(chat))) return { erro: { status: 403, msg: "Conversa não pertence ao lead." } };
-  const { data: insts } = await req.supabase.from("whatsapp_instances").select("id, name, colaborador_id").eq("tenant_id", lead.tenant_id);
+  const { data: insts } = await req.supabase.from("whatsapp_instances").select("id, name, colaborador_id").eq("tenant_id", lead.tenant_id).neq("finalidade", "interno");
   if (!(insts || []).some((i: any) => sessionNameOf(i) === session)) return { erro: { status: 403, msg: "Sessão não pertence ao tenant." } };
   return { lead, session, chatId: `${chat}@c.us`, messageId };
 }
@@ -6477,7 +6507,7 @@ app.get("/api/leads/:id/conversa-whatsapp", requireUser, whatsappLimiter, async 
 
     const [{ data: insts }, { data: colabs }] = await Promise.all([
       // RLS não basta: master e parceiros enxergam VÁRIOS tenants. Sempre restringe ao tenant do lead.
-      req.supabase.from("whatsapp_instances").select("id, name, colaborador_id, status").eq("tenant_id", lead.tenant_id),
+      req.supabase.from("whatsapp_instances").select("id, name, colaborador_id, status").eq("tenant_id", lead.tenant_id).neq("finalidade", "interno"),
       req.supabase.from("colaboradores").select("id, nome").eq("tenant_id", lead.tenant_id),
     ]);
     const nomeColab = new Map<string, string>((colabs || []).map((c: any) => [c.id, c.nome]));

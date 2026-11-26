@@ -40,6 +40,8 @@ function profileFromSession(user: ReturnType<typeof useAuth>["user"]): UserProfi
   };
 }
 
+import { AgentesSecretosPainel } from "../../../../components/AgentesSecretosPainel";
+
 export function ConfigPerfilUsuario() {
   const { user, refreshUser, activeTenantId } = useAuth();
   const [profile, setProfile] = useState<UserProfile>(() => profileFromSession(user));
@@ -59,6 +61,7 @@ export function ConfigPerfilUsuario() {
   // existirem duas versões do telefone (users × colaboradores) divergindo entre Aurora e Agente Secreto.
   const navigate = useNavigate();
   const [colabIdentity, setColabIdentity] = useState<{ nome: string; phone: string; cargo: string } | null>(null);
+  const [colabAgentes, setColabAgentes] = useState<any | null>(null);
   const [auroraPrefs, setAuroraPrefs] = useState<AuroraPrefs | null>(null);
   const [loadingAuroraPrefs, setLoadingAuroraPrefs] = useState(true);
   const [savingAuroraPrefs, setSavingAuroraPrefs] = useState(false);
@@ -70,13 +73,14 @@ export function ConfigPerfilUsuario() {
       setLoadingAuroraPrefs(true);
       const { data, error } = await supabase
         .from("colaboradores")
-        .select("id, nome, phone, cargo, recebe_briefing_diario, aurora_responde_audio")
+        .select("id, nome, phone, cargo, departamento, cargos, status, recebe_briefing_diario, aurora_responde_audio")
         .eq("user_id", user.id)
         .eq("tenant_id", activeTenantId)
         .maybeSingle();
       if (cancelled) return;
       if (!error && data) {
         setColabIdentity({ nome: data.nome || "", phone: data.phone || "", cargo: data.cargo || "" });
+        setColabAgentes({ id: data.id, nome: data.nome || "", cargo: data.cargo, departamento: data.departamento, cargos: data.cargos, status: data.status });
         setAuroraPrefs({
           colaboradorId: data.id,
           recebeBriefingDiario: data.recebe_briefing_diario ?? false,
@@ -513,6 +517,16 @@ export function ConfigPerfilUsuario() {
               disabled={savingAuroraPrefs}
             />
           </div>
+        </Card>
+      )}
+
+      {/* Meus Agentes Secretos: o Interno (todos) e o de Vendas (só vendedor/closer), cada um com o seu WhatsApp */}
+      {colabAgentes && (
+        <Card className="p-6 bg-[var(--color-surface-elevated)] border border-[var(--color-border-default)] shadow-sm space-y-4">
+          <h3 className="text-sm font-bold text-[var(--color-text-primary)] flex items-center gap-2 pb-3 border-b border-[var(--color-border-subtle)]">
+            <Sparkles className="w-4 h-4 text-[var(--color-primary-blue)]" /> Meus Agentes Secretos
+          </h3>
+          <AgentesSecretosPainel colaborador={colabAgentes} propria podeGerenciar={!!(user?.isMaster || user?.isTenantAdmin)} />
         </Card>
       )}
 

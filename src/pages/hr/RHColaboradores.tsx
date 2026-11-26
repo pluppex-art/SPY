@@ -16,6 +16,8 @@ import { toast } from "sonner";
 import { confirmDialog } from "../../components/ui/confirm-dialog";
 import { useAuth } from "../../contexts/AuthContext";
 import { MembrosSection } from "./components/RHColaboradores/MembrosSection";
+import { Modal } from "../../components/ui/modal";
+import { AgentesSecretosPainel } from "../../components/AgentesSecretosPainel";
 import { AgenteSecretoQrModal } from "../../components/AgenteSecretoQrModal";
 import { AGENTE_SECRETO_STATUS_EVENT } from "../../components/AgenteSecretoConexao";
 import { NewSquadModal } from "./components/RHColaboradores/NewSquadModal";
@@ -56,6 +58,8 @@ export default function RHColaboradores() {
   const [editingColab, setEditingColab] = useState<any | null>(null);
   const [qrAberto, setQrAberto] = useState(false);
   const [agenteStatus, setAgenteStatus] = useState<Record<string, string>>({});
+  const [agenteInternoStatus, setAgenteInternoStatus] = useState<Record<string, string>>({});
+  const [agentesColab, setAgentesColab] = useState<any | null>(null);
 
   // Bolinha verde/vermelha do Agente Secreto de cada colaborador. Atualiza a cada 30s e quando alguém conecta.
   useEffect(() => {
@@ -64,7 +68,7 @@ export default function RHColaboradores() {
       try {
         const r = await apiFetch("/api/agente-secreto/equipe");
         const d = r.ok ? await r.json().catch(() => null) : null;
-        if (!cancelled && d?.items && !d.indisponivel) setAgenteStatus(d.items);
+        if (!cancelled && d?.items && !d.indisponivel) { setAgenteStatus(d.items); setAgenteInternoStatus(d.internos || {}); }
       } catch { /* sem rede: mantém o último estado */ }
     };
     carregar();
@@ -187,6 +191,8 @@ export default function RHColaboradores() {
   // Quem não tem sessão ignora (o servidor devolve session: null). Falha só avisa — o status já foi salvo.
   const sincronizarSessaoComStatus = async (colabId: string, nome: string, novoStatus: string) => {
     const pausado = novoStatus !== "Ativo";
+    // A sessão interna (grupos) acompanha o mesmo status; quem não tem ignora, e falha aqui não atrapalha o resto.
+    void apiFetch(`/api/agente-secreto/sessoes/${encodeURIComponent(colabId)}/pausa`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ pausado, finalidade: "interno" }) }).catch(() => {});
     try {
       const res = await apiFetch(`/api/agente-secreto/sessoes/${encodeURIComponent(colabId)}/pausa`, {
         method: "POST",
@@ -381,7 +387,8 @@ export default function RHColaboradores() {
             currentUserId={user?.id ?? null}
             onConectarAgente={handleConectarMeuWhatsApp}
             onConectarColaborador={handleConectarColaborador}
-            agenteStatus={agenteStatus}
+            agenteStatus={agenteStatus} agenteInternoStatus={agenteInternoStatus}
+            onAbrirAgentes={setAgentesColab}
           />
         ) : (
           <SquadsTabContent
@@ -427,6 +434,9 @@ export default function RHColaboradores() {
         canGrantTenantAccess={!!user?.isMaster} filiais={filiaisOptions}
       />
       <ColaboradorPerfilModal colab={perfilColab} onClose={() => setPerfilColab(null)} />
+      <Modal isOpen={!!agentesColab} onClose={() => { setAgentesColab(null); window.dispatchEvent(new Event(AGENTE_SECRETO_STATUS_EVENT)); }} maxWidth="max-w-lg" title={`Agentes Secretos${agentesColab ? ` de ${agentesColab.nome}` : ""}`} description="Cada agente usa o seu próprio WhatsApp.">
+        {agentesColab && <AgentesSecretosPainel colaborador={agentesColab} propria={!!(user?.id && agentesColab.user_id === user.id)} podeGerenciar={!!(user?.isMaster || user?.isTenantAdmin)} />}
+      </Modal>
       <AgenteSecretoQrModal
         open={!!qrColab}
         onClose={() => setQrColab(null)}
