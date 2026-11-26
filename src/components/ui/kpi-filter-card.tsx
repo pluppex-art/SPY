@@ -1,17 +1,19 @@
 import { colunasBalanceadas } from "../../lib/gridCols";
 import { Children, createContext, isValidElement, useContext, useEffect, useState, type ReactNode } from "react";
 import { createPortal } from "react-dom";
-import { ChevronDown, Search, SlidersHorizontal, X, type LucideIcon } from "lucide-react";
+import { BarChart3, Search, SlidersHorizontal, X, type LucideIcon } from "lucide-react";
 import { Card } from "./card";
+import { Button } from "./button";
+import { Modal } from "./modal";
+import { HeaderSlotContext } from "./header-slot";
 import { useAuth } from "../../contexts/AuthContext";
 import { cn } from "../../lib/utils";
 
 /**
- * Card "KPIs & Filtros" — o mesmo do Pipeline, para todas as páginas.
+ * Indicadores e filtros das listagens — o mesmo padrão do Pipeline, para todas as páginas.
  *
- * Um único card com cabeçalho clicável (chevron abre/fecha): os KPIs em cima e a barra de filtros
- * embaixo. O estado aberto/fechado fica salvo em users.preferences (`<id>FiltersOpen`), então continua
- * do jeito que a pessoa deixou depois de recarregar. Cada página passa um `id` próprio (ex.: "clientes").
+ * Os filtros ficam soltos na página (sem cartão em volta), logo acima do conteúdo; os indicadores abrem em
+ * uma janela pelo botão "Indicadores", no cabeçalho da página, junto dos demais botões de ação.
  *
  * Uso:
  *   <KpiFilterCard id="clientes" kpis={[{ label: "Ativos", value: 120, icon: Users, tone: "success" }]}
@@ -21,6 +23,8 @@ import { cn } from "../../lib/utils";
  *       <FilterSelect icon={MapPin} value={cidade} onChange={setCidade} options={cidades} allLabel="Todas as cidades" />
  *     </FilterBar>
  *   </KpiFilterCard>
+ *
+ * Indicadores com desenho próprio (cartões clicáveis, gráficos) vão em `indicators`.
  */
 
 export type KpiTone = "primary" | "warning" | "success" | "info" | "accent" | "danger" | "neutral";
@@ -94,28 +98,29 @@ export function findFilterSearch(children: ReactNode): ReactNode {
 }
 
 interface KpiFilterCardProps {
-  /** Identificador da página; vira a chave de preferência `<id>FiltersOpen`. */
+  /** Identificador da página; no celular vira a chave de preferência `<id>FiltersOpenMobile`. */
   id: string;
-  title?: string;
   kpis?: KpiItem[];
+  /** Blocos de indicadores com desenho próprio; aparecem na mesma janela, depois dos `kpis`. */
+  indicators?: ReactNode;
   /** A barra de filtros (use <FilterBar> com <FilterSearch>/<FilterSelect>/etc.). */
   children?: ReactNode;
-  /** Quantos filtros estão ativos (mostra um selo no cabeçalho e o botão "Limpar"). */
+  /** Quantos filtros estão ativos (mostra o botão "Limpar"). */
   activeCount?: number;
   onClear?: () => void;
-  defaultOpen?: boolean;
   className?: string;
-  /** Campo de busca fixo no topo do card no celular (padrão app). Se omitido, usa o <FilterSearch> encontrado dentro do <FilterBar>. */
+  /** Campo de busca fixo no celular (padrão app). Se omitido, usa o <FilterSearch> encontrado dentro do <FilterBar>. */
   search?: ReactNode;
 }
 
-export function KpiFilterCard({ id, title = "Indicadores & Filtros", kpis = [], children, activeCount = 0, onClear, defaultOpen = true, className, search }: KpiFilterCardProps) {
+export function KpiFilterCard({ id, kpis = [], indicators, children, activeCount = 0, onClear, className, search }: KpiFilterCardProps) {
   const { user, updatePreferences } = useAuth();
-  // No celular o card ocupa a tela inteira quando aberto, então começa fechado e guarda a
-  // preferência separada da do desktop (uma não sobrescreve a outra).
+  const headerSlot = useContext(HeaderSlotContext);
+  const [showIndicators, setShowIndicators] = useState(false);
+  // No celular os filtros extras ficam recolhidos atrás do botão "Filtros" (a preferência é lembrada).
   const isMobile = typeof window !== "undefined" && window.matchMedia("(max-width: 767px)").matches;
-  const prefKey = isMobile ? `${id}FiltersOpenMobile` : `${id}FiltersOpen`;
-  const [open, setOpen] = useState(isMobile ? false : defaultOpen);
+  const prefKey = `${id}FiltersOpenMobile`;
+  const [open, setOpen] = useState(false);
 
   useEffect(() => {
     const saved = user?.preferences?.[prefKey];
@@ -128,13 +133,50 @@ export function KpiFilterCard({ id, title = "Indicadores & Filtros", kpis = [], 
     updatePreferences({ [prefKey]: next });
   };
 
-  // Celular: a busca fica sempre visível no topo, ao lado do botão "Filtros"; KPIs e demais filtros abrem ao tocar.
+  const hasIndicators = kpis.length > 0 || !!indicators;
+  const indicatorsButton = hasIndicators ? (
+    <Button
+      variant="outline"
+      onClick={() => setShowIndicators(true)}
+      aria-haspopup="dialog"
+      className="h-9 md:h-10 px-4 gap-1.5 text-[11px] md:text-[10px] font-bold uppercase tracking-wider border-[var(--color-border-default)] max-md:w-full max-md:order-last"
+    >
+      <BarChart3 className="w-3.5 h-3.5" /> Indicadores
+    </Button>
+  ) : null;
+
+  const indicatorsUi = hasIndicators ? (
+    <>
+      {headerSlot ? createPortal(indicatorsButton, headerSlot) : <div className="flex justify-end">{indicatorsButton}</div>}
+      <Modal isOpen={showIndicators} onClose={() => setShowIndicators(false)} title="Indicadores" maxWidth="max-w-6xl">
+        <div className="flex flex-col gap-4">
+          <KpiTiles items={kpis} />
+          {indicators}
+        </div>
+      </Modal>
+    </>
+  ) : null;
+
+  const clearButton = activeCount > 0 && onClear ? (
+    <button
+      type="button"
+      onClick={onClear}
+      className="shrink-0 flex items-center gap-1 h-[38px] px-2 text-xs font-bold text-[var(--color-text-muted)] hover:text-[var(--color-text-primary)] bg-transparent border-none cursor-pointer whitespace-nowrap"
+    >
+      <X className="w-3.5 h-3.5" /> Limpar ({activeCount})
+    </button>
+  ) : null;
+
+  const hasFilters = Children.toArray(children).length > 0;
+
+  // Celular: a busca fica sempre visível, ao lado do botão "Filtros"; os demais filtros abrem ao tocar.
   const mobileSearch: ReactNode = isMobile ? (search ?? findFilterSearch(children)) : null;
 
   if (mobileSearch) {
     return (
-      <Card className={cn("overflow-hidden", className)}>
-        <div className="flex items-center gap-2 p-2">
+      <div className={cn("flex flex-col gap-2", className)}>
+        {indicatorsUi}
+        <div className="flex items-center gap-2">
           <div className="flex-1 min-w-0 [&>div]:!col-span-1">{mobileSearch}</div>
           <button
             type="button"
@@ -152,109 +194,26 @@ export function KpiFilterCard({ id, title = "Indicadores & Filtros", kpis = [], 
           </button>
         </div>
         {open && (
-          <div className="flex flex-col gap-3 px-3 pb-4 [&_[data-mobile-search]]:hidden">
-            {activeCount > 0 && onClear && (
-              <button
-                type="button"
-                onClick={onClear}
-                className="self-start flex items-center gap-1 text-xs font-bold text-[var(--color-text-muted)] cursor-pointer bg-transparent border-none p-0"
-              >
-                <X className="w-3 h-3" /> Limpar filtros ({activeCount})
-              </button>
-            )}
-            <KpiTiles items={kpis} />
+          <div className="flex flex-col gap-2 [&_[data-mobile-search]]:hidden">
+            {clearButton && <div className="self-start">{clearButton}</div>}
             {children}
           </div>
         )}
-      </Card>
+      </div>
     );
   }
 
-  const hasInlineSearch = !open && !!search;
-
-  // Extrai value/onChange do nó <FilterSearch> passado em `search`
-  const searchProps = (() => {
-    if (!search || !isValidElement(search)) return null;
-    const p = search.props as { value?: string; onChange?: (v: string) => void; placeholder?: string };
-    if (typeof p.value !== "string" || typeof p.onChange !== "function") return null;
-    return { value: p.value, onChange: p.onChange, placeholder: p.placeholder ?? "Buscar..." };
-  })();
+  // Sem filtros na tela, não sobra nenhum espaço vazio: só o botão no cabeçalho.
+  if (!hasFilters && !clearButton) return indicatorsUi;
 
   return (
-    <Card className={cn("overflow-hidden", className)}>
-      <div className="flex items-center h-11">
-        {/* Título — clicável */}
-        <button
-          type="button"
-          onClick={toggle}
-          aria-expanded={open}
-          className="shrink-0 flex items-center gap-2 px-4 h-full border-none bg-transparent cursor-pointer hover:bg-[var(--color-surface-sunken)] transition-colors"
-        >
-          <SlidersHorizontal className="w-3.5 h-3.5 text-[var(--color-text-muted)]" />
-          <span className="text-xs font-black uppercase tracking-wider text-[var(--color-text-primary)] whitespace-nowrap">
-            {title}
-          </span>
-          {activeCount > 0 && (
-            <span className="px-1.5 py-0.5 rounded-full bg-[var(--color-primary-blue)]/15 text-[var(--color-primary-blue)] text-[10px] font-black">
-              {activeCount}
-            </span>
-          )}
-        </button>
-
-        {/* Divisor */}
-        {hasInlineSearch && searchProps && <div className="w-px h-5 bg-[var(--color-border-default)] shrink-0" />}
-
-        {/* Busca compacta inline — só quando fechado */}
-        {hasInlineSearch && searchProps && (
-          <div className="relative w-72 shrink-0 mx-3" onClick={e => e.stopPropagation()}>
-            <Search className="w-3 h-3 absolute left-2.5 top-1/2 -translate-y-1/2 text-[var(--color-text-muted)] pointer-events-none" />
-            <input
-              type="text"
-              placeholder={searchProps.placeholder}
-              value={searchProps.value}
-              onChange={e => searchProps.onChange(e.target.value)}
-              className="w-full h-7 pl-7 pr-2.5 rounded-full border border-[var(--color-border-default)] bg-[var(--color-surface-elevated)] text-[11px] text-[var(--color-text-primary)] placeholder:text-[var(--color-text-muted)] focus:outline-none focus:border-[var(--color-primary-blue)] transition-colors"
-            />
-          </div>
-        )}
-
-        {/* Área branca central — botão de abrir/fechar */}
-        <button
-          type="button"
-          onClick={toggle}
-          aria-expanded={open}
-          className="flex-1 h-full border-none bg-transparent cursor-pointer"
-        />
-
-        {/* Limpar filtros */}
-        {activeCount > 0 && onClear && (
-          <button
-            type="button"
-            onClick={onClear}
-            className="shrink-0 flex items-center gap-1 text-[10px] font-bold text-[var(--color-text-muted)] hover:text-[var(--color-text-primary)] cursor-pointer px-3 h-full"
-          >
-            <X className="w-3 h-3" /> Limpar
-          </button>
-        )}
-
-        {/* Chevron */}
-        <button
-          type="button"
-          onClick={toggle}
-          aria-expanded={open}
-          className="shrink-0 flex items-center px-4 h-full border-none bg-transparent cursor-pointer hover:bg-[var(--color-surface-sunken)] transition-colors"
-        >
-          <ChevronDown className={cn("w-4 h-4 text-[var(--color-text-muted)] transition-transform", open && "rotate-180")} />
-        </button>
+    <>
+      {indicatorsUi}
+      <div className={cn("flex items-start gap-2", className)}>
+        <div className="flex-1 min-w-0 flex flex-col gap-2">{children}</div>
+        {clearButton}
       </div>
-
-      {open && (
-        <div className="flex flex-col gap-3 md:gap-4 px-3 md:px-4 pb-4">
-          <KpiTiles items={kpis} />
-          {children}
-        </div>
-      )}
-    </Card>
+    </>
   );
 }
 

@@ -1,8 +1,9 @@
-import { ReactNode } from "react";
+import { ReactNode, useState } from "react";
 import { ChevronRight, Home } from "lucide-react";
 import { Link, useLocation } from "react-router-dom";
 import { navSections } from "./layout/navData";
 import { HelpTip } from "./ui/help-tip";
+import { HeaderSlotContext } from "./ui/header-slot";
 
 interface PageContainerProps {
   children: ReactNode;
@@ -23,6 +24,7 @@ export function PageContainer({
 }: PageContainerProps) {
   const displayDescription = description || subtitle;
   const { pathname } = useLocation();
+  const [headerSlot, setHeaderSlot] = useState<HTMLDivElement | null>(null);
 
   // Sem caminho informado pela tela: monta "Início › Seção › Tela" pela seção do menu a que a rota pertence
   // (a seção do item cujo caminho é o maior prefixo da rota atual). Se a tela é o próprio item do menu, não repete.
@@ -81,16 +83,16 @@ export function PageContainer({
           </h1>
         </div>
         
-        {actions && (
-          <div className="flex flex-wrap items-center gap-2 sm:gap-3 shrink-0 w-full md:w-auto max-md:[&>div]:flex-wrap max-md:[&>div]:w-full max-md:[&_button]:whitespace-nowrap">
-            {actions}
-          </div>
-        )}
+        {/* Sem ações, a área só aparece se a tela colocar algum botão nela (ex.: "Indicadores"). */}
+        <div className={`${actions ? "flex" : "hidden has-[button]:flex"} flex-wrap items-center gap-2 sm:gap-3 shrink-0 w-full md:w-auto max-md:[&>div]:flex-wrap max-md:[&>div]:w-full max-md:[&_button]:whitespace-nowrap`}>
+          <div ref={setHeaderSlot} className="contents" />
+          {actions}
+        </div>
       </div>
 
       {/* Page Content */}
       <div className="relative pt-1">
-        {children}
+        <HeaderSlotContext.Provider value={headerSlot}>{children}</HeaderSlotContext.Provider>
       </div>
     </div>
   );

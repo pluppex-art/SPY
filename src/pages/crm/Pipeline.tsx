@@ -205,11 +205,10 @@ export default function Pipeline() {
       }
     >
       <div className="flex flex-col space-y-4 flex-1 min-h-0">
-        {/* Card "Indicadores & Filtros" compartilhado (components/ui/kpi-filter-card) — o mesmo das demais páginas.
-            Estado aberto/fechado salvo em users.preferences (pipelineFiltersOpen). */}
+        {/* Filtros soltos acima do quadro; os indicadores abrem pelo botão "Indicadores" do cabeçalho
+            (components/ui/kpi-filter-card, o mesmo das demais páginas). */}
         <KpiFilterCard
           id="pipeline"
-          className="!overflow-visible"
           search={<FilterSearch value={searchQuery} onChange={setSearchQuery} placeholder="Buscar negócios..." />}
           activeCount={activeFilterCount}
           onClear={clearFilters}

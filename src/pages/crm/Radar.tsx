@@ -317,51 +317,54 @@ export default function Radar() {
         />
       ) : (
       <>
-      <KpiFilterCard className="mb-4" id="crmRadar" activeCount={activeCount} onClear={limparFiltros}>
-      <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-        {(["critico", "alto", "atencao"] as Risk[]).map((k) => (
-          <Card key={k} onClick={() => toggleRiskFiltro(k)} className={`p-4 cursor-pointer transition-all hover:-translate-y-0.5 hover:shadow-md ${riskFiltro === k ? "ring-2 ring-[var(--color-primary-blue)]" : ""}`}>
-            <div className="flex items-center justify-between mb-2">
-              <div className="flex items-center gap-2">
-                {k === "critico" ? <Flame className="w-5 h-5 text-danger" /> : k === "alto" ? <Clock className="w-5 h-5 text-warning" /> : <RadarIcon className="w-5 h-5 text-info" />}
-                <span className="text-xs font-bold text-[var(--color-text-muted)]">{RISK_META[k].label}</span>
+      <KpiFilterCard className="mb-4" id="crmRadar" activeCount={activeCount} onClear={limparFiltros}
+        indicators={<>
+        <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+          {(["critico", "alto", "atencao"] as Risk[]).map((k) => (
+            <Card key={k} onClick={() => toggleRiskFiltro(k)} className={`p-4 cursor-pointer transition-all hover:-translate-y-0.5 hover:shadow-md ${riskFiltro === k ? "ring-2 ring-[var(--color-primary-blue)]" : ""}`}>
+              <div className="flex items-center justify-between mb-2">
+                <div className="flex items-center gap-2">
+                  {k === "critico" ? <Flame className="w-5 h-5 text-danger" /> : k === "alto" ? <Clock className="w-5 h-5 text-warning" /> : <RadarIcon className="w-5 h-5 text-info" />}
+                  <span className="text-xs font-bold text-[var(--color-text-muted)]">{RISK_META[k].label}</span>
+                </div>
               </div>
-            </div>
+              <div className="flex items-end justify-between gap-2">
+                <div>
+                  <div className="text-2xl font-black">{counts[k]}</div>
+                  {deltas?.[k] !== null && deltas?.[k] !== undefined ? (
+                    <span className={`text-[11px] font-bold ${deltas[k]! > 0 ? "text-danger" : deltas[k]! < 0 ? "text-success" : "text-[var(--color-text-muted)]"}`}>
+                      {deltas[k]! > 0 ? "+" : ""}{deltas[k]}% vs {janela}d atrás
+                    </span>
+                  ) : (
+                    <span className="text-[10px] text-[var(--color-text-faint)]">Sem dado de comparação ainda</span>
+                  )}
+                </div>
+                <div style={{ color: RISK_META[k].color }}>
+                  <Sparkline data={historico.map((h) => Number(h[`${k}_count`]) || 0)} className="w-16 h-7 shrink-0" />
+                </div>
+              </div>
+            </Card>
+          ))}
+          <Card className="p-4">
+            <div className="flex items-center gap-2 mb-2"><Users className="w-5 h-5 text-[var(--color-primary-blue)]" /><span className="text-xs font-bold text-[var(--color-text-muted)]">Total em risco</span></div>
             <div className="flex items-end justify-between gap-2">
               <div>
-                <div className="text-2xl font-black">{counts[k]}</div>
-                {deltas?.[k] !== null && deltas?.[k] !== undefined ? (
-                  <span className={`text-[11px] font-bold ${deltas[k]! > 0 ? "text-danger" : deltas[k]! < 0 ? "text-success" : "text-[var(--color-text-muted)]"}`}>
-                    {deltas[k]! > 0 ? "+" : ""}{deltas[k]}% vs {janela}d atrás
+                <div className="text-2xl font-black">{totalEmRisco}</div>
+                {deltas?.total !== null && deltas?.total !== undefined ? (
+                  <span className={`text-[11px] font-bold ${deltas.total! > 0 ? "text-danger" : deltas.total! < 0 ? "text-success" : "text-[var(--color-text-muted)]"}`}>
+                    {deltas.total! > 0 ? "+" : ""}{deltas.total}% vs {janela}d atrás
                   </span>
                 ) : (
                   <span className="text-[10px] text-[var(--color-text-faint)]">Sem dado de comparação ainda</span>
                 )}
               </div>
-              <div style={{ color: RISK_META[k].color }}>
-                <Sparkline data={historico.map((h) => Number(h[`${k}_count`]) || 0)} className="w-16 h-7 shrink-0" />
-              </div>
+              <Sparkline data={historico.map((h) => Number(h.total_count) || 0)} className="w-16 h-7 shrink-0 text-[var(--color-primary-blue)]" />
             </div>
+            <p className="text-[10px] text-[var(--color-text-faint)] mt-1">{formatCurrency(valorEmRisco)} em jogo</p>
           </Card>
-        ))}
-        <Card className="p-4">
-          <div className="flex items-center gap-2 mb-2"><Users className="w-5 h-5 text-[var(--color-primary-blue)]" /><span className="text-xs font-bold text-[var(--color-text-muted)]">Total em risco</span></div>
-          <div className="flex items-end justify-between gap-2">
-            <div>
-              <div className="text-2xl font-black">{totalEmRisco}</div>
-              {deltas?.total !== null && deltas?.total !== undefined ? (
-                <span className={`text-[11px] font-bold ${deltas.total! > 0 ? "text-danger" : deltas.total! < 0 ? "text-success" : "text-[var(--color-text-muted)]"}`}>
-                  {deltas.total! > 0 ? "+" : ""}{deltas.total}% vs {janela}d atrás
-                </span>
-              ) : (
-                <span className="text-[10px] text-[var(--color-text-faint)]">Sem dado de comparação ainda</span>
-              )}
-            </div>
-            <Sparkline data={historico.map((h) => Number(h.total_count) || 0)} className="w-16 h-7 shrink-0 text-[var(--color-primary-blue)]" />
-          </div>
-          <p className="text-[10px] text-[var(--color-text-faint)] mt-1">{formatCurrency(valorEmRisco)} em jogo</p>
-        </Card>
-      </div>
+        </div>
+        </>}
+      >
         <FilterBar>
           <FilterSelect icon={Clock} value={String(days)} onChange={(v) => setDays(Number(v))} options={[1, 2, 3, 5, 7, 14, 30].map((d) => ({ value: String(d), label: `Sem contato há ${d}+ dia${d > 1 ? "s" : ""}` }))} title="Sem contato há pelo menos N dias" />
           {funisDisponiveis.length > 1 && (

@@ -174,42 +174,45 @@ export function RadarBoasPainel({ boas, stageNames, funilNomeByTipo, formatCurre
 
   return (
     <>
-      <KpiFilterCard className="mb-4" id="crmRadarBoas" activeCount={filtrosAtivos} onClear={limparFiltros}>
-        <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-          {NIVEIS_BONS.map((n) => (
-            <Card key={n} onClick={() => toggleNivel(n)} className={`p-4 cursor-pointer transition-all hover:-translate-y-0.5 hover:shadow-md ${nivelFiltro === n ? "ring-2 ring-[var(--color-primary-blue)]" : ""}`}>
+      <KpiFilterCard className="mb-4" id="crmRadarBoas" activeCount={filtrosAtivos} onClear={limparFiltros}
+        indicators={<>
+          <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+            {NIVEIS_BONS.map((n) => (
+              <Card key={n} onClick={() => toggleNivel(n)} className={`p-4 cursor-pointer transition-all hover:-translate-y-0.5 hover:shadow-md ${nivelFiltro === n ? "ring-2 ring-[var(--color-primary-blue)]" : ""}`}>
+                <div className="flex items-center gap-2 mb-2">
+                  {iconeNivel(n)}
+                  <span className="text-xs font-bold text-[var(--color-text-muted)]">{NIVEL_META[n].label}</span>
+                  <HelpTip label={`Sobre ${NIVEL_META[n].label}`}>{NIVEL_META[n].dica}</HelpTip>
+                </div>
+                <div className="flex items-end justify-between gap-2">
+                  <div>
+                    <div className="text-2xl font-black">{contagem[n]}</div>
+                    {textoDelta(deltas?.[n])}
+                  </div>
+                  <div style={{ color: NIVEL_META[n].color }}>
+                    <Sparkline data={hist.map((h) => Number(h[CAMPOS[n]]) || 0)} className="w-16 h-7 shrink-0" />
+                  </div>
+                </div>
+              </Card>
+            ))}
+            <Card className="p-4">
               <div className="flex items-center gap-2 mb-2">
-                {iconeNivel(n)}
-                <span className="text-xs font-bold text-[var(--color-text-muted)]">{NIVEL_META[n].label}</span>
-                <HelpTip label={`Sobre ${NIVEL_META[n].label}`}>{NIVEL_META[n].dica}</HelpTip>
+                <Target className="w-5 h-5 text-[var(--color-primary-blue)]" />
+                <span className="text-xs font-bold text-[var(--color-text-muted)]">Total de oportunidades</span>
+                <HelpTip label="Sobre Total de oportunidades">A soma dos três níveis: tudo o que está esquentando agora. O valor é a soma do que está em jogo nesses negócios.</HelpTip>
               </div>
               <div className="flex items-end justify-between gap-2">
                 <div>
-                  <div className="text-2xl font-black">{contagem[n]}</div>
-                  {textoDelta(deltas?.[n])}
+                  <div className="text-2xl font-black">{total}</div>
+                  {textoDelta(deltas?.total)}
                 </div>
-                <div style={{ color: NIVEL_META[n].color }}>
-                  <Sparkline data={hist.map((h) => Number(h[CAMPOS[n]]) || 0)} className="w-16 h-7 shrink-0" />
-                </div>
+                <Sparkline data={hist.map((h) => Number(h.total_boas_count) || 0)} className="w-16 h-7 shrink-0 text-[var(--color-primary-blue)]" />
               </div>
+              <p className="text-[10px] text-[var(--color-text-faint)] mt-1">{formatCurrency(boas.valorOportunidades)} em jogo</p>
             </Card>
-          ))}
-          <Card className="p-4">
-            <div className="flex items-center gap-2 mb-2">
-              <Target className="w-5 h-5 text-[var(--color-primary-blue)]" />
-              <span className="text-xs font-bold text-[var(--color-text-muted)]">Total de oportunidades</span>
-              <HelpTip label="Sobre Total de oportunidades">A soma dos três níveis: tudo o que está esquentando agora. O valor é a soma do que está em jogo nesses negócios.</HelpTip>
-            </div>
-            <div className="flex items-end justify-between gap-2">
-              <div>
-                <div className="text-2xl font-black">{total}</div>
-                {textoDelta(deltas?.total)}
-              </div>
-              <Sparkline data={hist.map((h) => Number(h.total_boas_count) || 0)} className="w-16 h-7 shrink-0 text-[var(--color-primary-blue)]" />
-            </div>
-            <p className="text-[10px] text-[var(--color-text-faint)] mt-1">{formatCurrency(boas.valorOportunidades)} em jogo</p>
-          </Card>
-        </div>
+          </div>
+        </>}
+      >
         <FilterBar>
           <FilterSelect
             icon={Clock}

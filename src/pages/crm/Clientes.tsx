@@ -323,30 +323,33 @@ export default function Clientes() {
         </div>
       }
     >
-      {/* Card "Indicadores & Filtros" compartilhado. Os KPIs de Clientes mantêm drill-down e sparkline
-          (ClientesKPIs), agora dentro do card e calculados sobre a lista filtrada. */}
-      <KpiFilterCard className="mb-4" id="crmClientes" activeCount={activeCount} onClear={clearFilters}>
-        {origem === "" && <ClientesKPIs {...kpis} clientes={clientesFiltrados} />}
-        {origem !== "" && (
-          <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
-            {[
-              { label: "Total de Clientes", value: (misto ? crmLen : 0) + (mxStats.stats?.total ?? 0), icon: Users, color: "text-[var(--color-primary-blue)]" },
-              { label: "Clientes Ativos", value: (misto ? kpis.ativos : 0) + (mxStats.stats?.ativos ?? 0), icon: CheckCircle2, color: "text-success" },
-              { label: "Inativos", value: (misto ? kpis.inativos : 0) + (mxStats.stats?.inativos ?? 0), icon: AlertCircle, color: "text-danger" },
-              { label: "Max Data com contato", value: mxStats.stats?.comContato ?? 0, icon: Phone, color: "text-warning" },
-            ].map(({ label, value, icon: Icon, color }) => (
-              <Card key={label} className="p-4">
-                <div className="flex items-center gap-2 mb-2">
-                  <Icon className={`w-4 h-4 ${color}`} />
-                  <span className="text-[10px] font-black text-[var(--color-text-muted)] uppercase tracking-widest">{label}</span>
-                </div>
-                <div className="text-2xl font-display font-black text-[var(--color-text-primary)]">
-                  {mxStats.loading && !mxStats.stats ? "…" : value.toLocaleString("pt-BR")}
-                </div>
-              </Card>
-            ))}
-          </div>
-        )}
+      {/* Filtros + botão "Indicadores" (componente compartilhado). Os KPIs de Clientes mantêm drill-down e
+          sparkline (ClientesKPIs) dentro da janela de indicadores, calculados sobre a lista filtrada. */}
+      <KpiFilterCard className="mb-4" id="crmClientes" activeCount={activeCount} onClear={clearFilters}
+        indicators={<>
+          {origem === "" && <ClientesKPIs {...kpis} clientes={clientesFiltrados} />}
+          {origem !== "" && (
+            <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+              {[
+                { label: "Total de Clientes", value: (misto ? crmLen : 0) + (mxStats.stats?.total ?? 0), icon: Users, color: "text-[var(--color-primary-blue)]" },
+                { label: "Clientes Ativos", value: (misto ? kpis.ativos : 0) + (mxStats.stats?.ativos ?? 0), icon: CheckCircle2, color: "text-success" },
+                { label: "Inativos", value: (misto ? kpis.inativos : 0) + (mxStats.stats?.inativos ?? 0), icon: AlertCircle, color: "text-danger" },
+                { label: "Max Data com contato", value: mxStats.stats?.comContato ?? 0, icon: Phone, color: "text-warning" },
+              ].map(({ label, value, icon: Icon, color }) => (
+                <Card key={label} className="p-4">
+                  <div className="flex items-center gap-2 mb-2">
+                    <Icon className={`w-4 h-4 ${color}`} />
+                    <span className="text-[10px] font-black text-[var(--color-text-muted)] uppercase tracking-widest">{label}</span>
+                  </div>
+                  <div className="text-2xl font-display font-black text-[var(--color-text-primary)]">
+                    {mxStats.loading && !mxStats.stats ? "…" : value.toLocaleString("pt-BR")}
+                  </div>
+                </Card>
+              ))}
+            </div>
+          )}
+        </>}
+      >
         <FilterBar>
           <FilterSearch value={searchQuery} onChange={setSearchQuery} placeholder="Buscar por cliente, documento, responsável, e-mail ou telefone..." />
           {temMax && <FilterSelect icon={Building2} value={origem} onChange={setOrigemEscolhida} options={[{ value: MAXDATA_TODAS, label: "Tudo (Vendas + Max Data)" }, { value: "", label: "Só base de Vendas" }, ...origensVisiveis(unidadeAtiva).filter((o) => o.value)]} />}

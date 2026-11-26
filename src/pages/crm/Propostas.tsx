@@ -287,9 +287,11 @@ export default function Propostas() {
             id="crmPropostas"
             activeCount={(propostasSearch ? 1 : 0) + (statusFiltro !== "todos" ? 1 : 0) + (vendedorFiltro !== "todos" ? 1 : 0) + (dateFrom || dateTo ? 1 : 0)}
             onClear={limparFiltros}
-          >
-            <PropostasKPIs kpis={propostasKpis} contracts={contracts as any[]} />
-            <FilterBar>
+        indicators={<>
+              <PropostasKPIs kpis={propostasKpis} contracts={contracts as any[]} />
+        </>}
+      >
+        <FilterBar>
               <FilterSearch value={propostasSearch} onChange={setPropostasSearch} placeholder="Buscar por cliente, título ou vendedor..." />
               <FilterSelect icon={FileText} value={statusFiltro} onChange={setStatusFiltro} options={["Rascunho", "Enviada", "Aceita", "Recusada"]} allLabel="Status: Todos" allValue="todos" />
               {vendedores.length > 1 && (
@@ -333,17 +335,20 @@ export default function Propostas() {
         </div>
       ) : activeTab === "contratos" ? (
         <div className="space-y-6">
-          <KpiFilterCard id="crmContratos" activeCount={contractActiveCount} onClear={limparFiltrosContratos}>
-            <ContractsKPIs
-              valorAtivos={valorContratosAtivos}
-              ativos={contractsFiltrados.filter((c: any) => c.status === "Ativo").length}
-              inadimplentes={contractsFiltrados.filter((c: any) => c.status === "Inadimplente").length}
-              mrrRows={contractsFiltrados.filter(isContractAtivo)}
-              ativosRows={contractsFiltrados.filter((c: any) => c.status === "Ativo")}
-              inadimplentesRows={contractsFiltrados.filter((c: any) => c.status === "Inadimplente")}
-              contracts={contractsFiltrados as any[]}
-            />
-            <FilterBar>
+          <KpiFilterCard id="crmContratos" activeCount={contractActiveCount} onClear={limparFiltrosContratos}
+        indicators={<>
+              <ContractsKPIs
+                valorAtivos={valorContratosAtivos}
+                ativos={contractsFiltrados.filter((c: any) => c.status === "Ativo").length}
+                inadimplentes={contractsFiltrados.filter((c: any) => c.status === "Inadimplente").length}
+                mrrRows={contractsFiltrados.filter(isContractAtivo)}
+                ativosRows={contractsFiltrados.filter((c: any) => c.status === "Ativo")}
+                inadimplentesRows={contractsFiltrados.filter((c: any) => c.status === "Inadimplente")}
+                contracts={contractsFiltrados as any[]}
+              />
+        </>}
+      >
+        <FilterBar>
               <FilterSearch value={contractSearch} onChange={setContractSearch} placeholder="Buscar cliente, plano ou responsável..." />
               <FilterSelect icon={FileText} value={contractStatusFilter} onChange={setContractStatusFilter} options={["Ativo", "Inadimplente", "Cancelado"]} allLabel="Todos os status" allValue="Todos" />
               {contractPlanosDisponiveis.length > 1 && (
