@@ -651,7 +651,10 @@ function AppContent() {
             <Route path=":id" element={<ReuniaoRoom />} />
           </Route>
 
-          <Route path="admin" element={<ProtectedRoute requireMaster><AdminSaaS /></ProtectedRoute>} />
+          {/* O painel SaaS é aberto também por Configurações > Empresa: mantém o mesmo menu lateral. */}
+          <Route path="admin" element={<ProtectedRoute requireMaster><SettingsLayout /></ProtectedRoute>}>
+            <Route index element={<AdminSaaS />} />
+          </Route>
           <Route path="parceiros" element={<ProtectedRoute requirePartner><PartnersOverview /></ProtectedRoute>} />
         </Route>
 

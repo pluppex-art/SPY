@@ -87,7 +87,7 @@ export default function SettingsLayout() {
         { title: "Nichos", path: "/app/configuracoes/empresa/nichos" },
         { title: "Plano & Uso", path: "/app/configuracoes/empresa/plano" },
         { title: "LGPD", path: "/app/configuracoes/empresa/lgpd" },
-        ...(user?.isMaster ? [{ title: "Módulos & SaaS (Admin)", path: "/app/admin?tab=modules" }] : []),
+        ...(user?.isMaster ? [{ title: "Módulos & SaaS (Admin)", path: "/app/admin?tab=modules", matchPaths: ["/app/admin"] }] : []),
       ],
     },
     {
