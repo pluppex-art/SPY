@@ -20,8 +20,6 @@ export function cargoPermiteModulo(modulos: string[] | null, mod: string): boole
   if (!modulos) return true;
   // Equipe & RH é aberta a todos (o que cada um vê na lista depende do nível — lib/escopoEquipe).
   if (mod === "rh") return true;
-  // Grupos internos do Agente Secreto ficam em Equipe & RH: quem vê o RH vê a tela (só administrador grava, o servidor confere).
-  if (mod === "agente_interno") return true;
   return modulos.some(
     (m) =>
       m === mod ||

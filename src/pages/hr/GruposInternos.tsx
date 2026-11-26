@@ -10,7 +10,6 @@ import { useData } from "../../contexts/DataContext";
 import { apiFetch } from "../../lib/apiClient";
 import { inputCls, selectCls } from "../finance/components/ModalKit";
 import { cn } from "../../lib/utils";
-import { PageContainer } from "../../components/PageContainer";
 
 interface Grupo {
   group_chat_id: string; group_name: string; departamento: string; ativo: boolean;
@@ -31,7 +30,7 @@ const normalizar = (g: any): Grupo => ({ ...VAZIO, ...g, responsavel_user_id: g?
  * Grupos internos: cadastro dos grupos de WhatsApp que o Agente Secreto interno acompanha (departamento e responsável de cada um).
  * Só aparece para empresa que contratou o módulo; o servidor confere de novo a cada leitura e gravação.
  */
-function Conteudo() {
+export function GruposInternos() {
   const { colaboradores } = useData();
   const [carregando, setCarregando] = useState(true);
   const [erro, setErro] = useState<string | null>(null);
@@ -185,11 +184,3 @@ function Conteudo() {
   );
 }
 
-/** Equipe & RH › Grupos internos: os grupos de WhatsApp da equipe que o Agente Secreto interno acompanha. */
-export default function GruposInternos() {
-  return (
-    <PageContainer breadcrumb={[{ label: "Equipe & RH", path: "/app/equipe" }, { label: "Grupos internos" }]} title="Grupos internos (WhatsApp)" subtitle="Os grupos da equipe que o Agente Secreto acompanha: cada um tem um departamento e um responsável que recebe o aviso.">
-      <Conteudo />
-    </PageContainer>
-  );
-}

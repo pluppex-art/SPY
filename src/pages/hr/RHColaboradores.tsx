@@ -7,6 +7,7 @@ import { Button } from "../../components/ui/button";
 import { useData } from "../../contexts/DataContext";
 import { useRHColaboradores } from "./hooks/useRHColaboradores";
 import { SquadsTabContent } from "./components/Squads/SquadsTabContent";
+import { GruposInternos } from "./GruposInternos";
 import { NovoMembroModal } from "../../components/ui/modals/hr/NovoMembroModal";
 import { EditarColabModal } from "../../components/ui/modals/hr/EditarColabModal";
 import { apiFetch } from "../../lib/apiClient";
@@ -38,7 +39,9 @@ export default function RHColaboradores() {
 
   const { addColaborador, updateColaborador, deleteColaborador, empresaFiliais, cargos } = useData() as any;
   const filiaisOptions = empresaFiliais.map((f: any) => ({ id: f.id, nome: f.nome }));
-  const { user, activeTenantId, activeTenantName } = useAuth();
+  const { user, activeTenantId, activeTenantName, isModuleEnabled } = useAuth();
+  // "Grupos de WhatsApp" é o módulo Agente Secreto Interno, vendido à parte: a aba só existe para quem contratou.
+  const temGrupos = isModuleEnabled("agente_interno");
 
   // A página é aberta a todos; a lista depende do nível (Estratégico: todos · Tático: departamento e squad · demais: o próprio perfil e o squad).
   const podeGerenciar = !!(user?.isMaster || user?.isTenantAdmin);
@@ -337,7 +340,7 @@ export default function RHColaboradores() {
       description="Gerencie os colaboradores, organize os squads (times) por área e acompanhe metas e desempenho."
       actions={
         <div className="flex items-center gap-2">
-          {activeTab === "squads" ? (podeGerenciar ? (
+          {activeTab === "grupos" ? null : activeTab === "squads" ? (podeGerenciar ? (
             <Button onClick={() => setIsNewSquadOpen(true)} className="h-9 px-4 text-xs font-bold gap-1.5 shadow-xs">
               <PlusCircle className="w-3.5 h-3.5" /> Criar Squad
             </Button>
@@ -356,6 +359,7 @@ export default function RHColaboradores() {
           abas={[
             { id: "membros", label: `Membros da Equipe (${filteredVisiveis.length})` },
             { id: "squads", label: `${escopo === "todos" ? "Squads da Empresa" : "Meus Squads"} (${squadsVis.length})` },
+            ...(temGrupos ? [{ id: "grupos", label: "Grupos de WhatsApp" }] : []),
           ]}
         />
 
@@ -363,7 +367,9 @@ export default function RHColaboradores() {
           <p className="text-xs text-[var(--color-text-muted)]">{ROTULO_ESCOPO[escopo]}.</p>
         )}
 
-        {activeTab === "membros" ? (
+        {activeTab === "grupos" && temGrupos ? (
+          <GruposInternos />
+        ) : activeTab === "membros" ? (
           <MembrosSection
             filtered={filteredVisiveis} search={search} onSearchChange={setSearch}
             podeGerenciar={podeGerenciar}

@@ -12,7 +12,7 @@ export function useRHColaboradores() {
     financeCommissionEntries, addFinanceCommissionEntry, deleteFinanceCommissionEntry,
   } = useData();
 
-  const [activeTab, setActiveTab] = useState<'membros' | 'squads'>('membros');
+  const [activeTab, setActiveTab] = useState<'membros' | 'squads' | 'grupos'>('membros');
   const [search, setSearch] = useState("");
   
   // Squad modal creation states
