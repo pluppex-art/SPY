@@ -1,4 +1,5 @@
-import { useLayoutEffect, useMemo, useRef, useState } from "react";
+import { useLayoutEffect, useMemo, useRef, useState, type CSSProperties } from "react";
+import { createPortal } from "react-dom";
 import { CalendarRange, ChevronDown, X, Check } from "lucide-react";
 import { cn } from "../../lib/utils";
 
@@ -59,29 +60,36 @@ export function thisMonthRange(): { from: string; to: string } {
   return { from: toISO(new Date(now.getFullYear(), now.getMonth(), 1)), to: toISO(now) };
 }
 
-// Largura real do card do popover (w-[280px] abaixo) — usada só pra decidir
-// de que lado abrir, nunca pra estilizar.
+// Largura real do card do popover (w-[280px] abaixo) e altura aproximada com todos os atalhos.
 const POPOVER_WIDTH = 280;
+const POPOVER_HEIGHT = 480;
 
 export function DateRangeFilter({ dateFrom, setDateFrom, dateTo, setDateTo, className, presets: presetsProp, emptyLabel = "Período: Tudo" }: DateRangeFilterProps) {
   const [open, setOpen] = useState(false);
-  // Achado real: este componente é reaproveitado em telas onde o botão fica
-  // perto da borda DIREITA da área de conteúdo (Propostas.tsx, Financeiro/BI —
-  // ambos dentro de um `justify-between` no fim da barra) — o popover sempre
-  // abria "colado à esquerda" do botão (`left-0`), então nesses casos ele
-  // estourava a largura da tela e o navegador criava um scroll horizontal só
-  // pra caber o pedaço cortado. Em vez de fixar um lado só (que quebraria o
-  // outro uso, no Dashboard, onde o botão fica perto da borda ESQUERDA), mede
-  // o espaço disponível à direita do botão na hora de abrir e escolhe o lado
-  // que cabe — funciona em qualquer tela sem precisar configurar caso a caso.
-  const [align, setAlign] = useState<"left" | "right">("left");
+  // O popover é desenhado no <body> com posição fixa: dentro da barra de filtros ele era cortado
+  // (a barra rola na horizontal). Escolhe o lado e a altura que cabem na janela.
+  const [pos, setPos] = useState<CSSProperties>({});
   const buttonRef = useRef<HTMLButtonElement>(null);
 
   useLayoutEffect(() => {
-    if (!open || !buttonRef.current) return;
-    const rect = buttonRef.current.getBoundingClientRect();
-    const fitsOnRight = rect.left + POPOVER_WIDTH <= window.innerWidth - 16;
-    setAlign(fitsOnRight ? "left" : "right");
+    if (!open) return;
+    const place = () => {
+      const rect = buttonRef.current?.getBoundingClientRect();
+      if (!rect) return;
+      const left = rect.left + POPOVER_WIDTH <= window.innerWidth - 8 ? rect.left : Math.max(8, rect.right - POPOVER_WIDTH);
+      const below = window.innerHeight - rect.bottom - 14;
+      const above = rect.top - 14;
+      setPos(below < POPOVER_HEIGHT && above > below
+        ? { left, bottom: window.innerHeight - rect.top + 6, maxHeight: above }
+        : { left, top: rect.bottom + 6, maxHeight: below });
+    };
+    place();
+    window.addEventListener("resize", place);
+    window.addEventListener("scroll", place, true);
+    return () => {
+      window.removeEventListener("resize", place);
+      window.removeEventListener("scroll", place, true);
+    };
   }, [open]);
 
   const presets = useMemo(() => presetsProp ?? buildPresets(), [presetsProp]);
@@ -112,14 +120,14 @@ export function DateRangeFilter({ dateFrom, setDateFrom, dateTo, setDateTo, clas
         <ChevronDown className={cn("w-3 h-3 shrink-0 transition-transform text-[var(--color-text-faint)]", open && "rotate-180")} />
       </button>
 
-      {open && (
+      {open && createPortal(
         <>
-          <div className="fixed inset-0 z-[80] max-sm:bg-black/50" onClick={() => setOpen(false)} />
+          <div className="fixed inset-0 z-[110] max-sm:bg-black/50" onClick={() => setOpen(false)} />
           <div
-            className={cn(
-              "absolute top-full mt-1.5 z-[81] w-[280px] max-sm:!fixed max-sm:!inset-x-3 max-sm:!top-auto max-sm:!bottom-[calc(0.75rem+env(safe-area-inset-bottom))] max-sm:!w-auto max-sm:max-h-[80dvh] max-sm:overflow-y-auto bg-[var(--color-surface-elevated)] border border-[var(--color-border-default)] rounded-2xl shadow-2xl p-3 space-y-3",
-              align === "left" ? "left-0" : "right-0"
-            )}
+            role="dialog"
+            aria-label="Escolher período"
+            style={pos}
+            className="fixed z-[111] w-[280px] overflow-y-auto max-sm:!inset-x-3 max-sm:!top-auto max-sm:!bottom-[calc(0.75rem+env(safe-area-inset-bottom))] max-sm:!w-auto max-sm:!max-h-[80dvh] bg-[var(--color-surface-elevated)] border border-[var(--color-border-default)] rounded-2xl shadow-2xl p-3 space-y-3"
             onClick={(e) => e.stopPropagation()}
           >
             <div className="space-y-0.5">
@@ -173,7 +181,8 @@ export function DateRangeFilter({ dateFrom, setDateFrom, dateTo, setDateTo, clas
               </button>
             )}
           </div>
-        </>
+        </>,
+        document.body,
       )}
     </div>
   );

@@ -4,6 +4,7 @@ import { DragDropContext } from "@hello-pangea/dnd";
 import { PageContainer } from "../../components/PageContainer";
 import { KpiFilterCard, FilterBar, FilterSearch, FilterSelect } from "../../components/ui/kpi-filter-card";
 import { Button } from "../../components/ui/button";
+import { ViewToggle, HEADER_ACTIONS, HEADER_PRIMARY_BUTTON } from "../../components/ui/view-toggle";
 import { Card } from "../../components/ui/card";
 import { EmptyState } from "../../components/ui/empty-state";
 import { useLocalization } from "../../contexts/LocalizationContext";
@@ -46,6 +47,14 @@ export default function MarketingTrafego() {
     <PageContainer
       title="Gestão de Tráfego Pago"
       subtitle="Planeje e acompanhe as campanhas de anúncios: onde rodam, quanto investem e em que etapa estão. Use o quadro para ver por etapa ou o calendário para ver por data de início."
+      actions={erro === "tabela" ? undefined : (
+        <div className={HEADER_ACTIONS}>
+          <ViewToggle value={visao} onChange={setVisao} options={[{ id: "quadro", label: "Quadro", icon: Columns3 }, { id: "calendario", label: "Calendário", icon: Calendar }]} />
+          <Button onClick={() => setModal({})} className={HEADER_PRIMARY_BUTTON}>
+            <Plus className="w-4 h-4" /> Nova Campanha
+          </Button>
+        </div>
+      )}
     >
       {erro === "tabela" ? (
         <EmptyState
@@ -57,7 +66,7 @@ export default function MarketingTrafego() {
         <>
           <KpiFilterCard
             id="marketingTrafego"
-            className="mb-6"
+            className="mb-4"
             kpis={[
               { label: "Campanhas", value: filtradas.length, icon: Megaphone, tone: "primary" },
               { label: "Orçamento total", value: formatCurrency(orcamentoTotal), icon: DollarSign, tone: "info", hint: "Soma do orçamento de todas as campanhas listadas." },
@@ -74,30 +83,6 @@ export default function MarketingTrafego() {
               <FilterSelect icon={User} value={responsavel} onChange={setResponsavel} options={responsaveis} allLabel="Todos os responsáveis" />
             </FilterBar>
           </KpiFilterCard>
-
-          <div className="flex items-center gap-4 mb-6 overflow-x-auto pb-2 scrollbar-none">
-            <Button onClick={() => setModal({})} className="text-xs font-bold gap-2 shrink-0">
-              <Plus className="w-4 h-4" /> Nova Campanha
-            </Button>
-            <div className="flex items-center bg-[var(--color-surface-elevated)] border border-[var(--color-border-default)] rounded-[var(--radius-control)] h-10 shrink-0">
-              {([
-                { id: "quadro" as const, label: "Quadro", icon: Columns3 },
-                { id: "calendario" as const, label: "Calendário", icon: Calendar },
-              ]).map((v) => (
-                <button
-                  key={v.id}
-                  type="button"
-                  onClick={() => setVisao(v.id)}
-                  aria-pressed={visao === v.id}
-                  className={`flex items-center gap-1.5 px-3.5 h-full text-[11px] font-bold uppercase tracking-wider transition-all cursor-pointer border-none first:rounded-l-[calc(var(--radius-control)-1px)] last:rounded-r-[calc(var(--radius-control)-1px)] ${
-                    visao === v.id ? "bg-[var(--color-primary-blue)] !text-white shadow-xs" : "text-[var(--color-text-muted)] hover:text-[var(--color-text-primary)] bg-transparent"
-                  }`}
-                >
-                  <v.icon className="w-3.5 h-3.5" /> {v.label}
-                </button>
-              ))}
-            </div>
-          </div>
 
           {carregando ? (
             <div className="grid place-items-center py-20"><Loader2 className="w-6 h-6 animate-spin text-[var(--color-text-faint)]" /></div>

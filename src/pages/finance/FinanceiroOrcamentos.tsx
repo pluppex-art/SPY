@@ -235,9 +235,9 @@ export default function FinanceiroOrcamentos() {
         <div className="mx-auto max-w-[1700px] space-y-4 pb-12">
           <FinanceKpiFilter id="finOrcamentos" kpis={kpis} activeCount={activeCount} onClear={limpar}>
             <FilterBar>
-              <SeletorCompetencia mes={refDate} setMes={setRefDate} />
               <FilterSearch value={busca} onChange={setBusca} placeholder="Buscar categoria..." />
               <FilterChips value={tipoFiltro} onChange={setTipoFiltro} options={[{ value: "Despesa", label: "Despesas" }, { value: "Receita", label: "Receitas" }]} />
+              <SeletorCompetencia mes={refDate} setMes={setRefDate} />
             </FilterBar>
           </FinanceKpiFilter>
 

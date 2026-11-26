@@ -223,6 +223,11 @@ export default function FinanceiroRelatorioAgrupado() {
               allLabel="Este Mês"
               options={PERIODOS.filter(p => p.id !== "mes").map(p => ({ value: p.id, label: p.label }))}
             />
+            <div className="flex items-center gap-1 bg-[var(--color-surface-sunken)] p-1 rounded-[var(--radius-control)] border border-[var(--color-border-subtle)]">
+              {STATUSES.map(st => (
+                <Button key={st} size="sm" variant={statusAtivos.includes(st) ? "default" : "ghost"} onClick={() => toggleStatus(st)} className="h-7 px-3 text-xs font-medium">{st}</Button>
+              ))}
+            </div>
             {periodo === "personalizado" && (
               <DateRangeFilter
                 dateFrom={customInicio || null}
@@ -232,11 +237,6 @@ export default function FinanceiroRelatorioAgrupado() {
                 className="h-[38px]"
               />
             )}
-            <div className="flex items-center gap-1 bg-[var(--color-surface-sunken)] p-1 rounded-[var(--radius-control)] border border-[var(--color-border-subtle)]">
-              {STATUSES.map(st => (
-                <Button key={st} size="sm" variant={statusAtivos.includes(st) ? "default" : "ghost"} onClick={() => toggleStatus(st)} className="h-7 px-3 text-xs font-medium">{st}</Button>
-              ))}
-            </div>
           </FilterBar>
           {maior && <KpiDrillChips items={[{ label: `Maior ${config.groupLabel}`, onClick: () => setDrillGrupo({ label: maior.label, rows: maior.rows }) }]} />}
         </FinanceKpiFilter>

@@ -405,12 +405,12 @@ export default function FinanceiroConciliacao() {
             options={[{ value: "credito", label: "Créditos" }, { value: "debito", label: "Débitos" }]}
             allLabel="Créditos e débitos"
           />
-          <DateRangeFilter dateFrom={periodoDe} setDateFrom={setPeriodoDe} dateTo={periodoAte} setDateTo={setPeriodoAte} emptyLabel="Data do extrato: Tudo" />
           <FilterChips
             value={situacaoFilter}
             onChange={setSituacaoFilter}
             options={[{ value: "pendente", label: "Pendentes" }, { value: "conciliado", label: "Conciliados" }]}
           />
+          <DateRangeFilter dateFrom={periodoDe} setDateFrom={setPeriodoDe} dateTo={periodoAte} setDateTo={setPeriodoAte} emptyLabel="Data do extrato: Tudo" />
         </FilterBar>
       </FinanceKpiFilter>
 

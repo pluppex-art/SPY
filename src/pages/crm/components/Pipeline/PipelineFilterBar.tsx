@@ -50,7 +50,7 @@ export function PipelineFilterBar({
   sourceFilter, setSourceFilter, sourcesList,
 }: PipelineFilterBarProps) {
   return (
-    <div className="grid grid-cols-2 sm:flex sm:flex-wrap lg:flex-nowrap items-center gap-2 shrink-0 max-[479px]:[&>*]:col-span-2 overflow-x-auto scrollbar-none pb-0.5">
+    <div className="grid grid-cols-2 sm:flex sm:flex-wrap items-center gap-2 shrink-0 max-[479px]:[&>*]:col-span-2">
       {(comercialFunis.length > 0 || sdrFunis.length > 0) && (
         <div className="col-span-2 sm:col-span-1 flex items-center gap-1.5 bg-[var(--color-surface-elevated)] border border-[var(--color-border-default)] rounded-[var(--radius-control)] px-2 py-1.5 h-[42px] sm:h-[38px] overflow-x-auto scrollbar-none w-fit max-w-full justify-self-start lg:flex-none lg:max-w-[300px]">
           {comercialFunis.length === 1 ? (
@@ -110,7 +110,7 @@ export function PipelineFilterBar({
         />
       </div>
 
-      <div className="flex items-center gap-1.5 bg-[var(--color-surface-elevated)] px-3 rounded-[var(--radius-control)] border border-[var(--color-border-default)] h-[42px] sm:h-[38px] min-w-0 sm:max-w-[180px] lg:flex-1 lg:basis-0 lg:min-w-[105px] lg:max-w-[190px]">
+      <div className="flex items-center gap-1.5 bg-[var(--color-surface-elevated)] px-3 rounded-[var(--radius-control)] border border-[var(--color-border-default)] h-[42px] sm:h-[38px] min-w-0 sm:max-w-[180px] lg:flex-1 lg:basis-0 lg:min-w-[132px] lg:max-w-[190px]">
         <Package className="w-3 h-3 text-[var(--color-text-muted)] shrink-0" />
         <select
           className="bg-transparent border-none text-[var(--color-text-primary)] focus:outline-none text-xs font-bold cursor-pointer w-full truncate"
@@ -122,7 +122,7 @@ export function PipelineFilterBar({
         </select>
       </div>
 
-      <div className="flex items-center gap-1.5 bg-[var(--color-surface-elevated)] px-3 rounded-[var(--radius-control)] border border-[var(--color-border-default)] h-[42px] sm:h-[38px] min-w-0 sm:max-w-[180px] lg:flex-1 lg:basis-0 lg:min-w-[105px] lg:max-w-[190px]">
+      <div className="flex items-center gap-1.5 bg-[var(--color-surface-elevated)] px-3 rounded-[var(--radius-control)] border border-[var(--color-border-default)] h-[42px] sm:h-[38px] min-w-0 sm:max-w-[180px] lg:flex-1 lg:basis-0 lg:min-w-[132px] lg:max-w-[190px]">
         <MapPin className="w-3 h-3 text-[var(--color-text-muted)] shrink-0" />
         <select
           className="bg-transparent border-none text-[var(--color-text-primary)] focus:outline-none text-xs font-bold cursor-pointer w-full truncate"
@@ -133,7 +133,7 @@ export function PipelineFilterBar({
         </select>
       </div>
 
-      <div className="flex items-center gap-1.5 bg-[var(--color-surface-elevated)] px-3 rounded-[var(--radius-control)] border border-[var(--color-border-default)] h-[42px] sm:h-[38px] min-w-0 sm:max-w-[180px] lg:flex-1 lg:basis-0 lg:min-w-[105px] lg:max-w-[190px]">
+      <div className="flex items-center gap-1.5 bg-[var(--color-surface-elevated)] px-3 rounded-[var(--radius-control)] border border-[var(--color-border-default)] h-[42px] sm:h-[38px] min-w-0 sm:max-w-[180px] lg:flex-1 lg:basis-0 lg:min-w-[132px] lg:max-w-[190px]">
         <Filter className="w-3 h-3 text-[var(--color-text-muted)] shrink-0" />
         <select
           className="bg-transparent border-none text-[var(--color-text-primary)] focus:outline-none text-xs font-bold cursor-pointer w-full truncate"
@@ -144,9 +144,8 @@ export function PipelineFilterBar({
         </select>
       </div>
 
-      <DateRangeFilter dateFrom={dateFrom} setDateFrom={setDateFrom} dateTo={dateTo} setDateTo={setDateTo} />
 
-      <div className="flex items-center gap-1.5 bg-[var(--color-surface-elevated)] px-3 rounded-[var(--radius-control)] border border-[var(--color-border-default)] h-[42px] sm:h-[38px] min-w-0 sm:max-w-[180px] lg:flex-1 lg:basis-0 lg:min-w-[105px] lg:max-w-[190px]">
+      <div className="flex items-center gap-1.5 bg-[var(--color-surface-elevated)] px-3 rounded-[var(--radius-control)] border border-[var(--color-border-default)] h-[42px] sm:h-[38px] min-w-0 sm:max-w-[180px] lg:flex-1 lg:basis-0 lg:min-w-[132px] lg:max-w-[190px]">
         <Layers className="w-3 h-3 text-[var(--color-text-muted)] shrink-0" />
         <select
           className="bg-transparent border-none text-[var(--color-text-primary)] focus:outline-none text-xs font-bold cursor-pointer w-full truncate"
@@ -158,7 +157,7 @@ export function PipelineFilterBar({
         </select>
       </div>
 
-      <div className="flex items-center gap-1.5 bg-[var(--color-surface-elevated)] px-3 rounded-[var(--radius-control)] border border-[var(--color-border-default)] h-[42px] sm:h-[38px] min-w-0 sm:max-w-[180px] lg:flex-1 lg:basis-0 lg:min-w-[105px] lg:max-w-[190px]">
+      <div className="flex items-center gap-1.5 bg-[var(--color-surface-elevated)] px-3 rounded-[var(--radius-control)] border border-[var(--color-border-default)] h-[42px] sm:h-[38px] min-w-0 sm:max-w-[180px] lg:flex-1 lg:basis-0 lg:min-w-[132px] lg:max-w-[190px]">
         <Link2 className="w-3 h-3 text-[var(--color-text-muted)] shrink-0" />
         <select
           className="bg-transparent border-none text-[var(--color-text-primary)] focus:outline-none text-xs font-bold cursor-pointer w-full truncate"
@@ -168,6 +167,7 @@ export function PipelineFilterBar({
           {sourcesList.map(s => <option key={s} value={s} className="bg-[var(--color-surface-elevated)]">{s === "Todas" ? "Todas as origens" : s}</option>)}
         </select>
       </div>
+      <DateRangeFilter dateFrom={dateFrom} setDateFrom={setDateFrom} dateTo={dateTo} setDateTo={setDateTo} />
     </div>
   );
 }

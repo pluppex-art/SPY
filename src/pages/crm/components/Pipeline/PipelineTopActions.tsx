@@ -1,5 +1,6 @@
 import { Plus } from "lucide-react";
 import { Button } from "../../../../components/ui/button";
+import { ViewToggle } from "../../../../components/ui/view-toggle";
 import { BotaoCompartilharLeads } from "../../../../components/ImportadorPlanilha";
 
 type Props = {
@@ -25,22 +26,12 @@ export function PipelineTopActions({ view, setView, onNewLead, leadsExport }: Pr
         <Plus className="w-4 h-4 shrink-0" /> Novo Lead
       </Button>
 
-      <div className="order-2 md:order-1 self-center md:self-auto flex items-center bg-[var(--color-surface-elevated)] border border-[var(--color-border-default)] rounded-[var(--radius-control)] h-8 md:h-10">
-        {(["lista", "kanban"] as const).map((v) => (
-          <button
-            key={v}
-            type="button"
-            onClick={() => setView(v)}
-            className={`relative before:content-[''] before:absolute before:inset-x-0 before:-inset-y-1 md:before:hidden first:rounded-l-[calc(var(--radius-control)-1px)] last:rounded-r-[calc(var(--radius-control)-1px)] flex items-center justify-center gap-2 px-4 md:px-3.5 h-full text-[10px] font-bold uppercase tracking-wider transition-all cursor-pointer border-none ${
-              view === v
-                ? "bg-[var(--color-primary-blue)] !text-white font-bold shadow-xs"
-                : "text-[var(--color-text-muted)] hover:text-[var(--color-text-primary)]"
-            }`}
-          >
-            {v === "lista" ? "Lista" : "Kanban"}
-          </button>
-        ))}
-      </div>
+      <ViewToggle
+        className="order-2 md:order-1"
+        value={view}
+        onChange={setView}
+        options={[{ id: "lista", label: "Lista" }, { id: "kanban", label: "Kanban" }]}
+      />
     </div>
   );
 }

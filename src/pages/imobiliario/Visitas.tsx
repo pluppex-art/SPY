@@ -564,8 +564,8 @@ export default function Visitas() {
         <FilterBar>
           <FilterSearch value={search} onChange={setSearch} placeholder="Buscar cliente, imóvel, corretor ou bairro..." />
           <FilterSelect icon={User} value={corretorFilter} onChange={setCorretorFilter} options={corretoresList} allLabel="Todos os corretores" />
-          <DateRangeFilter dateFrom={dateFrom} setDateFrom={setDateFrom} dateTo={dateTo} setDateTo={setDateTo} className="h-[38px]" />
           <FilterChips value={statusFilter} onChange={setStatusFilter} allValue="Todas" allLabel="Todas" options={["Agendada", "Confirmada", "Realizada", "Cancelada"]} />
+          <DateRangeFilter dateFrom={dateFrom} setDateFrom={setDateFrom} dateTo={dateTo} setDateTo={setDateTo} className="h-[38px]" />
         </FilterBar>
       </KpiFilterCard>
 

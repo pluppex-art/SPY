@@ -3,6 +3,7 @@ import { useCallback, useMemo, useState } from "react";
 import { Plus, Calendar, CheckCircle2, X, FileText, Share2, CalendarCheck, Layers, Columns3, User, Users, Send, Clock, MessageSquareWarning } from "lucide-react";
 import { KpiFilterCard, FilterBar, FilterSearch, FilterSelect } from "../../components/ui/kpi-filter-card";
 import { Button } from "../../components/ui/button";
+import { ViewToggle, HEADER_ACTIONS, HEADER_BUTTON, HEADER_PRIMARY_BUTTON } from "../../components/ui/view-toggle";
 import { Modal } from "../../components/ui/modal";
 import { toast } from "sonner";
 import { DragDropContext } from "@hello-pangea/dnd";
@@ -142,10 +143,21 @@ export default function MarketingConteudo() {
       subtitle={clienteAtivo && clienteAtivo !== "sem"
         ? `Pautas e calendário de ${clientes.find((c) => c.id === clienteAtivo)?.nome}.`
         : "Organize postagens, vídeos e criativos em um quadro visual por etapa."}
+      actions={
+        <div className={HEADER_ACTIONS}>
+          <Button variant="outline" onClick={() => setEnvio({ pauta: null })} className={HEADER_BUTTON}>
+            <Send className="w-3.5 h-3.5" /> Enviar para aprovação
+          </Button>
+          <ViewToggle value={visao} onChange={setVisao} options={[{ id: "quadro", label: "Quadro", icon: Columns3 }, { id: "calendario", label: "Calendário", icon: Calendar }]} />
+          <Button onClick={() => novaPauta("")} className={HEADER_PRIMARY_BUTTON}>
+            <Plus className="w-4 h-4" /> Nova Pauta
+          </Button>
+        </div>
+      }
     >
       <KpiFilterCard
         id="marketingConteudo"
-        className="mb-6"
+        className="mb-4"
         kpis={[
           { label: "Pautas", value: tasksFiltradas.length, icon: FileText, tone: "primary" },
           { label: "Canais", value: new Set(tasksFiltradas.map(t => t.platform)).size, icon: Share2, tone: "info" },
@@ -171,38 +183,6 @@ export default function MarketingConteudo() {
           <FilterSelect icon={User} value={responsavel} onChange={setResponsavel} options={responsaveis} allLabel="Todos os responsáveis" />
         </FilterBar>
       </KpiFilterCard>
-
-      <div className="flex justify-between items-center mb-6">
-        <div className="flex gap-4 items-center overflow-x-auto pb-2 scrollbar-none">
-          <Button 
-            onClick={() => novaPauta("")}
-            className="bg-[#2563EB] hover:bg-blue-600 shadow-lg text-xs font-bold gap-2"
-          >
-             <Plus className="w-4 h-4" /> Nova Pauta
-          </Button>
-          <Button variant="outline" onClick={() => setEnvio({ pauta: null })} className="text-xs font-bold gap-2 shrink-0">
-             <Send className="w-4 h-4" /> Enviar para aprovação
-          </Button>
-          <div className="flex items-center bg-[var(--color-surface-elevated)] border border-[var(--color-border-default)] rounded-[var(--radius-control)] h-10 shrink-0">
-            {([
-              { id: "quadro" as const, label: "Quadro", icon: Columns3 },
-              { id: "calendario" as const, label: "Calendário", icon: Calendar },
-            ]).map((v) => (
-              <button
-                key={v.id}
-                type="button"
-                onClick={() => setVisao(v.id)}
-                aria-pressed={visao === v.id}
-                className={`flex items-center gap-1.5 px-3.5 h-full text-[11px] font-bold uppercase tracking-wider transition-all cursor-pointer border-none first:rounded-l-[calc(var(--radius-control)-1px)] last:rounded-r-[calc(var(--radius-control)-1px)] ${
-                  visao === v.id ? "bg-[var(--color-primary-blue)] !text-white shadow-xs" : "text-[var(--color-text-muted)] hover:text-[var(--color-text-primary)] bg-transparent"
-                }`}
-              >
-                <v.icon className="w-3.5 h-3.5" /> {v.label}
-              </button>
-            ))}
-          </div>
-        </div>
-      </div>
 
       {visao === "calendario" ? (
         <ConteudoCalendario
