@@ -112,6 +112,12 @@ export function registerAgenteInternoGruposRoutes(app: express.Express, { requir
         const fora = ids.find((i) => !ok.has(i));
         if (fora) return res.status(400).json({ error: "Um dos responsáveis não pertence a esta empresa." });
       }
+      // Um grupo, um agente: grupo que já é do Radar (oportunidades) não pode ser interno.
+      const idsGrupos = r.grupos.map((g) => g.group_chat_id);
+      if (idsGrupos.length) {
+        const { data: doRadar } = await supabaseService.from("radar_grupos_monitorados").select("group_chat_id").in("group_chat_id", idsGrupos).limit(1);
+        if (doRadar?.length) return res.status(409).json({ error: `O grupo ${doRadar[0].group_chat_id} já é um grupo do Radar. Um grupo só pode ter um agente.` });
+      }
       const valor = { ...(atual?.value ?? {}), grupos: r.grupos };
       const { error } = atual?.id
         ? await supabaseService.from("app_settings").update({ value: valor }).eq("id", atual.id)

@@ -37,13 +37,13 @@ test("lista: id repetido, formato errado e excesso são recusados", () => {
 });
 
 // Rotas com banco de mentira
-function fakeDb(modules: any, settings: any = null) {
+function fakeDb(modules: any, settings: any = null, doRadar: any[] = []) {
   const calls: any[] = [];
   const db = {
     calls,
     from(t: string) {
       const q: any = { t, f: {} };
-      q.select = () => q; q.eq = (k: string, v: any) => { q.f[k] = v; return q; }; q.in = () => q;
+      q.select = () => q; q.eq = (k: string, v: any) => { q.f[k] = v; return q; }; q.in = () => q; q.limit = async () => ({ data: t === "radar_grupos_monitorados" ? doRadar : [] });
       q.maybeSingle = async () => (t === "tenants" ? { data: { modules } } : t === "app_settings" ? { data: settings } : { data: null });
       q.then = undefined;
       q.update = (v: any) => { calls.push({ op: "update", t, v }); return { eq: async () => ({ error: null }) }; };
@@ -84,4 +84,12 @@ test("empresa com o módulo: lê e grava no mesmo cadastro que o n8n usa", async
   assert.equal(db.calls[0].v.value.grupos[0].dev_project_id, "p1");
   const ruim = res(); await rotas["PUT /api/agente-interno/grupos"]({ body: { grupos: [{ ...base, departamento: "x" }] } }, ruim);
   assert.equal(ruim.code, 400);
+});
+
+test("um grupo, um agente: grupo que já é do Radar é recusado (409) e nada é gravado", async () => {
+  const db: any = fakeDb({ agente_interno: true }, { id: "s1", value: { grupos: [] } }, [{ group_chat_id: base.group_chat_id }]);
+  const { a, rotas } = app();
+  registerAgenteInternoGruposRoutes(a, { requireUser: mw, requireTenantAdmin: mw, resolveRequestedTenantId: async () => "t1", supabaseService: db, limiter: mw });
+  const p = res(); await rotas["PUT /api/agente-interno/grupos"]({ body: { grupos: [base] } }, p);
+  assert.equal(p.code, 409); assert.match(p.body.error, /Radar/); assert.equal(db.calls.length, 0);
 });

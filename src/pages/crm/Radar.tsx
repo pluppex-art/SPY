@@ -3,7 +3,7 @@ import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import {
   Radar as RadarIcon, Flame, Clock, Users, Phone, MessageCircle, ExternalLink,
-  Download, Send, ListTree, Search,
+  Download, Send, ListTree, Search, Users as UsersIcon,
 } from "lucide-react";
 import {
   AreaChart, Area, PieChart, Pie, Cell, XAxis, YAxis, Tooltip, CartesianGrid, ResponsiveContainer,
@@ -30,6 +30,7 @@ import { calcularBoas } from "../../lib/radarBoas";
 import { riscoDe } from "../../lib/radarRetrato";
 import { RadarBoasPainel } from "./components/Radar/RadarBoas";
 import { RadarPesquisa } from "./components/Radar/RadarPesquisa";
+import { RadarGrupos } from "./components/Radar/RadarGrupos";
 type Risk = "critico" | "alto" | "atencao";
 const RISK_META: Record<Risk, { label: string; variant: "destructive" | "warning" | "info"; color: string }> = {
   critico: { label: "Crítico", variant: "destructive", color: "var(--color-danger)" },
@@ -71,7 +72,7 @@ export default function Radar() {
   const { formatCurrency } = useLocalization();
   const navigate = useNavigate();
 
-  const [lado, setLado] = useState<"ruim" | "bom" | "pesquisa">("ruim");
+  const [lado, setLado] = useState<"ruim" | "bom" | "pesquisa" | "grupos">("ruim");
   const [days, setDays] = useState(3);
   const [vendedor, setVendedor] = useState("todos");
   const [funilFiltro, setFunilFiltro] = useState("todos");
@@ -277,6 +278,7 @@ export default function Radar() {
           { id: "ruim" as const, label: "Esfriando", sub: "para cuidar", total: totalEmRisco, cor: "text-danger" },
           { id: "bom" as const, label: "Esquentando", sub: "boas notícias", total: totalBoas, cor: "text-emerald-600" },
           { id: "pesquisa" as const, label: "Pesquisar", sub: "novas empresas", total: null as number | null, cor: "" },
+          { id: "grupos" as const, label: "Grupos", sub: "WhatsApp acompanhado", total: null as number | null, cor: "" },
         ]).map((t) => {
           const ativa = lado === t.id;
           return (
@@ -287,7 +289,7 @@ export default function Radar() {
               aria-current={ativa ? "page" : undefined}
               className={`flex items-center gap-2 px-4 py-2.5 text-xs font-bold border-b-2 -mb-px cursor-pointer transition-colors bg-transparent ${ativa ? "border-[var(--color-primary-blue)] text-[var(--color-primary-blue)]" : "border-transparent text-[var(--color-text-muted)] hover:text-[var(--color-text-primary)]"}`}
             >
-              {t.id === "ruim" ? <Clock className="w-3.5 h-3.5" /> : t.id === "bom" ? <Flame className="w-3.5 h-3.5" /> : <Search className="w-3.5 h-3.5" />}
+              {t.id === "ruim" ? <Clock className="w-3.5 h-3.5" /> : t.id === "bom" ? <Flame className="w-3.5 h-3.5" /> : t.id === "grupos" ? <UsersIcon className="w-3.5 h-3.5" /> : <Search className="w-3.5 h-3.5" />}
               {t.label}
               <span className="font-medium text-[var(--color-text-faint)] hidden sm:inline">· {t.sub}</span>
               {t.total !== null && <span className={`px-1.5 py-0.5 rounded-full text-[10px] font-black bg-[var(--color-surface-sunken)] ${ativa ? t.cor : ""}`}>{t.total}</span>}
@@ -296,7 +298,9 @@ export default function Radar() {
         })}
       </nav>
 
-      {lado === "pesquisa" ? (
+      {lado === "grupos" ? (
+        <RadarGrupos />
+      ) : lado === "pesquisa" ? (
         <RadarPesquisa />
       ) : lado === "bom" ? (
         <RadarBoasPainel

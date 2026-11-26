@@ -15,7 +15,8 @@ import { GoogleGenAI, Type } from "@google/genai";
 import { createClient } from "@supabase/supabase-js";
 import { randomUUID, randomBytes, createHash, timingSafeEqual } from "crypto";
 import axios from "axios";
-import { mensagemDeGrupo, encaminharMensagemDeGrupo } from "./server/gruposAgenteSecreto.js";
+import { mensagemDeGrupo, rotearMensagemDeGrupo } from "./server/gruposAgenteSecreto.js";
+import { registerRadarGruposRoutes } from "./server/radarGruposMonitorados.js";
 import { radarWebhookDaEmpresa, provisionarRadarDaEmpresa, sincronizarRadarDasEmpresas } from "./server/radarWebhook.js";
 import { calcularDRELegado, diaCaixa, filtroPeriodoOr, calcularDreCompleto, cmvDosItens, filtrarPeriodo, quantidadeDoItem, separarLegado, type LancamentoDre, type RegimeDre } from "./src/lib/dre/dre.js";
 import { createGoogleCalendarRouter } from "./server/googleCalendar.js";
@@ -557,6 +558,7 @@ registerApisBrasilRoutes(app, { requireUser, limiter: rateLimit({ windowMs: 60_0
 // Emissão de NFS-e (emissaoja.com.br): a chave de cada empresa fica no servidor (app_settings), nunca no navegador.
 registerEmissaoJaRoutes(app, { requireUser, requireTenantAdmin, resolveRequestedTenantId, supabaseService, limiter: rateLimit({ windowMs: 60_000, limit: 30, standardHeaders: true, legacyHeaders: false }) });
 registerAgenteInternoGruposRoutes(app, { requireUser, requireTenantAdmin, resolveRequestedTenantId, supabaseService, limiter: rateLimit({ windowMs: 60_000, limit: 60, standardHeaders: true, legacyHeaders: false }) });
+registerRadarGruposRoutes(app, { requireUser, requireTenantAdmin, resolveRequestedTenantId, supabaseService, limiter: rateLimit({ windowMs: 60_000, limit: 60, standardHeaders: true, legacyHeaders: false }) });
 // Fatura/recibo em PDF de uma receita, gerado no próprio servidor (sem serviço externo).
 registerFaturaPdfRoutes(app, { segredo: process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.CRON_SECRET || "", appUrl: (process.env.PUBLIC_APP_URL || "http://localhost:3002").replace(/\/+$/, ""), requireUser, requireTenantAdmin, resolveRequestedTenantId, supabaseService, limiter: rateLimit({ windowMs: 60_000, limit: 30, standardHeaders: true, legacyHeaders: false }) });
 // Pesquisa externa (web) da Aurora para itens não identificados — a busca roda no n8n; só gera sugestões p/ revisão.
@@ -6329,8 +6331,8 @@ app.post("/api/whatsapp/webhook/:instanceId", async (req: any, res) => {
     const body = req.body ?? {};
     // Mensagem de GRUPO vai para o Agente Secreto interno (n8n) e não entra no chat 1:1 (antes virava um "contato" com o id do grupo).
     if (mensagemDeGrupo(body)) {
-      const r = await encaminharMensagemDeGrupo(body, inst);
-      if (!r.ok) console.error("[whatsapp/webhook] grupo não encaminhado ao n8n:", r.motivo);
+      const r = await rotearMensagemDeGrupo(supabaseService, body, inst);
+      if (!r.ok) console.error(`[whatsapp/webhook] grupo não encaminhado ao n8n (${r.destino}):`, r.motivo);
       return;
     }
     if (inst.finalidade === "interno") return; // sessão do Agente Interno: conversas privadas nunca entram no SPY
