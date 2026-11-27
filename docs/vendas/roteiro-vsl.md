@@ -1,5 +1,8 @@
 # Roteiro do vídeo de vendas do S.P.Y.
 
+> Há dois vídeos animados prontos para gerar (consultiva e varejo): ver `scripts/vsl/LEIA.md`.
+> O texto abaixo é a versão alternativa, para gravar com uma pessoa na câmera.
+
 Duração estimada: 3 a 4 minutos. Quem fala olha para a câmera; as telas do sistema entram por cima da fala.
 Grave só com dados fictícios na tela. Não prometa resultado nem cite número que não possa comprovar.
 
@@ -32,5 +35,5 @@ Grave só com dados fictícios na tela. Não prometa resultado nem cite número 
 **Tela:** o botão "Escolher meu plano".
 
 ## Antes de publicar
-- Envie o vídeo para o YouTube (pode ser "não listado") ou Vimeo e cole o link em `VIDEO_DE_VENDAS`, em `src/pages/vendas/VendaVideo.tsx`.
+- Envie o vídeo para o YouTube (pode ser "não listado") ou Vimeo e cole o link em `VERSOES.consultiva.video`, em `src/pages/vendas/VendaVideo.tsx`.
 - Confira se os preços falados são os mesmos que aparecem na página.

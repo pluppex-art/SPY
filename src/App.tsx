@@ -691,6 +691,7 @@ function AppContent() {
         <Route path="/vendas/espiao" element={<VendaEspiao />} />
         <Route path="/vendas/recuperacao" element={<VendaRecuperacao />} />
         <Route path="/vendas/video" element={<VendaVideo />} />
+        <Route path="/vendas/video-varejo" element={<VendaVideo publico="varejo" />} />
         <Route path="/vendas/planos" element={<VendaDireta />} />
 
         {/* Marketing/Capture Forms Hub */}

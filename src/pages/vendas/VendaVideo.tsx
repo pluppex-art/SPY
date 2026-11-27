@@ -1,30 +1,53 @@
-/** Página de venda 3, com vídeo de vendas (VSL): fundo preto, tudo no centro, um botão. */
+/** Página de venda com vídeo (VSL): fundo preto, tudo no centro, um botão. Uma versão consultiva e uma de varejo. */
 import { ArrowDown, Play } from "lucide-react";
 import { rv } from "../landing/reveal";
 import { videoDaPagina } from "./conta";
 import { Chamada, PaginaDeVenda, Perguntas, PlanosDeVenda } from "./comum";
 
-/** Cole aqui o link do vídeo (YouTube, Vimeo ou arquivo .mp4 em https). Vazio = mostra o quadro de espera. */
-const VIDEO_DE_VENDAS = "";
-
 const BOTAO = "Escolher meu plano";
 
-const NO_VIDEO: [string, string][] = [
-  ["Inteligência", "Como o Agente Secreto de Vendas capta o que acontece na conversa."],
-  ["Recuperação", "Como enxergar o negócio que está esfriando e retomar."],
-  ["Dados", "Onde fica cada cliente, proposta e compromisso."],
-  ["Gestão", "O que o gestor pergunta à Aurora e acompanha nos indicadores."],
-];
+type Publico = "consultiva" | "varejo";
 
-export default function VendaVideo() {
-  const video = videoDaPagina(VIDEO_DE_VENDAS);
+const VERSOES: Record<Publico, {
+  /** Cole aqui o link do vídeo (YouTube, Vimeo ou arquivo .mp4 em https). Vazio = mostra o quadro de espera. */
+  video: string;
+  titulo: string; descricao: string; antes: string; destaque: string; pilares: [string, string][];
+}> = {
+  consultiva: {
+    video: "",
+    titulo: "S.P.Y. — Assista antes de escolher o plano",
+    descricao: "Veja como o S.P.Y. acompanha a venda consultiva em quatro pilares: captura, análise, repescagem e relatórios.",
+    antes: "Veja as vendas que hoje passam ", destaque: "despercebidas",
+    pilares: [
+      ["Captura", "O Agente Secreto de Vendas leva a conversa do WhatsApp conectado para o funil."],
+      ["Análise", "Necessidade, quem decide, orçamento e objeção organizados, com o próximo passo."],
+      ["Repescagem", "Enxergue o que está esfriando e seja avisado quando um cliente espera resposta."],
+      ["Relatórios", "Pergunte à Aurora e acompanhe os relatórios e a ruptura na tela."],
+    ],
+  },
+  varejo: {
+    video: "",
+    titulo: "S.P.Y. para o varejo — Venda sem perder conversa",
+    descricao: "Para quem vende no balcão e no WhatsApp: captura, análise, repescagem e relatórios no S.P.Y.",
+    antes: "Atenda no balcão sem perder a venda do ", destaque: "WhatsApp",
+    pilares: [
+      ["Captura", "O cliente chamou no WhatsApp conectado? O Agente Secreto de Vendas anota no funil."],
+      ["Análise", "O que ele quer, para quando e qual a dúvida, com a tarefa de retorno."],
+      ["Repescagem", "Aviso quando o cliente espera demais, e a lista de quem está sem comprar."],
+      ["Relatórios", "Pergunte à Aurora e veja vendas, estoque e ruptura na tela."],
+    ],
+  },
+};
+
+export default function VendaVideo({ publico = "consultiva" }: { publico?: Publico }) {
+  const v = VERSOES[publico];
+  const video = videoDaPagina(v.video);
   return (
-    <PaginaDeVenda tema="sv-video" cta={BOTAO} titulo="S.P.Y. — Assista antes de escolher o plano"
-      descricao="Veja como o S.P.Y. enxerga as vendas que hoje passam despercebidas, em quatro pilares.">
+    <PaginaDeVenda tema="sv-video" cta={BOTAO} titulo={v.titulo} descricao={v.descricao}>
       <section className="sp-section sv-palco" aria-labelledby="sv-h1">
         <div className="sp-wrap">
           <p className="sv-carimbo">Assista antes de escolher o plano</p>
-          <h1 id="sv-h1" className="sv-h1">Veja as vendas que hoje passam <span className="sp-grad">despercebidas</span></h1>
+          <h1 id="sv-h1" className="sv-h1">{v.antes}<span className="sp-grad">{v.destaque}</span></h1>
           <div className="sv-tela">
             {video?.tipo === "quadro" && <iframe src={video.url} title="Apresentação do S.P.Y." allow="autoplay; encrypted-media; picture-in-picture; fullscreen" allowFullScreen />}
             {video?.tipo === "arquivo" && <video src={video.url} controls playsInline preload="metadata" />}
@@ -43,7 +66,7 @@ export default function VendaVideo() {
         <div className="sp-wrap">
           <h2 id="sv-roteiro" className="sp-h2" {...rv()}>Uma plataforma. Quatro pilares.</h2>
           <ol className="sv-pilares">
-            {NO_VIDEO.map(([nome, texto], i) => (
+            {v.pilares.map(([nome, texto], i) => (
               <li key={nome} {...rv(i)}><span>0{i + 1}</span><h3>{nome}</h3><p>{texto}</p></li>
             ))}
           </ol>

@@ -1,0 +1,21 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <title>Palco dos vídeos S.P.Y.</title>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,700;12..96,800&family=Instrument+Sans:wght@400;500;600;700&display=block">
+  <link rel="stylesheet" href="estilo.css">
+</head>
+<body>
+  <div id="grade"></div>
+  <div id="cenas"></div>
+  <div id="legenda"></div>
+  <div id="progresso"></div>
+  <script src="motor.js"></script>
+  <script src="desenho.js"></script>
+  <script>
+    const nome = new URLSearchParams(location.search).get("roteiro").replace(/[^a-z-]/g, "");
+    document.write(`<script src="roteiros/${nome}.js"><\/script>`);
+  </script>
+</body>
+</html>
