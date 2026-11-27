@@ -255,17 +255,23 @@ export default function MarketingEmail() {
       for (;;) {
         const r = await apiFetchTenant(`/api/email-campaigns/${c.id}/send-batch`, { method: "POST" }).then(json);
         setCampaigns((prev) => prev.map((x) => (x.id === c.id ? { ...x, sent: r.sent, failed: r.failed, status: r.status } : x)));
-        if (r.cota) { toast.warning(`Limite de ${r.cota.limite} e-mails em 24h atingido${r.cota.proprio ? "" : " (SMTP da plataforma — cadastre o seu em Integrações → SMTP para enviar mais)"}. O restante sai sozinho quando liberar.`); break; }
+        if (r.cota) { toast.warning(r.cota.porHora ? `Ritmo de ${r.cota.porHora} e-mails por hora atingido. O restante sai sozinho na próxima hora.` : `Limite de ${r.cota.limite} e-mails em 24h atingido${r.cota.proprio ? "" : " (SMTP da plataforma — cadastre o seu em Integrações → SMTP para enviar mais)"}. O restante sai sozinho quando liberar.`, { duration: 12000 }); break; }
         if (r.done) { toast.success(`Envio concluído: ${r.sent} enviado(s), ${r.failed} falha(s).`); break; }
         if (stopRef.current) { toast.info("Envio pausado. Você pode retomar quando quiser."); break; }
+        if (r.aguardando) { toast.info(`${r.pending} envio(s) na espera. Saem sozinhos, não precisa manter a página aberta.`, { duration: 12000 }); break; }
       }
     } catch (e: any) { toast.error(`${e.message} — o envio pode ser retomado.`); }
     finally { setRunning(null); void load(); }
   };
 
   const send = async (c: Campaign) => {
-    if (!(await confirmDialog({ title: "Disparar campanha?", description: `Vai enviar "${c.subject}" para ${c.total} pessoa(s). Mantenha esta página aberta até terminar (se fechar, é só retomar).`, confirmLabel: "Enviar agora" }))) return;
+    if (!(await confirmDialog({ title: "Disparar campanha?", description: `Vai enviar "${c.subject}" para ${c.total} pessoa(s). Pode fechar a página: o que faltar continua saindo sozinho.`, confirmLabel: "Enviar agora" }))) return;
     void run(c);
+  };
+
+  const pausar = (c: Campaign) => {
+    stopRef.current = true; // fica gravado também no servidor, para a rotina automática não continuar o envio
+    void apiFetchTenant(`/api/email-campaigns/${c.id}/pausar`, { method: "POST" }).then(json).catch((e: any) => toast.error(`Não foi possível pausar: ${e.message}`));
   };
 
   const cancel = async (c: Campaign) => {
@@ -355,7 +361,7 @@ export default function MarketingEmail() {
             <Card className="p-10 text-center space-y-2"><Mail className="w-9 h-9 mx-auto text-[var(--color-primary-blue)]" /><p className="text-sm font-bold text-[var(--color-text-primary)]">Nenhuma campanha ainda</p><p className="text-xs text-[var(--color-text-muted)]">Crie a primeira: escolha o público, escreva a mensagem e dispare.</p></Card>
           ) : (
             <CampanhasEmail key={activeTenantId ?? ""} campanhas={campaigns} enviando={running} acoes={{
-              disparar: (c) => void send(c), retomar: (c) => void run(c), pausar: () => { stopRef.current = true; },
+              disparar: (c) => void send(c), retomar: (c) => void run(c), pausar: (c) => pausar(c),
               reenviar: setReenvio, destinatarios: setVendo, testar: (c) => void test(c), editar: (c) => void editar(c),
               duplicar: (c) => void duplicar(c), exportar: (c) => void exportar(c), cancelar: (c) => void cancel(c), excluir: excluirCampanhas,
             }} />
@@ -391,7 +397,7 @@ export default function MarketingEmail() {
           <Button onClick={() => void salvarEdicao(false)} disabled={salvando || !name.trim() || !subject.trim() || !corpo.trim()} className="h-9 px-5 text-xs font-bold gap-1.5">{salvando && <Loader2 className="w-3.5 h-3.5 animate-spin" />} Salvar alterações</Button>
         </> : <>
           {!canCreate && !creating && falta.length > 0 && <span className="mr-auto text-[11px] text-[var(--color-text-faint)]">Para criar, falta: {falta.join(", ")}.</span>}
-          <label className="flex items-center gap-2 text-[11px] font-bold text-[var(--color-text-muted)]">Enviar em
+          <label className="flex items-center gap-2 text-[11px] font-bold text-[var(--color-text-muted)]" title="Sai sozinha a partir das 9h do dia escolhido">Enviar em (9h)
             <input type="date" value={agendarPara} min={new Date(Date.now() - 3 * 3600_000).toISOString().slice(0, 10)} onChange={(e) => setAgendarPara(e.target.value)} className="h-9 px-2 rounded-lg text-xs border border-[var(--color-border-default)] bg-[var(--color-surface)] text-[var(--color-text-primary)]" />
             <HelpTip label="Agendamento">Deixe em branco para disparar você mesmo quando quiser. Com uma data, a campanha sai sozinha no envio automático das 10h (Brasília) desse dia, mesmo com o sistema fechado. Você ainda pode enviar antes pelo botão.</HelpTip>
           </label>

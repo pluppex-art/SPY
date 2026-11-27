@@ -124,6 +124,7 @@ export function criarFakeDb(seed: Record<string, Row[]> = {}, opts: { agoraMs?: 
       in: (c: string, v: any[]) => { filtros.push((r) => v.includes(r[c])); return q; },
       gt: (c: string, v: any) => { filtros.push((r) => Number(r[c] ?? 0) > Number(v)); return q; },
       gte: (c: string, v: any) => { filtros.push((r) => String(r[c]) >= String(v)); return q; },
+      lt: (c: string, v: any) => { filtros.push((r) => r[c] != null && String(r[c]) < String(v)); return q; },
       lte: (c: string, v: any) => { filtros.push((r) => String(r[c]) <= String(v)); return q; },
       like: (c: string, v: string) => { const re = new RegExp("^" + v.replace(/[.*+?^${}()|[\]\\]/g, "\\$&").replace(/%/g, ".*") + "$"); filtros.push((r) => re.test(String(r[c] ?? ""))); return q; },
       ilike: (c: string, v: string) => { filtros.push((r) => String(r[c] ?? "").toLowerCase() === v.toLowerCase().replace(/\\/g, "")); return q; },

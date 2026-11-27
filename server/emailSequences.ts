@@ -81,7 +81,7 @@ export async function inscreverAutomaticos(db: any, opts: { agora?: number; sequ
 
 export const quandoEnviar = (agora: number, dias: number) => new Date(agora + dias * DIA_MS).toISOString();
 
-interface Ajudas { cotaRestante: (db: any, tenantId: string) => Promise<{ restante: number }>; tenantNameOf: (tenantId: string) => Promise<{ name: string; color: string | null; logo?: string | null }>; enviar?: (db: any, tenantId: string, mail: any) => Promise<unknown> }
+interface Ajudas { cotaRestante: (db: any, tenantId: string) => Promise<{ restante: number; porHora?: number }>; tenantNameOf: (tenantId: string) => Promise<{ name: string; color: string | null; logo?: string | null }>; enviar?: (db: any, tenantId: string, mail: any) => Promise<unknown> }
 
 /** Envia os e-mails da sequência que já estão no prazo. `tenantId` limita a uma empresa (botão "enviar agora"); sem ele roda todas (cron). */
 export async function processarSequencias(db: any, base: string, aj: Ajudas, opts: { tenantId?: string; sequenceId?: string; agora?: number; orcamentoMs?: number } = {}) {
@@ -101,7 +101,7 @@ export async function processarSequencias(db: any, base: string, aj: Ajudas, opt
   const fila: any[] = (devidos || []).slice(0, POR_RODADA);
   const maisDevidos = (devidos || []).length > POR_RODADA;
   const seqs = new Map<string, any>(); const cotas = new Map<string, number>(); const optouts = new Map<string, Set<string>>(); const nomes = new Map<string, { name: string; color: string | null; logo?: string | null }>();
-  const tocadas = new Set<string>(); const adiadas = new Set<string>();
+  const tocadas = new Set<string>(); const adiadas = new Set<string>(); const noRitmo = new Set<string>();
   let enviados = 0, falhas = 0, encerrados = 0, semCota = 0, pausadas = 0;
   for (const en of fila) {
     if (Date.now() - inicio > orcamento) break;
@@ -118,11 +118,11 @@ export async function processarSequencias(db: any, base: string, aj: Ajudas, opt
       const { data: cliques } = await db.from("email_campaign_recipients").select("id").eq("campaign_id", seq.campaign_id).eq("email", en.email).gt("click_count", 0).limit(1);
       if (cliques && cliques.length) { await db.from("email_sequence_enrollments").update({ status: "stopped" }).eq("id", en.id); encerrados++; continue; }
     }
-    if (!cotas.has(en.tenant_id)) cotas.set(en.tenant_id, (await aj.cotaRestante(db, en.tenant_id)).restante);
+    if (!cotas.has(en.tenant_id)) { const c = await aj.cotaRestante(db, en.tenant_id); cotas.set(en.tenant_id, c.restante); if (c.porHora) noRitmo.add(en.tenant_id); }
     if ((cotas.get(en.tenant_id) || 0) <= 0) {
       semCota++;
-      // Sem cota hoje: adia todos os vencidos desta empresa para não ocuparem o começo da fila das outras empresas.
-      if (!adiadas.has(en.tenant_id)) { adiadas.add(en.tenant_id); await db.from("email_sequence_enrollments").update({ next_send_at: new Date(agora + 6 * 3600_000).toISOString() }).eq("tenant_id", en.tenant_id).eq("status", "active").lte("next_send_at", new Date(agora).toISOString()); }
+      // Sem cota hoje (ou no ritmo da hora): adia todos os vencidos desta empresa para não ocuparem o começo da fila das outras.
+      if (!adiadas.has(en.tenant_id)) { adiadas.add(en.tenant_id); await db.from("email_sequence_enrollments").update({ next_send_at: new Date(agora + (noRitmo.has(en.tenant_id) ? 1 : 6) * 3600_000).toISOString() }).eq("tenant_id", en.tenant_id).eq("status", "active").lte("next_send_at", new Date(agora).toISOString()); }
       continue;
     }
     if (!nomes.has(en.tenant_id)) nomes.set(en.tenant_id, await aj.tenantNameOf(en.tenant_id));
@@ -316,7 +316,7 @@ export function registrarSequencias(app: Express, { requireUser, resolveRequeste
     res.json({ ok: true });
   });
 
-  // Envia agora o que já está no prazo (o resto sai sozinho na rotina diária). O navegador repete enquanto `restantes` for verdadeiro.
+  // Envia agora o que já está no prazo (o resto sai sozinho na rotina automática). O navegador repete enquanto `restantes` for verdadeiro.
   app.post("/api/email-sequences/:id/processar", requireUser, limiter, async (req: any, res: any) => {
     if (!db) return noDb(res);
     const tenantId = await resolveRequestedTenantId(req, res); if (!tenantId) return;

@@ -237,7 +237,7 @@ test("SMS: sem credencial cadastrada não envia nada e avisa; com credencial env
 test("e-mail agendado: data válida de hoje até 90 dias, em horário de Brasília", () => {
   const agora = new Date("2026-11-19T12:00:00Z");
   assert.deepEqual(parseAgendamento("", agora), { ok: true, quando: null });
-  assert.deepEqual(parseAgendamento("2026-11-19", agora), { ok: true, quando: "2026-11-19T00:00:00-03:00" });
+  assert.deepEqual(parseAgendamento("2026-11-19", agora), { ok: true, quando: "2026-11-19T09:00:00-03:00" });
   assert.equal(parseAgendamento("2026-11-18", agora).ok, false);
   assert.equal(parseAgendamento("2027-03-01", agora).ok, false);
   assert.equal(parseAgendamento("amanhã", agora).ok, false);

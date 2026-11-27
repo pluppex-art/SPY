@@ -63,7 +63,7 @@ export function ReenviarCampanha({ campanha, onFechar, onEditar, onConfirmar }: 
           <input value={assunto} onChange={(e) => setAssunto(e.target.value)} maxLength={200} className="h-9 px-3 rounded-xl text-xs font-medium border border-[var(--color-border-default)] bg-[var(--color-surface)] text-[var(--color-text-primary)]" />
         </label>
         <OpcaoDeContagem ligada={contar} onMudar={setContar} />
-        <p className="text-[11px] text-[var(--color-text-muted)]">O reenvio acontece nesta mesma campanha. Quem saiu da lista não recebe. Mantenha a página aberta até terminar.</p>
+        <p className="text-[11px] text-[var(--color-text-muted)]">O reenvio acontece nesta mesma campanha. Quem saiu da lista não recebe. Pode fechar a página: o que faltar continua saindo sozinho.</p>
       </div>
     </Modal>
   );

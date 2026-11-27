@@ -11,7 +11,7 @@ export interface Campanha { id: string; name: string; subject: string; status: s
 export interface AcoesDaCampanha {
   disparar: (c: Campanha) => void;
   retomar: (c: Campanha) => void;
-  pausar: () => void;
+  pausar: (c: Campanha) => void;
   reenviar: (c: Campanha) => void;
   destinatarios: (c: Campanha) => void;
   testar: (c: Campanha) => void;
@@ -58,7 +58,7 @@ const Barra = ({ c }: { c: Campanha }) => (
 /** Botão principal conforme a situação, destinatários e o menu com o resto. */
 function Acoes({ c, rodando, ocupado, acoes, compacto }: { c: Campanha; rodando: boolean; ocupado: boolean; acoes: AcoesDaCampanha; compacto?: boolean }) {
   const botao = "h-8 px-3 text-[11px] font-bold gap-1.5";
-  const principal = rodando ? <Button variant="outline" onClick={acoes.pausar} className={botao}><Pause className="w-3.5 h-3.5" /> Pausar</Button>
+  const principal = rodando ? <Button variant="outline" onClick={() => acoes.pausar(c)} className={botao}><Pause className="w-3.5 h-3.5" /> Pausar</Button>
     : c.status === "sending" ? <Button onClick={() => acoes.retomar(c)} disabled={ocupado} className={botao}><Play className="w-3.5 h-3.5" /> Retomar</Button>
       : c.status === "ready" ? <Button onClick={() => acoes.disparar(c)} disabled={ocupado} className={botao}><Send className="w-3.5 h-3.5" /> Disparar</Button>
         : <Button onClick={() => acoes.reenviar(c)} disabled={ocupado} className={botao}><Send className="w-3.5 h-3.5" /> Reenviar</Button>;

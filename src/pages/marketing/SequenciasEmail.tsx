@@ -74,7 +74,7 @@ export function SequenciasEmail({ open, onClose, api, marca, enviarImagem }: {
     try {
       if (inscId) {
         const r = await api(`/api/email-sequences/${inscId.id}/inscrever`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ audience }) }).then(json);
-        toast.success(`${r.entraram} pessoa(s) inscrita(s)${r.jaEstavam ? ` (${r.jaEstavam} já estavam na sequência)` : ""}. O 1º e-mail sai na rotina diária ou em "Enviar agora".`);
+        toast.success(`${r.entraram} pessoa(s) inscrita(s)${r.jaEstavam ? ` (${r.jaEstavam} já estavam na sequência)` : ""}. O 1º e-mail sai sozinho em alguns minutos (das 8h às 20h) ou em "Enviar agora".`);
         fecharForm(); await carregar(); return;
       }
       if (editId) {
@@ -82,7 +82,7 @@ export function SequenciasEmail({ open, onClose, api, marca, enviarImagem }: {
         toast.success("Sequência atualizada. Quem já está nela segue do ponto onde parou."); fecharForm(); await carregar(); return;
       }
       const r = await api("/api/email-sequences", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ name: nome, passos: paraEnviar(), audience, autoInscrever: autoNovos && leads, pararAoClicar: pararClicar }) }).then(json);
-      toast.success(`Sequência criada com ${r.entraram} pessoa(s). O 1º e-mail sai na rotina diária, ou clique em "Enviar agora".`);
+      toast.success(`Sequência criada com ${r.entraram} pessoa(s). O 1º e-mail sai sozinho em alguns minutos (das 8h às 20h), ou clique em "Enviar agora".`);
       fecharForm(); setSources([]); setStatuses([]); setCanais([]); setAutoNovos(false); setPararClicar(false);
       await carregar();
     } catch (e: any) { toast.error(e.message); } finally { setSalvando(false); }
@@ -100,7 +100,7 @@ export function SequenciasEmail({ open, onClose, api, marca, enviarImagem }: {
   };
   const alternarAuto = async (s: Seq) => {
     const ligar = !s.auto;
-    if (ligar && !(await confirmDialog({ title: "Ligar entrada automática?", description: "A partir de agora, todo lead novo com e-mail válido entra nesta sequência (na rotina diária). Leads que já existem não entram.", confirmLabel: "Ligar" }))) return;
+    if (ligar && !(await confirmDialog({ title: "Ligar entrada automática?", description: "A partir de agora, todo lead novo com e-mail válido entra nesta sequência (na próxima rotina automática). Leads que já existem não entram.", confirmLabel: "Ligar" }))) return;
     try { await api(`/api/email-sequences/${s.id}/auto`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ ativo: ligar, ...(s.auto || {}) }) }).then(json); await carregar(); } catch (e: any) { toast.error(e.message); }
   };
   const alternarParar = async (s: Seq) => { try { await api(`/api/email-sequences/${s.id}/parar-ao-clicar`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ ativo: !s.pararAoClicar }) }).then(json); await carregar(); } catch (e: any) { toast.error(e.message); } };

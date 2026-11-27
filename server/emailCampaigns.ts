@@ -4,6 +4,7 @@ import { canalDoLead } from "../src/lib/canalAquisicao.js";
 import { conferirCorpo, ehHtml, htmlParaTexto, lerOpcaoDeLogo, sanitizarHtml, trocarLinks, MARCA_DESCADASTRO } from "../src/lib/emailHtml.js";
 import type { Express } from "express";
 import { sendTenantEmail, checkTenantSender } from "./mailer.js";
+import { lerPorHora, novaTentativa, somarNaHora } from "./emailRitmo.js";
 import { registrarSequencias, processarSequencias, inscreverAutomaticos } from "./emailSequences.js";
 
 // Disparo de e-mail em massa por empresa (genérico, qualquer tenant). Regras:
@@ -14,7 +15,9 @@ import { registrarSequencias, processarSequencias, inscreverAutomaticos } from "
 
 const MAX_RECIPIENTS = 10_000;
 const BATCH_SIZE = 40;
-const CONCURRENCY = 5;
+const CONCURRENCY = 2;
+/** Respiro entre um envio e outro de cada conexão: sem rajada no servidor de e-mail. */
+const PAUSA_ENTRE_ENVIOS_MS = Number(process.env.EMAIL_PAUSA_MS ?? 600);
 const TIME_BUDGET_MS = 40_000;
 const STALE_CLAIM_MS = 3 * 60_000;
 /** Teto de envios por empresa nas últimas 24h: com SMTP próprio a reputação é dela; sem ele, o servidor é da plataforma e o teto é bem menor. */
@@ -77,7 +80,12 @@ export function renderVars(text: string, v: { name?: string | null; company?: st
   const first = escapar(name.split(/\s+/)[0] || "");
   const nome = escapar(name);
   const empresa = escapar(limpa((v.company || "").trim()));
-  return text
+  // Sem nome cadastrado, "Olá, {{nome}}!" vira "Olá!" (e não "Olá, !").
+  const marcaNome = "(?:\\{\\{\\s*(?:primeiro[_ ]nome|nome)\\s*\\}\\}|\\*\\|FNAME\\|\\*)";
+  const base = name ? text : text
+    .replace(new RegExp(`(^|[\\n>])[ \\t]*${marcaNome}[ \\t]*,[ \\t]*`, "gi"), "$1")
+    .replace(new RegExp(`,?[ \\t]*${marcaNome}(?=[ \\t]*[!,.:?])`, "gi"), "");
+  return base
     .replace(/\{\{\s*primeiro[_ ]nome\s*\}\}|\*\|FNAME\|\*/gi, () => first)
     .replace(/\{\{\s*nome\s*\}\}/gi, () => nome)
     .replace(/\{\{\s*empresa\s*\}\}/gi, () => empresa);
@@ -348,7 +356,7 @@ export function somarReenvios(audiences: unknown[], agora: number = Date.now()):
   return n;
 }
 
-/** Data de envio escolhida (AAAA-MM-DD, horário de Brasília): de hoje até 90 dias. O disparo automático sai a partir das 00h desse dia. */
+/** Data de envio escolhida (AAAA-MM-DD, horário de Brasília): de hoje até 90 dias. O disparo automático sai a partir das 9h desse dia. */
 export function parseAgendamento(raw: unknown, agora: Date = new Date()): { ok: true; quando: string | null } | { ok: false; erro: string } {
   if (raw === undefined || raw === null || raw === "") return { ok: true, quando: null };
   const d = String(raw);
@@ -356,7 +364,7 @@ export function parseAgendamento(raw: unknown, agora: Date = new Date()): { ok: 
   const hojeBR = new Date(agora.getTime() - 3 * 3600_000).toISOString().slice(0, 10);
   if (d < hojeBR) return { ok: false, erro: "A data do agendamento já passou." };
   if (Date.parse(d) - Date.parse(hojeBR) > 90 * 86400_000) return { ok: false, erro: "Agende no máximo 90 dias à frente." };
-  return { ok: true, quando: `${d}T00:00:00-03:00` };
+  return { ok: true, quando: `${d}T09:00:00-03:00` };
 }
 
 export function selectAudience(leads: any[], aud: Audience, optouts: Set<string>) {
@@ -553,24 +561,32 @@ export function registerEmailCampaignRoutes(app: Express, { requireUser, resolve
     } catch (e: any) { res.status(502).json({ error: `Não foi possível enviar: ${String(e?.message || e).slice(0, 200)}` }); }
   });
 
-  /** Quantos e-mails a empresa ainda pode enviar nas últimas 24h (protege a reputação do remetente e da plataforma). */
-  const cotaRestante = async (db: any, tenantId: string): Promise<{ restante: number; limite: number; proprio: boolean }> => {
+  /**
+   * Quantos e-mails a empresa ainda pode enviar agora: teto das últimas 24h e, no SMTP próprio, ritmo por hora (protege a
+   * reputação do remetente e da plataforma). `porHora` vem preenchido quando quem segurou foi o ritmo.
+   */
+  const cotaRestante = async (db: any, tenantId: string): Promise<{ restante: number; limite: number; proprio: boolean; porHora?: number }> => {
     const { data: smtp } = await db.from("app_settings").select("value").eq("tenant_id", tenantId).eq("key", "integracoes_smtp").maybeSingle();
     const t = smtp?.value;
     const proprio = !!(t?.smtpServer && t?.smtpUser && t?.smtpPass && String(t?.fromEmail || "").trim());
     const limite = proprio ? COTA_DIARIA_SMTP_PROPRIO : COTA_DIARIA_SMTP_PLATAFORMA;
     const { count } = await db.from("email_campaign_recipients").select("id", { count: "exact", head: true }).eq("tenant_id", tenantId).eq("status", "sent").gte("sent_at", new Date(Date.now() - 24 * 3600_000).toISOString());
-    let reenvios = 0;
+    let audiencias: unknown[] = [];
     try {
       const { data } = await db.from("email_campaigns").select("audience").eq("tenant_id", tenantId).not("audience->reenvios", "is", null).limit(500);
-      reenvios = somarReenvios((data || []).map((c: any) => c.audience));
+      audiencias = (data || []).map((c: any) => c.audience);
     } catch (e: any) { console.warn("[email cota] reenvios:", e?.message); }
-    return { restante: Math.max(0, limite - (count || 0) - reenvios), limite, proprio };
+    const noDia = Math.max(0, limite - (count || 0) - somarReenvios(audiencias));
+    if (!proprio) return { restante: noDia, limite, proprio };
+    const porHora = lerPorHora(t.porHora);
+    const { count: ultimaHora } = await db.from("email_campaign_recipients").select("id", { count: "exact", head: true }).eq("tenant_id", tenantId).eq("status", "sent").gte("sent_at", new Date(Date.now() - 3600_000).toISOString());
+    const naHora = Math.max(0, porHora - (ultimaHora || 0) - somarNaHora(audiencias));
+    return { restante: Math.min(noDia, naHora), limite, proprio, ...(naHora === 0 && noDia > 0 ? { porHora } : {}) };
   };
 
   registrarSequencias(app, { requireUser, resolveRequestedTenantId, limiter, supabaseService }, { liberarMarketing, cotaRestante, tenantNameOf, baseUrl });
 
-  type ResultadoLote = { done: boolean; status: string; pending: number; sent: number; failed: number; total: number; cota?: { limite: number; proprio: boolean } };
+  type ResultadoLote = { done: boolean; status: string; pending: number; sent: number; failed: number; total: number; cota?: { limite: number; proprio: boolean; porHora?: number }; aguardando?: boolean };
 
   /** Envia o próximo lote de uma campanha (usado pelo navegador e pela rotina automática). */
   const processarLote = async (camp: any, tenantId: string, base: string): Promise<ResultadoLote> => {
@@ -584,11 +600,12 @@ export function registerEmailCampaignRoutes(app: Express, { requireUser, resolve
     const tamanho = Math.min(BATCH_SIZE, cota.restante);
     let claimed: any[] = [];
     if (tamanho > 0) {
-      const { data: cand } = await db.from("email_campaign_recipients").select("id").eq("campaign_id", camp.id).eq("status", "pending").limit(tamanho);
+      // Quem espera nova tentativa fica com `claimed_at` no futuro até chegar a hora.
+      const { data: cand } = await db.from("email_campaign_recipients").select("id").eq("campaign_id", camp.id).eq("status", "pending").or(`claimed_at.is.null,claimed_at.lt.${new Date().toISOString()}`).limit(tamanho);
       const ids = (cand || []).map((r: any) => r.id);
       if (ids.length) {
         const { data } = await db.from("email_campaign_recipients").update({ status: "sending", claimed_at: new Date().toISOString() })
-          .in("id", ids).eq("status", "pending").select("id, email, name, company, variant");
+          .in("id", ids).eq("status", "pending").select("id, email, name, company, variant, error");
         claimed = data || [];
       }
     }
@@ -597,9 +614,10 @@ export function registerEmailCampaignRoutes(app: Express, { requireUser, resolve
     const [tenant, optouts] = await Promise.all([tenantNameOf(tenantId), optoutSet(db, tenantId)]);
     let via: string | null = null;
     const queue = [...claimed];
+    let adiarAte: string | null = null; // o servidor avisou que passou do limite: a campanha inteira espera
     const worker = async () => {
       for (let r = queue.shift(); r; r = queue.shift()) {
-        if (Date.now() - started > TIME_BUDGET_MS) { // sem tempo: devolve para a fila
+        if (adiarAte || Date.now() - started > TIME_BUDGET_MS) { // sem tempo ou no limite: devolve para a fila
           await db.from("email_campaign_recipients").update({ status: "pending", claimed_at: null }).eq("id", r.id);
           continue;
         }
@@ -609,20 +627,30 @@ export function registerEmailCampaignRoutes(app: Express, { requireUser, resolve
           via = out.via;
           await db.from("email_campaign_recipients").update({ status: "sent", sent_at: new Date().toISOString(), error: null }).eq("id", r.id);
         } catch (e: any) {
-          await db.from("email_campaign_recipients").update({ status: "failed", error: String(e?.message || e).slice(0, 300) }).eq("id", r.id);
-          if (ehEnderecoInexistente(e?.message || e)) await bloquearEnderecoInexistente(db, tenantId, r.email);
+          const outra = ehEnderecoInexistente(e?.message || e) ? null : novaTentativa(e, r.error);
+          if (outra) {
+            if (outra.tipo === "limite") adiarAte = outra.depois;
+            await db.from("email_campaign_recipients").update({ status: "pending", error: outra.texto, claimed_at: outra.depois }).eq("id", r.id);
+          } else {
+            await db.from("email_campaign_recipients").update({ status: "failed", error: String(e?.message || e).slice(0, 300) }).eq("id", r.id);
+            if (ehEnderecoInexistente(e?.message || e)) await bloquearEnderecoInexistente(db, tenantId, r.email);
+          }
         }
+        if (queue.length && !adiarAte && PAUSA_ENTRE_ENVIOS_MS > 0) await new Promise((ok) => setTimeout(ok, PAUSA_ENTRE_ENVIOS_MS));
       }
     };
     await Promise.all(Array.from({ length: CONCURRENCY }, worker));
+    if (adiarAte) await db.from("email_campaign_recipients").update({ claimed_at: adiarAte }).eq("campaign_id", camp.id).eq("status", "pending");
 
     const count = async (status: string) => (await db.from("email_campaign_recipients").select("id", { count: "exact", head: true }).eq("campaign_id", camp.id).eq("status", status)).count || 0;
     const [sent, failed, pending, sending] = await Promise.all([count("sent"), count("failed"), count("pending"), count("sending")]);
     const done = pending === 0 && sending === 0;
+    // Nada para pegar agora (esperando nova tentativa ou outra rotina está enviando): o navegador para de pedir.
+    const prontos = done ? 0 : (await db.from("email_campaign_recipients").select("id", { count: "exact", head: true }).eq("campaign_id", camp.id).eq("status", "pending").or(`claimed_at.is.null,claimed_at.lt.${new Date().toISOString()}`)).count || 0;
     await db.from("email_campaigns").update({
       sent, failed, ...(via ? { sender: via } : {}), ...(done ? { status: "done", finished_at: new Date().toISOString() } : {}),
     }).eq("id", camp.id).neq("status", "cancelled").neq("status", "deleted");
-    return { done, status: done ? "done" : "sending", pending: pending + sending, sent, failed, total: camp.total, ...(tamanho === 0 && !done ? { cota: { limite: cota.limite, proprio: cota.proprio } } : {}) };
+    return { done, status: done ? "done" : "sending", pending: pending + sending, sent, failed, total: camp.total, ...(tamanho === 0 && !done ? { cota: { limite: cota.limite, proprio: cota.proprio, ...(cota.porHora ? { porHora: cota.porHora } : {}) } } : {}), ...(!done && prontos === 0 ? { aguardando: true } : {}) };
   };
 
   // Envia o próximo lote. O navegador chama de novo até `pending` chegar a 0 (pode fechar e retomar depois).
@@ -631,23 +659,36 @@ export function registerEmailCampaignRoutes(app: Express, { requireUser, resolve
     const tenantId = await resolveRequestedTenantId(req, res); if (!tenantId) return;
     if (!(await liberarMarketing(req, res, tenantId))) return;
     const camp = await loadCampaign(req, res, tenantId); if (!camp) return;
+    if (camp.audience?.pausada) { // pedir o envio é retomar
+      const { pausada: _, ...resto } = camp.audience;
+      camp.audience = resto;
+      await supabaseService.from("email_campaigns").update({ audience: resto }).eq("id", camp.id);
+    }
     try { res.json(await processarLote(camp, tenantId, baseUrl(req))); }
     catch (e: any) { res.status(500).json({ error: e?.message || "Falha no envio." }); }
   });
 
+  /** Aceita o CRON_SECRET (Vercel Cron) ou o segredo que o próprio banco gerou para o agendamento dele (cron_segredos). */
+  const cronAutorizado = async (req: any): Promise<boolean> => {
+    const auth = String(req.headers.authorization || "");
+    const confere = (segredo: string) => { const a = Buffer.from(auth), b = Buffer.from(`Bearer ${segredo}`); return a.length === b.length && crypto.timingSafeEqual(a, b); };
+    if (process.env.CRON_SECRET && confere(process.env.CRON_SECRET)) return true;
+    if (!/^Bearer [0-9a-f]{64}$/.test(auth)) return false; // formato do segredo do banco: nem consulta se for outra coisa
+    const { data } = await supabaseService.from("cron_segredos").select("segredo").eq("nome", "email_continuar").maybeSingle();
+    return !!data?.segredo && confere(String(data.segredo));
+  };
+
   /**
-   * Rotina automática (Vercel Cron): continua sozinha as campanhas que ficaram "enviando" — por exemplo quando a aba foi
-   * fechada ou a cota diária acabou e liberou de novo. Protegida por CRON_SECRET.
+   * Rotina automática (agendamento do banco a cada 5 minutos e Vercel Cron diário): continua sozinha as campanhas que
+   * ficaram "enviando" — aba fechada, nova tentativa, ritmo por hora ou cota liberada — e envia as agendadas e sequências.
    */
   app.get("/api/email-campaigns/cron/continuar", async (req: any, res: any) => {
-    const segredo = process.env.CRON_SECRET;
-    const auth = String(req.headers.authorization || "");
-    if (!segredo || !supabaseService || auth.length !== `Bearer ${segredo}`.length || !crypto.timingSafeEqual(Buffer.from(auth), Buffer.from(`Bearer ${segredo}`))) return res.status(401).json({ error: "Não autorizado." });
+    if (!supabaseService || !(await cronAutorizado(req))) return res.status(401).json({ error: "Não autorizado." });
     const inicio = Date.now();
-    const { data: emAndamento } = await supabaseService.from("email_campaigns").select("*").eq("status", "sending").order("started_at", { ascending: true }).limit(20);
+    const { data: emAndamento } = await supabaseService.from("email_campaigns").select("*").eq("status", "sending").order("started_at", { ascending: true }).limit(100);
     // Agendadas cuja data chegou também saem aqui.
     const { data: agendadas } = await supabaseService.from("email_campaigns").select("*").eq("status", "ready").not("agendada_para", "is", null).lte("agendada_para", new Date().toISOString()).order("agendada_para", { ascending: true }).limit(20);
-    const campanhas = [...(emAndamento || []), ...(agendadas || [])];
+    const campanhas = [...(emAndamento || []).filter((c: any) => !c.audience?.pausada).slice(0, 20), ...(agendadas || [])];
     let lotes = 0;
     for (const camp of campanhas || []) {
       if (Date.now() - inicio > 45_000) break;
@@ -655,8 +696,22 @@ export function registerEmailCampaignRoutes(app: Express, { requireUser, resolve
     }
     let sequencias: any = null;
     try { await inscreverAutomaticos(supabaseService); } catch (e: any) { console.warn("[sequências auto]", e?.message); }
-    try { sequencias = await processarSequencias(supabaseService, (process.env.PUBLIC_APP_URL || `https://${req.get("host")}`).replace(/\/+$/, ""), { cotaRestante, tenantNameOf }, { orcamentoMs: Math.max(5_000, 50_000 - (Date.now() - inicio)) }); } catch (e: any) { console.warn("[sequências cron]", e?.message); }
+    // Sequências só em horário comercial ampliado (8h às 20h de Brasília): com a rotina frequente, não saem de madrugada.
+    const horaBR = (new Date().getUTCHours() + 21) % 24;
+    if (horaBR >= 8 && horaBR < 20) try { sequencias = await processarSequencias(supabaseService, (process.env.PUBLIC_APP_URL || `https://${req.get("host")}`).replace(/\/+$/, ""), { cotaRestante, tenantNameOf }, { orcamentoMs: Math.max(5_000, 50_000 - (Date.now() - inicio)) }); } catch (e: any) { console.warn("[sequências cron]", e?.message); }
     res.json({ campanhas: (campanhas || []).length, lotes, sequencias });
+  });
+
+  // Pausar vale também para a rotina automática; volta ao pedir o envio de novo (Retomar).
+  app.post("/api/email-campaigns/:id/pausar", requireUser, limiter, async (req: any, res: any) => {
+    if (!supabaseService) return noDb(res);
+    const tenantId = await resolveRequestedTenantId(req, res); if (!tenantId) return;
+    if (!(await liberarMarketing(req, res, tenantId))) return;
+    const camp = await loadCampaign(req, res, tenantId); if (!camp) return;
+    if (camp.status !== "sending" && camp.status !== "ready") return res.status(409).json({ error: "Não há envio em andamento." });
+    const { error } = await supabaseService.from("email_campaigns").update({ audience: { ...(camp.audience || {}), pausada: true } }).eq("id", camp.id);
+    if (error) return res.status(500).json({ error: error.message });
+    res.json({ ok: true });
   });
 
   app.post("/api/email-campaigns/:id/cancel", requireUser, limiter, async (req: any, res: any) => {
@@ -812,10 +867,10 @@ export function registerEmailCampaignRoutes(app: Express, { requireUser, resolve
       const agora = Date.now();
       const jaContavam = rows.filter((r: any) => r.status === "sent" && agora - Date.parse(r.sent_at) < 24 * 3600_000).length;
       const reenvios = [...(Array.isArray(camp.audience?.reenvios) ? camp.audience.reenvios : []).filter((r: any) => agora - Date.parse(r?.quando) < 24 * 3600_000),
-        ...(jaContavam ? [{ quando: new Date(agora).toISOString(), qtd: jaContavam }] : [])];
+        ...(jaContavam ? [{ quando: new Date(agora).toISOString(), qtd: jaContavam, naHora: rows.filter((r: any) => r.status === "sent" && agora - Date.parse(r.sent_at) < 3600_000).length }] : [])];
       // Primeiro registra o que continua contando no limite; só depois devolve para a fila.
       const rastreio = typeof req.body?.rastrear === "boolean" ? { semRastreio: !req.body.rastrear } : {};
-      const { error: e1 } = await supabaseService.from("email_campaigns").update({ audience: { ...(camp.audience || {}), reenvios, ...rastreio } }).eq("id", camp.id);
+      const { error: e1 } = await supabaseService.from("email_campaigns").update({ audience: { ...(camp.audience || {}), reenvios, pausada: false, ...rastreio } }).eq("id", camp.id);
       if (e1) throw new Error(e1.message);
       for (let i = 0; i < rows.length; i += 200) {
         const { error: e2 } = await supabaseService.from("email_campaign_recipients").update({ status: "pending", error: null, claimed_at: null }).in("id", rows.slice(i, i + 200).map((r: any) => r.id));

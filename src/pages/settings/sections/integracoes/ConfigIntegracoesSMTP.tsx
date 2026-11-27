@@ -19,6 +19,7 @@ const DEFAULT_SMTP = {
   smtpPass: "",
   fromEmail: "",
   encryption: "StartTLS",
+  porHora: "200",
 };
 
 export function ConfigIntegracoesSMTP() {
@@ -164,6 +165,17 @@ export function ConfigIntegracoesSMTP() {
             value={config.fromEmail}
             onChange={(e) => setConfig({ ...config, fromEmail: e.target.value })}
             placeholder="contato@empresa.com.br"
+          />
+        </FormField>
+
+        <FormField label="E-mails por hora (campanhas e sequências)" hint="Ao chegar neste número, o restante sai sozinho na hora seguinte. Hospedagem compartilhada costuma bloquear envios em rajada: na dúvida, deixe 200.">
+          <Input
+            type="number"
+            min={1}
+            max={5000}
+            value={config.porHora}
+            onChange={(e) => setConfig({ ...config, porHora: e.target.value })}
+            className="md:max-w-40"
           />
         </FormField>
 
