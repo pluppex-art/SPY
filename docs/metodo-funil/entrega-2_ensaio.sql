@@ -1,7 +1,7 @@
 -- ENSAIO da entrega 2: percorre o funil chamando as funções e confere o resultado. SEMPRE DESFAZ TUDO no final,
 -- levantando um erro de propósito: "ENSAIO OK" = passou; qualquer outra mensagem = falhou. Nada fica gravado e nada
 -- é enviado (os avisos externos saem por pg_net, que só dispara se a transação for confirmada).
--- Usar depois da migração; ou colar a migração ANTES deste arquivo, numa execução só, para ensaiar as duas.
+-- Rodar com a migração do motor já aplicada. Antes de colar no SQL Editor, confira que o arquivo começa aqui.
 do $ensaio$
 declare
   t uuid := '27ef95ee-84dd-499e-9f25-cd9baecb5fe4'; l1 uuid; l2 uuid; l3 uuid; r jsonb; n int; v record; s uuid;

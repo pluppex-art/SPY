@@ -1,6 +1,6 @@
 # Método do funil · Entrega 2: motor de regras
 
-**Situação:** ensaio aprovado em 27/11/2026 ("ENSAIO OK", rodado no SQL Editor; conferido que nada ficou gravado). **Falta aplicar** a migração.
+**Situação:** **aplicada em 27/11/2026** e conferida: 30 funções iguais às do arquivo, 2 colunas, 2 gatilhos, nenhuma função interna exposta e nenhum funil com o método ligado. O ensaio passou antes ("ENSAIO OK").
 
 **Pronto quando:** chamando as funções direto no banco, o lead percorre o funil com nota, histórico, prazos e tarefas corretos.
 
@@ -8,11 +8,10 @@
 
 | Arquivo | Para que serve |
 |---|---|
-| [entrega-2_ensaio-completo.sql](entrega-2_ensaio-completo.sql) | **Comece por este:** cria tudo, testa e desfaz |
-| [entrega-2_motor.sql](entrega-2_motor.sql) | A migração |
-| [entrega-2_ensaio.sql](entrega-2_ensaio.sql) | Só o teste, para depois de aplicar |
+| [20261231_metodo_funil_motor.sql](../../supabase/migrations/20261231_metodo_funil_motor.sql) | A migração, já aplicada |
+| [entrega-2_ensaio.sql](entrega-2_ensaio.sql) | Teste do funil; desfaz tudo e termina no erro "ENSAIO OK" |
 | [entrega-2_desfazer.sql](entrega-2_desfazer.sql) | Volta atrás |
-| [entrega-2_opcional_status-de-tarefa.sql](entrega-2_opcional_status-de-tarefa.sql) | Padroniza status antigos de tarefa. Muda telas de quem não usa o método |
+| [entrega-2_opcional_status-de-tarefa.sql](entrega-2_opcional_status-de-tarefa.sql) | Padroniza status antigos de tarefa (não aplicado). Muda telas de quem não usa o método |
 
 ## Funções
 
@@ -65,8 +64,6 @@ Sem método ligado (hoje, nenhum funil), nada muda.
 - Prazos em tempo corrido; a pausa fora do expediente fica na entrega 4.
 - O alerta atual `sla-primeiro-contato` continua ligado; substituir na entrega 4.
 
-## Como ensaiar e aplicar
+## Como repetir o teste
 
-1. Abrir o **SQL Editor** do Supabase, colar [entrega-2_ensaio-completo.sql](entrega-2_ensaio-completo.sql) e executar.
-2. Resultado esperado: o erro **"ENSAIO OK: todas as conferências passaram"**. Qualquer outro texto indica a regra que falhou. Nos dois casos nada fica gravado.
-3. Com o ensaio aprovado, aplicar [entrega-2_motor.sql](entrega-2_motor.sql) como uma transação.
+Rodar [entrega-2_ensaio.sql](entrega-2_ensaio.sql) no SQL Editor. O esperado é o erro **"ENSAIO OK"**; nada fica gravado.

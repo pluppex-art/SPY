@@ -1,5 +1,5 @@
 -- MÉTODO DO FUNIL · ENTREGA 2 — MOTOR DE REGRAS
--- NÃO APLICADA. Aguardando revisão (ver ENTREGA-2.md).
+-- Aplicada em 27/11/2026 (conferida: 30 funções iguais às deste arquivo). Plano: docs/metodo-funil/ENTREGA-2.md
 -- Cria as funções spy_* e dois gatilhos nas tabelas NOVAS. Não altera leads, não cria gatilho em tabela antiga e
 -- só age em funil com crm_funis.metodo_ativo = true (hoje nenhum).
 -- Funções spy__ (dois sublinhados) são internas: a tela e o n8n não as chamam.
