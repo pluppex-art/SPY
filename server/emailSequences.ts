@@ -1,5 +1,6 @@
 import type { Express } from "express";
 import { sendTenantEmail } from "./mailer.js";
+import { conferirCorpo } from "../src/lib/emailHtml.js";
 import { buildMail, bloquearEnderecoInexistente, ehEnderecoInexistente, cleanEmail, optoutUrl, optoutSet, pagedTable, parseAudience, resolveAudience, selectAudience } from "./emailCampaigns.js";
 
 /** Sequência de e-mails: vários envios em dias seguidos para cada pessoa inscrita (ex.: dia 0, dia 3, dia 7). */
@@ -19,7 +20,9 @@ export function parsePassos(raw: unknown): { ok: true; passos: Passo[] } | { ok:
   const passos: Passo[] = [];
   for (let i = 0; i < raw.length; i++) {
     const subject = String(raw[i]?.subject ?? "").replace(/[\r\n]+/g, " ").trim().slice(0, 200);
-    const body = String(raw[i]?.body ?? "").trim().slice(0, 20_000);
+    const conferido = conferirCorpo(raw[i]?.body);
+    if (conferido.ok === false) return { ok: false, erro: `E-mail ${i + 1}: ${conferido.erro}` };
+    const body = conferido.corpo;
     if (!subject || !body) return { ok: false, erro: `E-mail ${i + 1}: informe assunto e mensagem.` };
     const d = Math.floor(Number(raw[i]?.dias ?? 0));
     if (!Number.isFinite(d) || d < 0 || d > 60) return { ok: false, erro: `E-mail ${i + 1}: a espera deve ser de 0 a 60 dias.` };

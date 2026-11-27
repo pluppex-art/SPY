@@ -1,0 +1,79 @@
+import { test } from "node:test";
+import assert from "node:assert/strict";
+import { ehHtml, comoHtml, conferirCorpo, sanitizarHtml, trocarLinks, htmlParaTexto, avisosDoHtml, modeloExemploHtml, MAX_HTML } from "../../src/lib/emailHtml.js";
+import { buildMail } from "../../server/emailCampaigns.js";
+import { parsePassos } from "../../server/emailSequences.js";
+
+const base = { subject: "Oi {{primeiro_nome}}", name: "Maria Silva", company: "Loja", tenantName: "Empresa X", unsubUrl: "https://s.com/sair?t=1&e=2", utmCampanha: "Natal", track: { base: "https://s.com", rid: "11111111-1111-1111-1111-111111111111" } };
+
+test("reconhece HTML pelo começo; texto comum continua texto", () => {
+  for (const h of ["<!doctype html><p>a</p>", "  <html>", "<!-- c -->\n<table>", "﻿<div>x</div>", "<p style='x'>a</p>", "<center>"]) assert.equal(ehHtml(h), true, h);
+  for (const t of ["Olá <b>Maria</b>", "<3 obrigado", "<promoção> hoje", "Veja: <div>", ""]) assert.equal(ehHtml(t), false, t);
+  assert.equal(ehHtml(comoHtml("Olá <b>x</b>")), true);
+  assert.equal(comoHtml(""), "");
+});
+
+test("texto longo é cortado como antes; HTML grande demais é recusado em vez de cortado", () => {
+  const t = conferirCorpo("a".repeat(30_000)); assert.ok(t.ok && t.corpo.length === 20_000);
+  const h = conferirCorpo(`<div>${"a".repeat(50_000)}</div>`); assert.ok(h.ok && h.corpo.length === 50_011);
+  const g = conferirCorpo(`<div>${"a".repeat(MAX_HTML)}</div>`); assert.equal(g.ok, false);
+  assert.equal(parsePassos([{ subject: "s", body: `<div>${"a".repeat(MAX_HTML)}</div>` }]).ok, false);
+});
+
+test("tira script, evento, formulário e link perigoso, sem mexer no resto", () => {
+  const sujo = `<div onclick="x()" data-on="1"><scr<script></script>ipt>alert(1)</script><img src="https://a.com/i.png" onerror=alert(1)><a href=" java\tscript:alert(1)">x</a><a href="&#106;avascript:1">y</a><form action="https://m.com"><input name="s"><p title="onload=1">fica</p></form><iframe src="https://m.com"></iframe><meta http-equiv="refresh" content="0;url=x"></div>`;
+  const limpo = sanitizarHtml(sujo);
+  assert.doesNotMatch(limpo, /<script|onclick|onerror|javascript|<form|<input|<iframe|refresh/i);
+  assert.match(limpo, /data-on="1"/);
+  assert.match(limpo, /title="onload=1">fica/);
+  assert.match(limpo, /src="https:\/\/a\.com\/i\.png"/);
+});
+
+test("troca só os links da internet em <a> e <area>", () => {
+  const h = `<link href="https://f.com/x.css"><a class="b" href="https://a.com/?x=1&amp;y=2">A</a><a href='mailto:a@b.com'>m</a><area href=https://c.com><img src="https://i.com/a.png">`;
+  const vistos: string[] = [];
+  const novo = trocarLinks(h, (u) => { vistos.push(u); return `https://t.com/?u=1&v=2`; });
+  assert.deepEqual(vistos, ["https://a.com/?x=1&y=2", "https://c.com"]);
+  assert.match(novo, /<link href="https:\/\/f\.com\/x\.css">/);
+  assert.match(novo, /href="https:\/\/t\.com\/\?u=1&amp;v=2"/);
+});
+
+test("envio: dados da pessoa escapados, cliques contados, descadastro no lugar escolhido e pixel", () => {
+  const body = `<!doctype html><html><head><style>.a{}</style></head><body><h1>Olá {{primeiro_nome}} da {{empresa}}</h1><a href="https://loja.com/oferta">Ver</a> <a href="{{descadastro}}">sair</a></body></html>`;
+  const m = buildMail({ ...base, body, company: "<img src=x onerror=1> & Cia" });
+  assert.equal(m.subject, "Oi Maria");
+  assert.match(m.html, /Olá Maria da &lt;img src=x onerror=1&gt; &amp; Cia/);
+  assert.match(m.html, /href="https:\/\/s\.com\/api\/email\/c\/1111/);
+  assert.match(m.html, /href="https:\/\/s\.com\/sair\?t=1&amp;e=2">sair/);
+  assert.doesNotMatch(m.html, /Não quero mais receber/);
+  assert.match(m.html, /\/api\/email\/o\/1111[^"]*"[^>]*><\/body><\/html>$/);
+  assert.match(m.text, /Olá Maria da/);
+  assert.match(m.text, /Ver \(https:\/\/loja\.com\/oferta\)/);
+  assert.match(m.text, /sair \(https:\/\/s\.com\/sair/);
+  assert.doesNotMatch(m.text, /\.a\{\}|api\/email\/c/);
+});
+
+test("sem o marcador num link, o rodapé de saída é sempre acrescentado; pedaço de HTML vira documento", () => {
+  for (const body of ["<div>Olá</div>", "<div>Saia em {{descadastro}}</div>", `<div><!-- <a href="x"> -->Olá</div>`, `<div data-href="{{descadastro}}">Olá</div>`]) {
+    const m = buildMail({ ...base, body, track: undefined });
+    assert.match(m.html, /^<!doctype html>/, body);
+    assert.match(m.html, /Não quero mais receber/, body);
+    assert.doesNotMatch(m.html, /\u0001|\{\{|api\/email\/o\//, body);
+  }
+});
+
+test("avisos do HTML e modelo de exemplo prontos para enviar", () => {
+  const a = avisosDoHtml(`<div><img src="foto.png"><img src="data:image/png;base64,AA"><script></script></div>`).map((x) => x.texto).join(" | ");
+  assert.match(a, /2 imagem\(ns\) não vão aparecer/); assert.match(a, /serão removidos/); assert.match(a, /Quase sem texto/);
+  const modelo = modeloExemploHtml({ nome: "A & B", cor: "vermelho", logo: "javascript:1" });
+  assert.equal(ehHtml(modelo), true);
+  assert.match(modelo, /A &amp; B/); assert.doesNotMatch(modelo, /javascript|vermelho/);
+  assert.deepEqual(avisosDoHtml(modelo), []);
+  assert.match(buildMail({ ...base, body: modelo }).html, /Quero saber mais/);
+  assert.doesNotMatch(htmlParaTexto(modelo), /</);
+});
+
+test("mensagem de texto continua como antes", () => {
+  const m = buildMail({ ...base, body: "Olá {{nome}}\n\n**oferta** <b>não é html</b>" });
+  assert.match(m.html, /<strong>oferta<\/strong> &lt;b&gt;não é html&lt;\/b&gt;/);
+});

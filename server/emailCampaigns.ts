@@ -1,6 +1,7 @@
 import { modulosDoCargo } from "../src/lib/cargosUsuario.js";
 import crypto from "node:crypto";
 import { canalDoLead } from "../src/lib/canalAquisicao.js";
+import { conferirCorpo, ehHtml, htmlParaTexto, sanitizarHtml, trocarLinks, MARCA_DESCADASTRO } from "../src/lib/emailHtml.js";
 import type { Express } from "express";
 import { sendTenantEmail, checkTenantSender } from "./mailer.js";
 import { registrarSequencias, processarSequencias, inscreverAutomaticos } from "./emailSequences.js";
@@ -69,15 +70,17 @@ export const cleanEmail = (raw: unknown): string => {
 const escapeHtml = (s: string) => s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
 
 /** Troca {{nome}}, {{primeiro_nome}}, {{empresa}} (valor ausente vira vazio). */
-export function renderVars(text: string, v: { name?: string | null; company?: string | null }): string {
+export function renderVars(text: string, v: { name?: string | null; company?: string | null }, escapar: (x: string) => string = (x) => x): string {
   // Nome e empresa vêm de quem preencheu um formulário: sem colchetes nem endereços, para não virarem botão/link de outra pessoa.
-  const limpa = (x: string) => x.replace(/[\[\]\u0000]/g, "").replace(/https?:\/\/\S*/gi, "");
+  const limpa = (x: string) => x.replace(/[\[\]\u0000\u0001]/g, "").replace(/https?:\/\/\S*/gi, "");
   const name = limpa((v.name || "").trim());
-  const first = name.split(/\s+/)[0] || "";
+  const first = escapar(name.split(/\s+/)[0] || "");
+  const nome = escapar(name);
+  const empresa = escapar(limpa((v.company || "").trim()));
   return text
-    .replace(/\{\{\s*primeiro[_ ]nome\s*\}\}/gi, first)
-    .replace(/\{\{\s*nome\s*\}\}/gi, name)
-    .replace(/\{\{\s*empresa\s*\}\}/gi, limpa((v.company || "").trim()));
+    .replace(/\{\{\s*primeiro[_ ]nome\s*\}\}|\*\|FNAME\|\*/gi, () => first)
+    .replace(/\{\{\s*nome\s*\}\}/gi, () => nome)
+    .replace(/\{\{\s*empresa\s*\}\}/gi, () => empresa);
 }
 
 /** Roxo padrão do S.P.Y.; a empresa com cor própria (tenants.primary_color) usa a dela. */
@@ -134,6 +137,7 @@ const logoHtml = (logo: string | null | undefined, nome: string) => { const u = 
 
 export function buildMail(opts: { subject: string; body: string; name?: string | null; company?: string | null; tenantName: string; tenantColor?: string | null; tenantLogo?: string | null; utmCampanha?: string; unsubUrl: string; track?: { base: string; rid: string } }) {
   const subject = renderVars(opts.subject, opts).replace(/[\r\n]+/g, " ").trim().slice(0, 200);
+  if (ehHtml(opts.body)) return { subject, ...montarHtmlProprio(opts) };
   const text = renderVars(opts.body, opts);
   const footerTxt = `\n\n—\nVocê recebeu este e-mail de ${opts.tenantName}. Para não receber mais, acesse: ${opts.unsubUrl}`;
   const html = `<!doctype html><html><body style="margin:0;padding:24px;background:#f5f5f7;font-family:Arial,Helvetica,sans-serif;color:#1f2937">
@@ -141,6 +145,28 @@ export function buildMail(opts: { subject: string; body: string; name?: string |
 <p style="max-width:600px;margin:14px auto 0;font-size:11px;color:#6b7280;text-align:center">Você recebeu este e-mail de ${escapeHtml(opts.tenantName)}.<br><a href="${opts.unsubUrl}" style="color:#6b7280">Não quero mais receber</a></p>
 ${opts.track ? `<img src="${urlAbertura(opts.track.base, opts.track.rid)}" width="1" height="1" alt="" style="display:none;border:0">` : ""}</body></html>`;
   return { subject, text: textoSimples(text) + footerTxt, html };
+}
+
+/**
+ * HTML do cliente: sai como ele fez, com os dados de cada pessoa, contagem de cliques e aberturas e o link para sair da
+ * lista (no lugar de {{descadastro}}, se estiver no endereço de um link; senão num rodapé).
+ */
+function montarHtmlProprio(opts: Parameters<typeof buildMail>[0]) {
+  const SAIR = "\u0001sair\u0001";
+  const preparado = renderVars(sanitizarHtml(opts.body).replace(/\u0001/g, "").replace(MARCA_DESCADASTRO, SAIR), opts, escapeHtml);
+  const temLinkDeSair = /<a(?=[\s/])(?:"[^"]*"|'[^']*'|[^'">])*?\shref\s*=\s*["']?\s*\u0001sair\u0001/i.test(preparado);
+  const text = `${htmlParaTexto(preparado.split(SAIR).join(opts.unsubUrl))}\n\n—\nVocê recebeu este e-mail de ${opts.tenantName}. Para não receber mais, acesse: ${opts.unsubUrl}`;
+  const marcar = (url: string) => {
+    const comUtm = opts.utmCampanha ? comUtmEmail(url, opts.utmCampanha) : url;
+    return opts.track ? urlClique(opts.track.base, opts.track.rid, comUtm) : comUtm;
+  };
+  let html = trocarLinks(preparado, marcar).split(SAIR).join(escapeHtml(opts.unsubUrl));
+  const rodape = temLinkDeSair ? "" : `<p style="max-width:600px;margin:14px auto;padding:0 12px;font-family:Arial,Helvetica,sans-serif;font-size:11px;color:#6b7280;text-align:center">Você recebeu este e-mail de ${escapeHtml(opts.tenantName)}.<br><a href="${escapeHtml(opts.unsubUrl)}" style="color:#6b7280">Não quero mais receber</a></p>`;
+  const pixel = opts.track ? `<img src="${urlAbertura(opts.track.base, opts.track.rid)}" width="1" height="1" alt="" style="display:none;border:0">` : "";
+  const fim = `${rodape}${pixel}`;
+  if (!/<(?:!doctype|html|body)(?=[\s/>])/i.test(html)) html = `<!doctype html><html><head><meta charset="utf-8"></head><body style="margin:0;padding:0">${html}${fim}</body></html>`;
+  else { const i = html.toLowerCase().lastIndexOf("</body>"); html = i >= 0 ? html.slice(0, i) + fim + html.slice(i) : html + fim; }
+  return { text, html };
 }
 
 /** Teste do servidor próprio: sai com o nome, a cor e a logo da empresa, como os e-mails que os clientes dela recebem. */
@@ -159,7 +185,7 @@ export async function marcaDaEmpresa(db: any, tenantId: string): Promise<{ nome:
   return { nome: String(data?.name || "sua empresa"), cor: data?.primary_color ?? null, logo: logoSegura(emp?.value?.logoUrl) };
 }
 
-interface Deps { requireUser: any; resolveRequestedTenantId: (req: any, res: any) => Promise<string | null>; limiter: any; supabaseService: any }
+interface Deps { requireUser: any; resolveRequestedTenantId: (req: any, res: any) => Promise<string | null>; limiter: any; previewLimiter?: any; supabaseService: any }
 
 async function pagedLeads(db: any, tenantId: string) {
   const out: any[] = [];
@@ -337,7 +363,7 @@ export function parseAudience(raw: any): Audience {
 
 const baseUrl = (req: any) => (process.env.PUBLIC_APP_URL || `https://${req.get("host")}`).replace(/\/+$/, "");
 
-export function registerEmailCampaignRoutes(app: Express, { requireUser, resolveRequestedTenantId, limiter, supabaseService }: Deps) {
+export function registerEmailCampaignRoutes(app: Express, { requireUser, resolveRequestedTenantId, limiter, previewLimiter, supabaseService }: Deps) {
   const noDb = (res: any) => res.status(503).json({ error: "Servidor sem acesso ao banco." });
 
   /** Só quem tem o módulo Marketing (na empresa e no cargo) cria e dispara campanhas: o menu já escondia isso, agora o servidor também confere. */
@@ -375,12 +401,14 @@ export function registerEmailCampaignRoutes(app: Express, { requireUser, resolve
   });
 
   // Pré-visualização: mostra como o e-mail fica (com nome de exemplo), sem enviar nada nem rastrear.
-  app.post("/api/email-campaigns/preview", requireUser, limiter, async (req: any, res: any) => {
+  app.post("/api/email-campaigns/preview", requireUser, previewLimiter ?? limiter, async (req: any, res: any) => {
     if (!supabaseService) return noDb(res);
     const tenantId = await resolveRequestedTenantId(req, res); if (!tenantId) return;
     if (!(await liberarMarketing(req, res, tenantId))) return;
     const subject = String(req.body?.subject || "").replace(/[\r\n]+/g, " ").trim().slice(0, 200);
-    const body = String(req.body?.body || "").slice(0, 20_000);
+    const conferido = conferirCorpo(req.body?.body);
+    if (conferido.ok === false) return res.status(400).json({ error: conferido.erro });
+    const body = conferido.corpo;
     const t = await tenantNameOf(tenantId);
     const mail = buildMail({ subject, body, name: "Maria da Silva", company: "Empresa Exemplo", tenantName: t.name, tenantColor: t.color, tenantLogo: t.logo, unsubUrl: "#" });
     res.json({ subject: mail.subject, html: mail.html });
@@ -423,7 +451,9 @@ export function registerEmailCampaignRoutes(app: Express, { requireUser, resolve
     if (!(await liberarMarketing(req, res, tenantId))) return;
     const name = String(req.body?.name || "").trim().slice(0, 120);
     const subject = String(req.body?.subject || "").replace(/[\r\n]+/g, " ").trim().slice(0, 200);
-    const body = String(req.body?.body || "").trim().slice(0, 20_000);
+    const conferido = conferirCorpo(req.body?.body);
+    if (conferido.ok === false) return res.status(400).json({ error: conferido.erro });
+    const body = conferido.corpo;
     if (!name || !subject || !body) return res.status(400).json({ error: "Informe nome, assunto e mensagem." });
     const subjectB = String(req.body?.subjectB || "").replace(/[\r\n]+/g, " ").trim().slice(0, 200);
     const ab = !!subjectB && subjectB !== subject;
@@ -640,7 +670,9 @@ export function registerEmailCampaignRoutes(app: Express, { requireUser, resolve
     const camp = await loadCampaign(req, res, tenantId); if (!camp) return;
     if (camp.status !== "done") return res.status(400).json({ error: "Só dá para reenviar depois que a campanha terminar." });
     const subject = String(req.body?.subject || "").replace(/[\r\n]+/g, " ").trim().slice(0, 200) || camp.subject;
-    const corpo = String(req.body?.body || "").trim().slice(0, 20_000) || camp.body;
+    const conferido = conferirCorpo(req.body?.body);
+    if (conferido.ok === false) return res.status(400).json({ error: conferido.erro });
+    const corpo = conferido.corpo || camp.body;
     try {
       const todos = await pagedTable(supabaseService, "email_campaign_recipients", "lead_id, email, name, company, status, open_count, click_count", tenantId, (q) => q.eq("campaign_id", camp.id).eq("status", "sent"));
       const optouts = await optoutSet(supabaseService, tenantId);

@@ -7332,7 +7332,9 @@ registerPushRoutes(app, { requireUser, resolveRequestedTenantId, limiter: pushLi
 
 // Disparo de e-mail em massa por empresa (campanhas, lotes, descadastro).
 const emailCampaignLimiter = rateLimit({ windowMs: 60_000, limit: 60, standardHeaders: true, legacyHeaders: false });
-registerEmailCampaignRoutes(app, { requireUser, resolveRequestedTenantId, limiter: emailCampaignLimiter, supabaseService });
+// A pré-visualização se atualiza enquanto a pessoa escreve: tem limite próprio para não gastar o das outras ações.
+const emailPreviewLimiter = rateLimit({ windowMs: 60_000, limit: 90, standardHeaders: true, legacyHeaders: false });
+registerEmailCampaignRoutes(app, { requireUser, resolveRequestedTenantId, limiter: emailCampaignLimiter, previewLimiter: emailPreviewLimiter, supabaseService });
 
 // Métricas de aquisição (CPL, MQL, CPLQ, CAC, ROAS) por empresa.
 registerAcquisitionRoutes(app, { requireUserOrInternalService, resolveRequestedTenantId, limiter: emailCampaignLimiter });

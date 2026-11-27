@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
 import { Link } from "react-router-dom";
 import { Mail, Plus, Send, Loader2, FlaskConical, XCircle, AlertTriangle, CheckCircle2, RefreshCw } from "lucide-react";
 import { toast } from "sonner";
@@ -8,7 +8,9 @@ import { Card } from "../../components/ui/card";
 import { Modal } from "../../components/ui/modal";
 import { SequenciasEmail } from "./SequenciasEmail";
 import { csvEngajamento } from "../../lib/csvEngajamento";
-import { avisosDoEmail } from "../../lib/avisosEmail";
+import { comoHtml, ehHtml, MAX_HTML, MAX_TEXTO } from "../../lib/emailHtml";
+import { EditorConteudoEmail, type FormatoEmail } from "./components/EditorConteudoEmail";
+import { PreviaEmail } from "./components/PreviaEmail";
 import { confirmDialog } from "../../components/ui/confirm-dialog";
 import { HelpTip } from "../../components/ui/help-tip";
 import { useData } from "../../contexts/DataContext";
@@ -28,25 +30,31 @@ interface Preview { total: number; semEmail: number; descadastrados: number; rep
 
 const STATUS_LABEL: Record<string, string> = { ready: "Pronta para enviar", sending: "Enviando", done: "Concluída", cancelled: "Cancelada" };
 
+/** Bloco numerado do formulário da campanha. */
+function Etapa({ numero, titulo, ajuda, children }: { numero: number; titulo: string; ajuda?: string; children: ReactNode }) {
+  return (
+    <section className="space-y-3">
+      <h4 className="flex items-center gap-2 text-sm font-black text-[var(--color-text-primary)]">
+        <span className="grid place-items-center w-6 h-6 rounded-full bg-[var(--color-primary-blue)] text-[11px] !text-white">{numero}</span>
+        {titulo}{ajuda && <HelpTip label={titulo}>{ajuda}</HelpTip>}
+      </h4>
+      {children}
+    </section>
+  );
+}
+
 const json = async (r: Response) => { const b = await r.json().catch(() => ({})); if (!r.ok) throw new Error(b?.error || "Falha na requisição."); return b; };
 
 export default function MarketingEmail() {
   // Empresa ATIVA (master/parceiro troca de empresa na barra): toda chamada leva o tenantId. Sem isso o servidor
   // cai na empresa do próprio usuário e a tela mostraria leads/campanhas de outra empresa.
-  const { activeTenantId } = useAuth();
+  const { activeTenantId, activeTenantName } = useAuth();
   const { appSettings, saveAppSetting } = useData();
   const modelos: { id: string; nome: string; assunto: string; corpo: string }[] = Array.isArray(appSettings?.email_modelos) ? appSettings.email_modelos : [];
   const [modeloId, setModeloId] = useState("");
   const [seqAberto, setSeqAberto] = useState(false);
   const [subjectB, setSubjectB] = useState("");
   const [abRes, setAbRes] = useState<Record<string, any>>({});
-  const [previa, setPrevia] = useState<{ subject: string; html: string } | null>(null);
-  const [carregandoPrevia, setCarregandoPrevia] = useState(false);
-  const verPrevia = async () => {
-    setCarregandoPrevia(true);
-    try { setPrevia(await apiFetchTenant("/api/email-campaigns/preview", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ subject, body }) }).then(json)); }
-    catch (e: any) { toast.error(e.message); } finally { setCarregandoPrevia(false); }
-  };
   const exportar = async (c: Campaign) => {
     try {
       const { linhas } = await apiFetchTenant(`/api/email-campaigns/${c.id}/engajamento`).then(json);
@@ -95,6 +103,16 @@ export default function MarketingEmail() {
   const [name, setName] = useState("");
   const [subject, setSubject] = useState("");
   const [body, setBody] = useState("");
+  const [bodyHtml, setBodyHtml] = useState("");
+  const [formato, setFormato] = useState<FormatoEmail>("texto");
+  /** O que realmente vai no e-mail, conforme o formato escolhido. */
+  const corpo = formato === "html" ? comoHtml(bodyHtml.trim()) : body;
+  const abrirCorpo = (v: string) => {
+    const html = ehHtml(v);
+    setFormato(html ? "html" : "texto"); setBody(html ? "" : v); setBodyHtml(html ? v : "");
+  };
+  const corDaTela = () => getComputedStyle(document.documentElement).getPropertyValue("--color-primary-blue").trim();
+  const marca = { nome: activeTenantName || "Sua empresa", cor: corDaTela(), logo: appSettings?.empresa_dados?.logoUrl ?? null };
   const [sources, setSources] = useState<string[]>([]);
   const [canais, setCanais] = useState<string[]>([]);
   const [campanhas, setCampanhas] = useState<string[]>([]);
@@ -146,6 +164,8 @@ export default function MarketingEmail() {
     setCampaigns([]); setOptions(null); setCheck(null); setPreview(null); setLoading(true);
     setExcluir([]); setManual([]); setManualText(""); setFileName(""); setSources([]); setStatuses([]); setCanais([]); setCampanhas([]);
     setOpen(false);
+    // O que estava sendo escrito é de uma empresa: não passa para outra.
+    setName(""); setSubject(""); setSubjectB(""); setBody(""); setBodyHtml(""); setFormato("texto"); setModeloId(""); setAgendarPara("");
     if (activeTenantId) void load();
   }, [activeTenantId]); // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -166,10 +186,10 @@ export default function MarketingEmail() {
   const create = async () => {
     setCreating(true);
     try {
-      const r = await apiFetchTenant("/api/email-campaigns", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ name, subject, body, audience, ...(subjectB.trim() ? { subjectB: subjectB.trim() } : {}), ...(agendarPara ? { agendarPara } : {}) }) }).then(json);
+      const r = await apiFetchTenant("/api/email-campaigns", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ name, subject, body: corpo, audience, ...(subjectB.trim() ? { subjectB: subjectB.trim() } : {}), ...(agendarPara ? { agendarPara } : {}) }) }).then(json);
       toast.success(agendarPara ? `Campanha agendada para ${agendarPara.split("-").reverse().join("/")} (${r.total} destinatário(s)). Envie um teste para você antes.` : `Campanha criada com ${r.total} destinatário(s). Envie um teste para você antes de disparar.`);
       setAgendarPara("");
-      setOpen(false); setName(""); setSubject(""); setSubjectB(""); setBody(""); setSources([]); setStatuses([]); setManual([]); setManualText(""); setFileName(""); setExcluir([]); setShowList(false); setInclLeads(true); setInclClientes(false); setInclContatos(false); setInclEquipe(false);
+      setOpen(false); setName(""); setSubject(""); setSubjectB(""); setBody(""); setBodyHtml(""); setFormato("texto"); setModeloId(""); setSources([]); setStatuses([]); setManual([]); setManualText(""); setFileName(""); setExcluir([]); setShowList(false); setInclLeads(true); setInclClientes(false); setInclContatos(false); setInclEquipe(false);
       await load();
     } catch (e: any) { toast.error(e.message); } finally { setCreating(false); }
   };
@@ -240,14 +260,17 @@ export default function MarketingEmail() {
   const usarModelo = (id: string) => {
     setModeloId(id);
     const m = modelos.find((x) => x.id === id);
-    if (m) { setSubject(m.assunto); setBody(m.corpo); if (!name.trim()) setName(m.nome); }
+    if (m) { setSubject(m.assunto); abrirCorpo(m.corpo); if (!name.trim()) setName(m.nome); }
   };
   const salvarModelo = async () => {
-    if (!subject.trim() || !body.trim()) { toast.error("Escreva o assunto e a mensagem antes de salvar como modelo."); return; }
+    if (!subject.trim() || !corpo.trim()) { toast.error("Preencha o assunto e o conteúdo antes de salvar como modelo."); return; }
     const nome = (name.trim() || subject.trim()).slice(0, 60);
     const existente = modelos.find((x) => x.nome.toLowerCase() === nome.toLowerCase());
-    const novo = { id: existente?.id ?? crypto.randomUUID(), nome, assunto: subject.trim().slice(0, 200), corpo: body.trim().slice(0, 20000) };
-    await saveAppSetting("email_modelos", [...modelos.filter((x) => x.id !== novo.id), novo].slice(-30));
+    const novo = { id: existente?.id ?? crypto.randomUUID(), nome, assunto: subject.trim().slice(0, 200), corpo: corpo.trim().slice(0, ehHtml(corpo) ? MAX_HTML : MAX_TEXTO) };
+    const lista = [...modelos.filter((x) => x.id !== novo.id), novo].slice(-30);
+    // Os modelos carregam junto com as configurações da empresa: o conjunto tem um teto.
+    if (JSON.stringify(lista).length > 1_500_000) { toast.error("Os modelos salvos ficaram grandes demais. Exclua algum que não usa mais antes de salvar este."); return; }
+    await saveAppSetting("email_modelos", lista);
     setModeloId(novo.id);
     toast.success(existente ? `Modelo “${nome}” atualizado.` : `Modelo “${nome}” salvo.`);
   };
@@ -260,11 +283,12 @@ export default function MarketingEmail() {
   const duplicar = async (c: Campaign) => {
     try {
       const r = await apiFetchTenant(`/api/email-campaigns/${c.id}`).then(json);
-      setName(`${r.name} (cópia)`.slice(0, 120)); setSubject(r.subject); setBody(r.body); setModeloId(""); setOpen(true);
+      setName(`${r.name} (cópia)`.slice(0, 120)); setSubject(r.subject); abrirCorpo(r.body); setModeloId(""); setOpen(true);
     } catch (e: any) { toast.error(e.message); }
   };
 
-  const canCreate = name.trim() && subject.trim() && body.trim() && (preview?.total ?? 0) > 0 && !creating;
+  const canCreate = name.trim() && subject.trim() && corpo.trim() && (preview?.total ?? 0) > 0 && !creating;
+  const falta = [!name.trim() && "o nome", !subject.trim() && "o assunto", !corpo.trim() && "o conteúdo", !(preview?.total ?? 0) && "o público"].filter(Boolean) as string[];
 
   return (
     <PageContainer
@@ -377,15 +401,8 @@ export default function MarketingEmail() {
             <label className="flex flex-col gap-1 text-[11px] font-bold text-[var(--color-text-muted)]">Assunto
               <input value={reenvio.assunto} onChange={(e) => setReenvio({ ...reenvio, assunto: e.target.value })} maxLength={200} className="h-9 px-2 rounded-lg text-xs font-medium border border-[var(--color-border-default)] bg-[var(--color-surface)] text-[var(--color-text-primary)]" /></label>
             <label className="flex flex-col gap-1 text-[11px] font-bold text-[var(--color-text-muted)]">Mensagem
-              <textarea value={reenvio.texto} onChange={(e) => setReenvio({ ...reenvio, texto: e.target.value })} rows={8} maxLength={20000} className="px-2 py-2 rounded-lg text-xs font-medium border border-[var(--color-border-default)] bg-[var(--color-surface)] text-[var(--color-text-primary)] resize-y" /></label>
+              <textarea value={reenvio.texto} onChange={(e) => setReenvio({ ...reenvio, texto: e.target.value })} rows={8} maxLength={ehHtml(reenvio.texto) ? MAX_HTML : MAX_TEXTO} spellCheck={!ehHtml(reenvio.texto)} className="px-2 py-2 rounded-lg text-xs font-medium border border-[var(--color-border-default)] bg-[var(--color-surface)] text-[var(--color-text-primary)] resize-y" /></label>
             <div className="flex justify-end gap-2"><Button variant="outline" onClick={() => setReenvio(null)} className="h-9 px-3 text-xs">Cancelar</Button><Button onClick={() => void criarReenvio()} disabled={criandoReenvio || !reenvio.assunto.trim() || !reenvio.texto.trim()} className="h-9 px-4 text-xs font-bold">{criandoReenvio ? "Criando…" : "Criar campanha"}</Button></div>
-          </div>)}
-      </Modal>
-      <Modal isOpen={!!previa} onClose={() => setPrevia(null)} title="Pré-visualização" description="Exemplo com nome fictício. Nada foi enviado." maxWidth="max-w-2xl">
-        {previa && (
-          <div className="space-y-2">
-            <p className="text-xs text-[var(--color-text-muted)]">Assunto: <b className="text-[var(--color-text-primary)]">{previa.subject}</b></p>
-            <iframe title="Pré-visualização do e-mail" sandbox="" srcDoc={previa.html} className="w-full h-[460px] rounded-lg border border-[var(--color-border-default)] bg-white" />
           </div>)}
       </Modal>
       <Modal isOpen={descAberto} onClose={() => setDescAberto(false)} title="Descadastrados" description="Quem pediu para sair nunca mais recebe campanhas: o sistema pula essas pessoas em qualquer envio. Esta lista não pode ser desfeita por aqui." maxWidth="max-w-lg">
@@ -402,35 +419,43 @@ export default function MarketingEmail() {
         </div>
       </Modal>
 
-      <Modal isOpen={open} onClose={() => !creating && setOpen(false)} title="Nova campanha de e-mail" maxWidth="max-w-2xl">
-        <div className="space-y-4">
-          <div className="flex flex-wrap items-center gap-2 text-[11px] font-bold text-[var(--color-text-muted)]">
-            <span>Modelo</span>
-            <select value={modeloId} onChange={(e) => usarModelo(e.target.value)} className="h-9 px-2 rounded-lg text-xs font-medium border border-[var(--color-border-default)] bg-[var(--color-surface)] text-[var(--color-text-primary)] max-w-[220px]">
-              <option value="">{modelos.length ? "Escolher um modelo salvo…" : "Nenhum modelo salvo"}</option>
-              {modelos.map((m) => <option key={m.id} value={m.id}>{m.nome}</option>)}
-            </select>
-            <Button type="button" variant="outline" onClick={() => void salvarModelo()} className="h-9 px-3 text-xs">Salvar como modelo</Button>
-            {modeloId && <Button type="button" variant="ghost" onClick={() => void excluirModelo()} className="h-9 px-3 text-xs text-[var(--color-danger)]">Excluir modelo</Button>}
-          </div>
-          <div className="grid sm:grid-cols-2 gap-3">
-            <label className="flex flex-col gap-1 text-[11px] font-bold text-[var(--color-text-muted)]">Nome (só para você)
-              <input value={name} onChange={(e) => setName(e.target.value)} maxLength={120} placeholder="Ex.: Aviso Treinão 14/11" className="h-9 px-2 rounded-lg text-xs font-medium border border-[var(--color-border-default)] bg-[var(--color-surface)] text-[var(--color-text-primary)]" /></label>
-            <label className="flex flex-col gap-1 text-[11px] font-bold text-[var(--color-text-muted)]">Assunto
-              <input value={subject} onChange={(e) => setSubject(e.target.value)} maxLength={200} placeholder="Ex.: {{primeiro_nome}}, sua vaga no Treinão está confirmada" className="h-9 px-2 rounded-lg text-xs font-medium border border-[var(--color-border-default)] bg-[var(--color-surface)] text-[var(--color-text-primary)]" /></label>
-          </div>
-          <label className="flex flex-col gap-1 text-[11px] font-bold text-[var(--color-text-muted)]">Assunto B (opcional — teste A/B)
-            <input value={subjectB} onChange={(e) => setSubjectB(e.target.value)} maxLength={200} placeholder="Preencha para testar outro assunto: metade recebe o A e metade o B" className="h-9 px-2 rounded-lg text-xs font-medium border border-[var(--color-border-default)] bg-[var(--color-surface)] text-[var(--color-text-primary)]" /></label>
-          <label className="flex flex-col gap-1 text-[11px] font-bold text-[var(--color-text-muted)]">Mensagem
-            <textarea value={body} onChange={(e) => setBody(e.target.value)} rows={8} maxLength={20000} placeholder={"Olá {{primeiro_nome}},\n\nO Treinão acontece neste sábado, dia 14, às 9h...\n\nTe esperamos!"} className="px-2 py-2 rounded-lg text-xs font-medium border border-[var(--color-border-default)] bg-[var(--color-surface)] text-[var(--color-text-primary)] resize-y" />
-            <button type="button" onClick={() => void verPrevia()} disabled={!body.trim() || carregandoPrevia} className="self-start text-[11px] font-bold text-[var(--color-primary-blue)] underline disabled:opacity-50">{carregandoPrevia ? "Carregando…" : "Ver como o e-mail vai ficar"}</button>
-            {avisosDoEmail(subject, body).length > 0 && (
-              <ul className="space-y-0.5 font-normal">{avisosDoEmail(subject, body).map((v) => (
-                <li key={v.texto} className={v.nivel === "atencao" ? "text-[var(--color-warning,#b45309)]" : "text-[var(--color-text-muted)]"}>{v.nivel === "atencao" ? "⚠ " : "💡 "}{v.texto}</li>))}</ul>)}
-            <span className="font-normal">Use <code>{"{{nome}}"}</code>, <code>{"{{primeiro_nome}}"}</code> e <code>{"{{empresa}}"}</code>. O link para sair da lista é adicionado sozinho no rodapé.<br />Formatação: <code>{"**negrito**"}</code> · <code>{"[texto do link](https://...)"}</code> · botão: <code>{"[[Quero saber mais|https://...]]"}</code></span></label>
+      <Modal isOpen={open} onClose={() => !creating && setOpen(false)} closeOnBackdrop={false} title="Nova campanha de e-mail" maxWidth="max-w-6xl"
+        footer={<>
+          {!canCreate && !creating && falta.length > 0 && <span className="mr-auto text-[11px] text-[var(--color-text-faint)]">Falta {falta.join(", ")}.</span>}
+          <label className="flex items-center gap-2 text-[11px] font-bold text-[var(--color-text-muted)]">Enviar em
+            <input type="date" value={agendarPara} min={new Date(Date.now() - 3 * 3600_000).toISOString().slice(0, 10)} onChange={(e) => setAgendarPara(e.target.value)} className="h-9 px-2 rounded-lg text-xs border border-[var(--color-border-default)] bg-[var(--color-surface)] text-[var(--color-text-primary)]" />
+            <HelpTip label="Agendamento">Deixe em branco para disparar você mesmo quando quiser. Com uma data, a campanha sai sozinha no envio automático das 10h (Brasília) desse dia, mesmo com o sistema fechado. Você ainda pode enviar antes pelo botão.</HelpTip>
+          </label>
+          <Button variant="outline" onClick={() => setOpen(false)} disabled={creating} className="h-9 px-4 text-xs">Cancelar</Button>
+          <Button onClick={() => void create()} disabled={!canCreate} className="h-9 px-5 text-xs font-bold gap-1.5">{creating && <Loader2 className="w-3.5 h-3.5 animate-spin" />} {agendarPara ? "Agendar campanha" : "Criar campanha"}</Button>
+        </>}>
+        <div className="grid gap-5 lg:grid-cols-[minmax(0,1fr)_minmax(0,440px)] items-start">
+          <div className="space-y-5 min-w-0">
+          <Etapa numero={1} titulo="Campanha">
+            <div className="grid sm:grid-cols-2 gap-3">
+              <label className="flex flex-col gap-1 text-[11px] font-bold text-[var(--color-text-muted)]">Nome (só para você)
+                <input value={name} onChange={(e) => setName(e.target.value)} maxLength={120} placeholder="Ex.: Aviso Treinão 14/11" className="h-9 px-3 rounded-xl text-xs font-medium border border-[var(--color-border-default)] bg-[var(--color-surface)] text-[var(--color-text-primary)]" /></label>
+              <label className="flex flex-col gap-1 text-[11px] font-bold text-[var(--color-text-muted)]">Assunto
+                <input value={subject} onChange={(e) => setSubject(e.target.value)} maxLength={200} placeholder="Ex.: {{primeiro_nome}}, sua vaga está confirmada" className="h-9 px-3 rounded-xl text-xs font-medium border border-[var(--color-border-default)] bg-[var(--color-surface)] text-[var(--color-text-primary)]" /></label>
+            </div>
+            <label className="flex flex-col gap-1 text-[11px] font-bold text-[var(--color-text-muted)]">Assunto B (opcional, teste A/B)
+              <input value={subjectB} onChange={(e) => setSubjectB(e.target.value)} maxLength={200} placeholder="Preencha para testar outro assunto: metade recebe o A e metade o B" className="h-9 px-3 rounded-xl text-xs font-medium border border-[var(--color-border-default)] bg-[var(--color-surface)] text-[var(--color-text-primary)]" /></label>
+          </Etapa>
 
-          <div className="space-y-2">
-            <p className="text-[11px] font-bold text-[var(--color-text-muted)]">Quem recebe — pode ser gente que está no sistema ou não. Marque as fontes e/ou use uma lista própria.</p>
+          <Etapa numero={2} titulo="Conteúdo">
+            <div className="flex flex-wrap items-center gap-2 rounded-xl border border-[var(--color-border-subtle)] bg-[var(--color-surface-sunken)] p-2.5 text-[11px] font-bold text-[var(--color-text-muted)]">
+              <span>Modelos da empresa</span>
+              <select aria-label="Modelo salvo" value={modeloId} onChange={(e) => usarModelo(e.target.value)} className="h-8 flex-1 min-w-[160px] px-2 rounded-lg text-xs font-medium border border-[var(--color-border-default)] bg-[var(--color-surface)] text-[var(--color-text-primary)]">
+                <option value="">{modelos.length ? "Escolher um modelo salvo…" : "Nenhum modelo salvo ainda"}</option>
+                {modelos.map((m) => <option key={m.id} value={m.id}>{m.nome}{ehHtml(m.corpo) ? " · HTML" : " · texto"}</option>)}
+              </select>
+              <Button type="button" variant="outline" onClick={() => void salvarModelo()} disabled={!subject.trim() || !corpo.trim()} title="Guarda o assunto e o conteúdo para reaproveitar. Usa o nome da campanha como nome do modelo." className="h-8 px-3 text-xs">Salvar como modelo</Button>
+              {modeloId && <Button type="button" variant="ghost" onClick={() => void excluirModelo()} className="h-8 px-2 text-xs text-[var(--color-danger)]">Excluir</Button>}
+            </div>
+            <EditorConteudoEmail key={activeTenantId ?? ""} formato={formato} onFormato={setFormato} texto={body} onTexto={setBody} html={bodyHtml} onHtml={setBodyHtml} assunto={subject} marca={marca} />
+          </Etapa>
+
+          <Etapa numero={3} titulo="Quem recebe" ajuda="Pode ser gente que está no sistema ou não: marque as fontes e/ou use uma lista própria.">
             <div className="flex flex-wrap gap-x-4 gap-y-1.5 text-xs text-[var(--color-text-primary)]">
               {([["Leads", inclLeads, setInclLeads], ["Clientes", inclClientes, setInclClientes], ["Contatos das empresas", inclContatos, setInclContatos], ["Equipe (usuários do sistema)", inclEquipe, setInclEquipe]] as const).map(([l, v, set]) => (
                 <label key={l} className="inline-flex items-center gap-1.5 cursor-pointer"><input type="checkbox" checked={v} onChange={(e) => set(e.target.checked)} /> {l}</label>))}
@@ -481,14 +506,10 @@ export default function MarketingEmail() {
                     </div>)}</>
                   : "Não foi possível calcular o público."}
             </div>
+          </Etapa>
           </div>
-          <div className="flex justify-end items-center gap-2 flex-wrap">
-            <Button variant="outline" onClick={() => setOpen(false)} disabled={creating} className="h-9 px-4 text-xs">Cancelar</Button>
-            <label className="flex items-center gap-2 text-[11px] font-bold text-[var(--color-text-muted)]">Enviar em
-              <input type="date" value={agendarPara} min={new Date(Date.now() - 3 * 3600_000).toISOString().slice(0, 10)} onChange={(e) => setAgendarPara(e.target.value)} className="h-9 px-2 rounded-lg text-xs border border-[var(--color-border-default)] bg-[var(--color-surface)] text-[var(--color-text-primary)]" />
-              <HelpTip label="Agendamento">Deixe em branco para disparar você mesmo quando quiser. Com uma data, a campanha sai sozinha no envio automático das 10h (Brasília) desse dia, mesmo com o sistema fechado. Você ainda pode enviar antes pelo botão.</HelpTip>
-            </label>
-            <Button onClick={() => void create()} disabled={!canCreate} className="h-9 px-5 text-xs font-bold gap-1.5">{creating && <Loader2 className="w-3.5 h-3.5 animate-spin" />} Criar campanha</Button>
+          <div className="lg:sticky lg:top-0 min-w-0">
+            <PreviaEmail assunto={subject} corpo={corpo} api={apiFetchTenant} />
           </div>
         </div>
       </Modal>
