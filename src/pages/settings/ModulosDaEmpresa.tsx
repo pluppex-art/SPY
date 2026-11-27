@@ -3,6 +3,7 @@ import { CheckCircle2, Lock } from "lucide-react";
 import { PageContainer } from "../../components/PageContainer";
 import { ModuloBloqueado, useCatalogo } from "../../components/ModuloBloqueado";
 import { useAuth } from "../../contexts/AuthContext";
+import { CobrancaDaAssinatura } from "./CobrancaDaAssinatura";
 import { ITENS_SPY, SOBRE_O_MODULO, skuDoModulo } from "../../lib/catalogoSpy";
 import { formatBRLCentavos } from "../../lib/dinheiro";
 
@@ -18,6 +19,7 @@ export default function ModulosDaEmpresa() {
 
   return (
     <PageContainer title="Módulos e adicionais" description="O que a sua empresa já usa e o que dá para liberar.">
+      {user?.isTenantAdmin && !user.isMaster && <CobrancaDaAssinatura voltou={params.get("cartao") === "ok"} />}
       {catalogo === null ? (
         <p className="text-sm text-[var(--color-text-muted)]">Carregando…</p>
       ) : (

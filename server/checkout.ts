@@ -21,6 +21,7 @@ import { upsertLead, atualizarLeadPorId } from "./leadUpsert.js";
 import { notificationEmail, type NotificationKind } from "./emailTemplates.js";
 import { whatsappUrl, formatPhoneBR } from "./emailNotify.js";
 import { modulosDeAgenteNovos } from "../src/lib/modulosDeAgente.js";
+import { ErroDeRecorrencia, asaasDoAmbiente, createRecorrencia, type AsaasApi } from "./recorrencia.js";
 import { DESCONTO_ANUAL, ITENS_SPY, cicloValido, escolherItens, itensGravados, jaAtivo, modulosDosItens, precoDoCiclo, proporcional, reprecificar, somaItens, unirItens, type Ciclo, type ItemPedido, type ItemVenda } from "../src/lib/catalogoSpy.js";
 
 type Deps = {
@@ -31,6 +32,8 @@ type Deps = {
   publicAppUrl: string;
   /** Cria os agentes do n8n quando uma renovação/troca de plano liga um módulo novo. */
   acionarAgentes?: (tenantId: string) => Promise<unknown>;
+  /** Cobrança recorrente no cartão; sem informar, usa as variáveis do servidor. */
+  asaas?: AsaasApi | null;
 };
 
 // ── Pix (BR Code estatico com valor) ────────────────────────────────────────
@@ -102,8 +105,13 @@ const usuarioInativo = (u: any) => !!u && (u.active === false || !!u.deleted_at)
 /** Varios destinatarios no mesmo campo (separados por virgula, ponto e virgula ou espaco). */
 const destinatarios = (raw: unknown): string[] => [...new Set(String(raw || "").split(/[,;\s]+/).map((e) => e.trim().toLowerCase()).filter((e) => EMAIL_RE.test(e)))].slice(0, 6);
 
-export function createCheckoutRouter({ requireUser, requireMaster, supabaseService: db, provisionPlan, publicAppUrl, acionarAgentes: acionarModulosNovos }: Deps) {
+export function createCheckoutRouter({ requireUser, requireMaster, supabaseService: db, provisionPlan, publicAppUrl, acionarAgentes: acionarModulosNovos, asaas: asaasInformado }: Deps) {
   const router = Router();
+  const asaas = asaasInformado !== undefined ? asaasInformado : asaasDoAmbiente();
+  const recorrencia = createRecorrencia({ db: db!, asaas, publicAppUrl, catalogo: () => catalogo() });
+  /** Frase para a equipe quando uma compra muda o valor de quem paga no cartão. */
+  const avisoDoCartao = (r: Awaited<ReturnType<typeof recorrencia.atualizarValor>>) =>
+    !r ? "" : r.ok ? ` A cobrança automática passou para ${brl(r.valorCents)} por mês.` : ` ATENÇÃO: não foi possível mudar a cobrança automática; ajuste no Asaas para ${brl(r.valorCents)} por mês.`;
 
   /** Avisos internos no mesmo modelo dos avisos do S.P.Y. (financeiro/comercial). Nunca lança; espera no máximo 8s. */
   async function avisarEquipe(copyKey: string, kind: NotificationKind, title: string, description: string, details: { label: string; value: string }[], phone?: string, link = `${publicAppUrl}/app/admin?tab=plans&sub=checkout`) {
@@ -400,7 +408,7 @@ export function createCheckoutRouter({ requireUser, requireMaster, supabaseServi
             if (!url) return false;
             mail = notificationEmail({
               kind: "success", copyKey: "checkout_acesso", title: "Pagamento confirmado — seu acesso ao S.P.Y.",
-              description: `Recebemos o pagamento de ${brl(o.total_cents)} (plano ${o.plan_name}). Defina sua senha para entrar.`,
+              description: `Recebemos o pagamento de ${brl(o.total_cents)} (plano ${o.plan_name}). Defina sua senha para entrar.${asaas && cicloValido(o.ciclo) === "monthly" ? " Para pagar as próximas mensalidades no cartão, de forma automática, entre e abra Liberar módulos." : ""}`,
               details: [{ label: "Empresa", value: o.empresa }, { label: "Plano", value: o.plan_name }, { label: "Valor", value: brl(o.total_cents) }, { label: "Validade do link", value: "limitada (cerca de 1 hora). Se expirar, use “Esqueci a senha” em " + publicAppUrl.replace(/^https?:\/\//, "") + "/login" }],
               primaryButton: { label: "Definir minha senha e entrar", url }, name: o.nome,
             });
@@ -423,7 +431,9 @@ export function createCheckoutRouter({ requireUser, requireMaster, supabaseServi
       await db!.from("checkout_orders").update({ acesso_email_ok: emailEnviado, agentes_ok: reuse ? null : agentes.ok, agentes_erro: agentes.erro }).eq("id", o.id);
       if (!agentes.ok) console.error("[checkout] agentes:", agentes.erro);
 
+      const cartao = reuse ? await recorrencia.atualizarValor(tenantId).catch(() => null) : null;
       const problemas: string[] = [];
+      if (cartao) problemas.push(`Esta empresa paga no cartão e acabou de pagar um Pix: confira no Asaas se a próxima data de cobrança precisa mudar.${avisoDoCartao(cartao)}`);
       if (!emailEnviado) problemas.push(`O e-mail de acesso para ${o.email} NÃO foi enviado. Oriente o cliente a abrir a tela de login e usar “Esqueci a senha”.`);
       if (!agentes.ok) problemas.push(`Os agentes de implantação (n8n) não foram acionados: ${agentes.erro}. Acione manualmente.`);
       const info = [{ label: "Cliente", value: o.nome }, { label: "Empresa", value: o.empresa }, { label: "Plano / valor", value: `${resumoDoPedido(o)} · ${brl(o.total_cents)}` }, { label: "E-mail", value: o.email }];
@@ -499,8 +509,9 @@ export function createCheckoutRouter({ requireUser, requireMaster, supabaseServi
         emailEnviado = true;
       } catch (e: any) { console.error("[checkout] e-mail dos adicionais:", e?.message); }
       await db!.from("checkout_orders").update({ acesso_email_ok: emailEnviado }).eq("id", o.id);
-      await avisarEquipe("checkout_venda", sub ? "success" : "warning", `Adicionais liberados: ${o.empresa} — ${brl(o.total_cents)}`,
-        `${o.nome} (${o.empresa}) contratou ${resumoDoPedido(o)}. Faça a configuração desses itens.${sub ? "" : " ATENÇÃO: esta empresa não tem assinatura cadastrada; a mensalidade dos adicionais precisa ser cobrada à parte."}`,
+      const cartao = await recorrencia.atualizarValor(o.tenant_id).catch(() => null);
+      await avisarEquipe("checkout_venda", sub && cartao?.ok !== false ? "success" : "warning", `Adicionais liberados: ${o.empresa} — ${brl(o.total_cents)}`,
+        `${o.nome} (${o.empresa}) contratou ${resumoDoPedido(o)}. Faça a configuração desses itens.${sub ? "" : " ATENÇÃO: esta empresa não tem assinatura cadastrada; a mensalidade dos adicionais precisa ser cobrada à parte."}${avisoDoCartao(cartao)}`,
         [{ label: "Empresa", value: o.empresa }, { label: "Itens / valor", value: `${resumoDoPedido(o)} · ${brl(o.total_cents)}` }, { label: "E-mail", value: o.email }], o.telefone);
       res.json({ ok: true, tenantId: o.tenant_id, emailEnviado, renovacao: true, checks: { modulos: true, assinatura: !!sub, email: emailEnviado } });
     } catch (e: any) {
@@ -609,13 +620,13 @@ export function createCheckoutRouter({ requireUser, requireMaster, supabaseServi
       .eq("active", true).eq("show_on_site", true).order("sort_order").order("price_cents");
     const enabled = !!(cfg?.active && cfg.pix_key);
     if (cfg?.single_plan_code) {
-      try { return res.json({ enabled, single: quoteJson(await finalQuote(cfg.single_plan_code)), plans: [], itens: [], descontoAnual: DESCONTO_ANUAL }); } catch { /* cai na lista */ }
+      try { return res.json({ enabled, single: quoteJson(await finalQuote(cfg.single_plan_code)), plans: [], itens: [], descontoAnual: DESCONTO_ANUAL, recorrente: !!asaas }); } catch { /* cai na lista */ }
     }
     const plans = [];
     for (const p of data || []) {
       try { plans.push({ ...quoteJson(await quoteFor((p as any).code)), badge: (p as any).badge ?? null, highlight: !!(p as any).highlight }); } catch { /* plano sem cotação */ }
     }
-    res.json({ enabled, single: null, plans, itens: await catalogo(), descontoAnual: DESCONTO_ANUAL });
+    res.json({ enabled, single: null, plans, itens: await catalogo(), descontoAnual: DESCONTO_ANUAL, recorrente: !!asaas });
   });
 
   router.post("/quote", pub, async (req, res) => {
@@ -727,7 +738,7 @@ export function createCheckoutRouter({ requireUser, requireMaster, supabaseServi
     ]);
     const s: any = sub;
     const gw = String(s?.gateway || "").toLowerCase();
-    if (gw && gw !== "manual") return falha(409, "Sua assinatura é cobrada automaticamente. Para incluir adicionais, fale com a gente pelo WhatsApp.");
+    if (gw && gw !== "manual" && !(gw === "asaas" && asaas)) return falha(409, "Sua assinatura é cobrada automaticamente. Para incluir adicionais, fale com a gente pelo WhatsApp.");
     if (s && (["suspended", "canceled"].includes(s.status) || (s.current_period_end && new Date(s.current_period_end).getTime() < Date.now()))) {
       return falha(409, "Sua assinatura está vencida ou suspensa. Renove primeiro e depois inclua os adicionais.");
     }
@@ -780,6 +791,49 @@ export function createCheckoutRouter({ requireUser, requireMaster, supabaseServi
     // Só 'pending' expira sozinho; 'awaiting_confirmation' espera a conferência da equipe.
     const expirado = data.status === "pending" && new Date(data.expires_at).getTime() < Date.now();
     res.json({ status: expirado ? "expired" : data.status, totalCents: data.total_cents, planName: data.plan_name, pixPayload: data.pix_payload, nome: data.nome, email: data.email, kind: data.kind, emailEnviado: data.acesso_email_ok ?? null, empresa: data.empresa, ciclo: data.ciclo ?? "monthly", itens: itensGravados(data.itens) });
+  });
+
+  // ── Cobrança recorrente no cartão (Asaas) ─────────────────────────────────
+  const falhaDaRecorrencia = (res: Response, e: any) => {
+    if (!(e instanceof ErroDeRecorrencia)) console.error("[checkout] recorrência:", e?.message);
+    res.status(e instanceof ErroDeRecorrencia ? e.status : 500).json({ error: e instanceof ErroDeRecorrencia ? e.message : "Não foi possível concluir. Tente de novo." });
+  };
+
+  /** Empresa do administrador logado; já responde o erro quando não pode. */
+  async function empresaDoAdmin(req: any, res: Response): Promise<{ tenantId: string; nome: string } | null> {
+    if (!db) { res.status(503).json({ error: "Indisponível." }); return null; }
+    const { data: me } = await db.from("users").select("name,tenant_id,is_master,is_tenant_admin,active").eq("id", req.user.id).maybeSingle();
+    if (!me?.tenant_id || me.active === false || (!me.is_master && !me.is_tenant_admin)) { res.status(403).json({ error: "Somente o administrador da empresa pode mudar a forma de pagamento." }); return null; }
+    return { tenantId: me.tenant_id, nome: String(me.name || "") };
+  }
+
+  router.get("/recorrencia", pub, requireUser, async (req: any, res) => {
+    const eu = await empresaDoAdmin(req, res);
+    if (eu) await recorrencia.estado(eu.tenantId).then((e) => res.json(e)).catch((e) => falhaDaRecorrencia(res, e));
+  });
+
+  router.post("/recorrencia", pubWrite, requireUser, async (req: any, res) => {
+    const eu = await empresaDoAdmin(req, res);
+    if (eu) await recorrencia.iniciar(eu.tenantId, "/app/modulos").then((r) => res.json(r)).catch((e) => falhaDaRecorrencia(res, e));
+  });
+
+  router.delete("/recorrencia", pubWrite, requireUser, async (req: any, res) => {
+    const eu = await empresaDoAdmin(req, res);
+    if (!eu) return;
+    try {
+      await recorrencia.cancelar(eu.tenantId, req.user.id);
+      await avisarEquipe("checkout_atencao", "warning", "Cobrança automática cancelada", `${eu.nome} cancelou a cobrança automática no cartão. A empresa continua ativa até o fim do período pago; a próxima renovação é por Pix.`, [{ label: "Empresa (id)", value: eu.tenantId }]);
+      res.json({ ok: true });
+    } catch (e) { falhaDaRecorrencia(res, e); }
+  });
+
+  // Logo depois da compra, ainda sem login: o link do pedido (aleatório) permite cadastrar o cartão daquela empresa.
+  router.post("/order/:token/recorrencia", pubWrite, async (req, res) => {
+    if (!db) return res.status(503).json({ error: "Indisponível." });
+    const { data: o } = await db.from("checkout_orders").select("status,kind,tenant_id,fulfilled_at").eq("token", String(req.params.token).slice(0, 80)).maybeSingle();
+    if (!o) return res.status(404).json({ error: "Pedido não encontrado." });
+    if (o.status !== "paid" || !o.tenant_id || !o.fulfilled_at || o.kind === "addon") return res.status(409).json({ error: "O cartão é cadastrado depois que o pagamento é confirmado. Aguarde um instante e tente de novo." });
+    await recorrencia.iniciar(o.tenant_id, "/checkout").then((r) => res.json(r)).catch((e) => falhaDaRecorrencia(res, e));
   });
 
   // "Já paguei": guarda o comprovante, move o pedido para 'awaiting_confirmation' e avisa a equipe para conferir o Pix e confirmar.

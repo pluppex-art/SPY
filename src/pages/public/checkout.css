@@ -53,6 +53,7 @@
 .ck-aceite a { text-decoration: underline; color: var(--sp-brand-text); }
 .ck-botoes { display: flex; flex-wrap: wrap; justify-content: center; gap: 12px; margin-top: 20px; }
 .ck-botoes .sp-btn--primary { flex: 1; max-width: 420px; }
+@media (max-width: 560px) { .ck-obrigado .ck-botoes > * { flex: 1 1 100%; } }
 .ck-largo { width: 100%; margin-top: 18px; }
 .sp-root.ck .sp-btn:disabled { opacity: .45; cursor: default; transform: none; }
 .sp-root.ck .sp-btn--outline { background: transparent; }
@@ -123,6 +124,11 @@
 .ck-ciclo em { font-style: normal; font-size: 12px; font-weight: 700; padding: 3px 8px; border-radius: 999px; background: rgba(74,222,128,.18); color: #4ade80; }
 .ck-ciclo button[aria-checked="true"] em { background: #0b1120; }
 .ck-texto { color: var(--sp-muted); font-size: 14px; margin: -8px 0 16px; }
+.ck-modos { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 16px; }
+.ck-modos button { display: grid; align-content: start; gap: 4px; min-height: 44px; padding: 14px 16px; text-align: left; border: 1px solid var(--sp-line-strong); border-radius: 14px; background: transparent; color: var(--sp-muted); font: 500 13px/1.45 "Instrument Sans", system-ui, sans-serif; cursor: pointer; }
+.ck-modos strong { color: var(--sp-body); font-size: 15px; }
+.ck-modos button[aria-checked="true"] { border-color: var(--sp-brand); box-shadow: inset 0 0 0 1px var(--sp-brand); background: rgba(139,92,246,.14); }
+@media (max-width: 560px) { .ck-modos { grid-template-columns: 1fr; } }
 
 /* adicionais */
 .ck-grupo { font: 700 13px/1 "Instrument Sans", sans-serif; text-transform: uppercase; letter-spacing: .08em; color: var(--sp-brand-text); margin: 20px 0 10px; }

@@ -5,7 +5,7 @@ import QRCode from "qrcode";
 import { supabase } from "../../lib/supabase";
 import { apiFetch } from "../../lib/apiClient";
 import { SocialProofPopup } from "../../components/SocialProofPopup";
-import { ArrowLeft, ArrowRight, Check, CheckCircle2, Copy, Loader2, Lock, MessageCircle, QrCode, ShieldCheck, Star, Tag, Upload, UserCheck } from "lucide-react";
+import { ArrowLeft, ArrowRight, Check, CheckCircle2, Copy, CreditCard, Loader2, Lock, MessageCircle, QrCode, ShieldCheck, Star, Tag, Upload, UserCheck } from "lucide-react";
 import { Perguntas, PERGUNTAS } from "../vendas/comum";
 import { DESCONTO_ANUAL, precoDoCiclo, type Ciclo, type ItemVenda } from "../../lib/catalogoSpy";
 import { Adicionais, type Escolhidos } from "./CheckoutAdicionais";
@@ -26,6 +26,8 @@ type Pedido = { token: string; totalCents: number; pixPayload: string; status: s
 type Info = { kind: "new" | "renewal" | "addon"; emailEnviado: boolean | null; email: string };
 
 const LS_TOKEN = "spy_checkout_token";
+/** Como a pessoa quer pagar os próximos meses; "recorrente" leva ao cadastro do cartão depois da confirmação. */
+type Modo = "avulso" | "recorrente";
 const POLITICA_VERSAO = "2026-11";
 const lsGet = () => { try { return localStorage.getItem(LS_TOKEN) || ""; } catch { return ""; } };
 const lsSet = (v: string) => { try { if (v) localStorage.setItem(LS_TOKEN, v); else localStorage.removeItem(LS_TOKEN); } catch { /* sem armazenamento: segue sem */ } };
@@ -107,6 +109,8 @@ export default function Checkout() {
   const [cotada, setCotada] = useState("");
   const [extra, setExtra] = useState<CotacaoAdicional | null>(null);
   const [erroExtra, setErroExtra] = useState("");
+  const [temRecorrencia, setTemRecorrencia] = useState(false);
+  const [modo, setModo] = useState<Modo>(params.get("pagamento") === "recorrente" ? "recorrente" : "avulso");
   const pedidoItens = useMemo(() => Object.entries(escolhidos).filter(([, q]) => q > 0).map(([sku, qtd]) => ({ sku, qtd })), [escolhidos]);
   const ordem = useRef(0);
   const tentativasAcesso = useRef(0);
@@ -116,9 +120,10 @@ export default function Checkout() {
   const chave = `${planoCode}|${ciclo}|${JSON.stringify(pedidoItens)}`;
 
   useEffect(() => {
-    api<{ enabled: boolean; single: Quote | null; plans: Quote[]; itens?: ItemVenda[] }>("/api/checkout/plans")
+    api<{ enabled: boolean; single: Quote | null; plans: Quote[]; itens?: ItemVenda[]; recorrente?: boolean }>("/api/checkout/plans")
       .then((r) => {
         setCatalogo(r.itens || []);
+        setTemRecorrencia(!!r.recorrente);
         setHabilitado(r.enabled);
         setPlanos(r.plans);
         if (r.single) { setSingle(r.single); setCotacao(r.single); setPlanoCode(r.single.plan.code); return; }
@@ -288,6 +293,15 @@ export default function Checkout() {
     setErro("");
   };
 
+  const cadastrarCartao = async () => {
+    if (!pedido) return;
+    setOcupado(true); setErro("");
+    try { window.location.assign((await api<{ url: string }>(`/api/checkout/order/${pedido.token}/recorrencia`, {})).url); }
+    catch (e: any) { setErro(e.message); setOcupado(false); }
+  };
+
+  /** Cartão só para a mensalidade: o anual é pago de uma vez e os adicionais entram na assinatura que já existe. */
+  const noCartao = temRecorrencia && !avulso && !single && ciclo === "monthly" && modo === "recorrente";
   const pago = status === "paid";
   const conferindo = status === "awaiting_confirmation";
   const obrigado = !!pedido && (pago || conferindo);
@@ -335,6 +349,7 @@ export default function Checkout() {
 
         <div className="sp-wrap ck-corpo">
           {planos === null && <p className="ck-aviso"><Loader2 className="ck-gira" size={20} aria-hidden="true" /> Carregando…</p>}
+          {params.get("cartao") === "ok" && <p className="ck-aviso" role="status"><CheckCircle2 size={20} aria-hidden="true" /> Cartão enviado ao Asaas. A confirmação pode levar alguns minutos.</p>}
           {planos !== null && !habilitado && <p className="ck-aviso">O pagamento online ainda não está liberado. <Link to="/contato" className="sp-link">Fale com a gente</Link> e finalizamos juntos.</p>}
 
           {aberto && obrigado && (
@@ -372,8 +387,14 @@ export default function Checkout() {
                 <span>Valor do Pix <strong>{brl(pedido!.totalCents)}</strong></span>
               </div>
               {info?.kind === "new" && <Depois feitos={pago ? 2 : 0} />}
+              {noCartao && info?.kind !== "addon" && <p className="ck-texto">{pago ? "Falta um passo para a cobrança automática: cadastre o cartão na página do Asaas. Nada é cobrado antes do fim do período que você acabou de pagar." : "Quando o pagamento for confirmado, aparece aqui o botão para cadastrar o cartão. Você também pode fazer isso dentro do sistema, em Liberar módulos."}</p>}
               <div className="ck-botoes">
-                {pago ? <Link to="/login" className="sp-btn sp-btn--primary">Ir para o login <ArrowRight size={18} aria-hidden="true" /></Link>
+                {pago && noCartao && info?.kind !== "addon" && (
+                  <button type="button" className="sp-btn sp-btn--primary" disabled={ocupado || (info?.kind === "new" && (info?.emailEnviado ?? null) === null)} onClick={() => void cadastrarCartao()}>
+                    {ocupado ? <Loader2 className="ck-gira" size={18} aria-hidden="true" /> : <CreditCard size={18} aria-hidden="true" />} Cadastrar o cartão
+                  </button>
+                )}
+                {pago ? <Link to="/login" className={`sp-btn ${noCartao ? "sp-btn--outline" : "sp-btn--primary"}`}>Ir para o login <ArrowRight size={18} aria-hidden="true" /></Link>
                   : <Link to="/landing" className="sp-btn sp-btn--outline">Conhecer mais a plataforma</Link>}
               </div>
               {alerta}
@@ -390,6 +411,16 @@ export default function Checkout() {
                       <button type="button" role="radio" aria-checked={ciclo === "monthly"} onClick={() => setCiclo("monthly")}>Mensal</button>
                       <button type="button" role="radio" aria-checked={ciclo === "yearly"} onClick={() => setCiclo("yearly")}>Anual <em>{DESCONTO_ANUAL}% de desconto</em></button>
                     </div>
+                    {temRecorrencia && ciclo === "monthly" && (
+                      <div className="ck-modos" role="radiogroup" aria-label="Como pagar os próximos meses">
+                        <button type="button" role="radio" aria-checked={modo === "avulso"} onClick={() => setModo("avulso")}>
+                          <strong>Um mês por vez</strong><span>Paga o Pix, usa 30 dias e renova quando quiser.</span>
+                        </button>
+                        <button type="button" role="radio" aria-checked={modo === "recorrente"} onClick={() => setModo("recorrente")}>
+                          <strong>Recorrente no cartão</strong><span>Hoje é por Pix. Depois da confirmação você cadastra o cartão, e as próximas mensalidades são cobradas sozinhas.</span>
+                        </button>
+                      </div>
+                    )}
                     <div className="ck-planos" role="radiogroup" aria-label="Plano">
                       {planos!.map((p) => (
                         <button key={p.plan.code} type="button" role="radio" aria-checked={planoCode === p.plan.code} onClick={() => setPlanoCode(p.plan.code)} className="ck-plano">
@@ -541,7 +572,7 @@ export default function Checkout() {
                   )}
                   {(pedido || detalhe || (avulso && extra)) && <div className="ck-total"><dt>Total hoje</dt><dd>{brl(pedido ? pedido.totalCents : avulso ? extra!.totalCents : detalhe!.totalCents)}</dd></div>}
                 </dl>
-                {detalhe && !single && <p className="ck-nota">Nas próximas cobranças: {brl(detalhe.priceCents + (detalhe.itensCents ?? 0))}{porCiclo(cicloDoResumo)}.</p>}
+                {detalhe && !single && <p className="ck-nota">Nas próximas cobranças: {brl(detalhe.priceCents + (detalhe.itensCents ?? 0))}{porCiclo(cicloDoResumo)}{noCartao ? " no cartão. Sem fidelidade: cancele quando quiser." : "."}</p>}
                 {avulso && extra && !pedido && extra.itens.length > 0 && (
                   <p className="ck-nota">{extra.proporcional ? "Hoje você paga só os dias que faltam do período atual; na renovação entra o valor cheio." : `Hoje você paga o primeiro ${extra.ciclo === "yearly" ? "ano" : "mês"}.`}</p>
                 )}

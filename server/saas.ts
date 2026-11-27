@@ -17,6 +17,7 @@ import { bloqueiaAcesso, type Situacao } from "../src/lib/situacaoEmpresa.js";
 import axios from "axios";
 import rateLimit from "express-rate-limit";
 import { modulosDeAgenteNovos } from "../src/lib/modulosDeAgente.js";
+import { asaasBase, asaasDoAmbiente, vincularAssinaturaAsaas, type AsaasApi } from "./recorrencia.js";
 import { cicloValido, itensGravados, precoDoCiclo, somaItens } from "../src/lib/catalogoSpy.js";
 
 // ── Contexto de IA por requisição (quem está gastando) ──────────────────────
@@ -34,6 +35,8 @@ type Deps = {
   situacao?: (tenantId: string) => Promise<Situacao>;
   /** Cria os agentes do n8n quando o plano liga um módulo novo; ver server/agentesImplementacao.ts. */
   acionarAgentes?: (tenantId: string) => Promise<unknown>;
+  /** Cobrança recorrente; sem informar, usa as variáveis do servidor (ver server/recorrencia.ts). */
+  asaas?: AsaasApi | null;
 };
 
 const BLOCKED_STATUSES = new Set(["suspended", "canceled"]);
@@ -498,7 +501,6 @@ export function createSaas(deps: Deps) {
   });
 
   // ── Asaas (opcional: só funciona com ASAAS_API_KEY no servidor) ──
-  const asaasBase = () => (process.env.ASAAS_ENV === "sandbox" ? "https://sandbox.asaas.com/api/v3" : "https://api.asaas.com/v3");
   const asaasHeaders = () => ({ access_token: process.env.ASAAS_API_KEY || "", "Content-Type": "application/json", "User-Agent": "spy-crm" });
 
   router.post("/subscriptions/:tenantId/asaas", requireUser, requireMaster, async (req: any, res) => {
@@ -540,7 +542,11 @@ export function createSaas(deps: Deps) {
       const pay = req.body?.payment || {};
       const subId = pay.subscription || req.body?.subscription?.id;
       if (!subId) return res.json({ ok: true, ignored: "sem assinatura" });
-      const { data: sub } = await supabaseService.from("tenant_subscriptions").select("*, plan:subscription_plans(*)").eq("gateway_subscription_id", subId).maybeSingle();
+      const procurar = () => supabaseService!.from("tenant_subscriptions").select("*, plan:subscription_plans(*)").eq("gateway_subscription_id", subId).maybeSingle();
+      let { data: sub } = await procurar();
+      // Assinatura nascida no checkout do cartão: o primeiro aviso é que a liga à empresa.
+      const asaas = deps.asaas !== undefined ? deps.asaas : asaasDoAmbiente();
+      if (!sub && asaas && !/DELETED|INACTIVATED/.test(evt) && (await vincularAssinaturaAsaas(supabaseService, asaas, subId))) ({ data: sub } = await procurar());
       if (!sub) return res.json({ ok: true, ignored: "assinatura desconhecida" });
       const ref = `${evt}:${pay.id || subId}`;
       const { data: dup } = await supabaseService.from("billing_events").select("id").eq("tenant_id", sub.tenant_id).eq("gateway_ref", ref).maybeSingle();
@@ -549,6 +555,11 @@ export function createSaas(deps: Deps) {
       let to: string | null = null;
       const patch: any = { updated_at: new Date().toISOString() };
       if (evt === "PAYMENT_CONFIRMED" || evt === "PAYMENT_RECEIVED") {
+        // O cartão avisa "confirmado" e, dias depois, "recebido" do MESMO pagamento: o período só anda uma vez.
+        if (pay.id) {
+          const { data: ja } = await supabaseService.from("billing_events").select("id").eq("tenant_id", sub.tenant_id).in("gateway_ref", [`PAYMENT_CONFIRMED:${pay.id}`, `PAYMENT_RECEIVED:${pay.id}`]).limit(1).maybeSingle();
+          if (ja) return res.json({ ok: true, duplicate: true });
+        }
         to = "active";
         const base = sub.current_period_end && new Date(sub.current_period_end) > new Date() ? new Date(sub.current_period_end) : new Date();
         Object.assign(patch, { status: "active", last_payment_at: new Date().toISOString(), current_period_end: addPeriod(base, sub.ciclo === "yearly" ? "yearly" : sub.plan?.billing_interval ?? "monthly").toISOString(), suspended_at: null });
@@ -556,11 +567,14 @@ export function createSaas(deps: Deps) {
         to = sub.status === "suspended" ? "suspended" : "past_due";
         patch.status = to;
       } else if (evt === "SUBSCRIPTION_DELETED" || evt === "SUBSCRIPTION_INACTIVATED") {
-        to = "canceled"; patch.status = to;
+        // Sem fidelidade: quem cancela usa até o fim do que pagou; depois segue a régua normal da cobrança manual.
+        if (sub.current_period_end && new Date(sub.current_period_end) > new Date()) {
+          await supabaseService.from("tenant_subscriptions").update({ gateway: "manual", gateway_subscription_id: null, updated_at: patch.updated_at }).eq("id", sub.id);
+        } else { to = "canceled"; patch.status = to; }
       }
       if (to) await supabaseService.from("tenant_subscriptions").update(patch).eq("id", sub.id);
       await supabaseService.from("billing_events").insert({
-        tenant_id: sub.tenant_id, type: evt.startsWith("PAYMENT_") ? (to === "active" ? "payment_confirmed" : "payment_overdue") : "gateway_webhook",
+        tenant_id: sub.tenant_id, type: to === "active" ? "payment_confirmed" : evt === "PAYMENT_OVERDUE" ? "payment_overdue" : "gateway_webhook",
         from_status: sub.status, to_status: to, amount_cents: pay.value != null ? Math.round(Number(pay.value) * 100) : null, gateway_ref: ref,
         payload: { event: evt, paymentId: pay.id ?? null },
       });

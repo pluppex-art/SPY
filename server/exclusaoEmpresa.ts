@@ -2,6 +2,7 @@
 // Ordem: 1) confere e registra o plano; 2) desabilita a empresa e pausa os fluxos dela no n8n (dá para desfazer);
 // 3) o banco apaga os dados em etapas (spy_exclusao_executar); 4) apaga fora do banco: fluxos, WhatsApp, arquivos, logins e cobrança.
 // Nada de fora do banco é apagado antes de o banco terminar. O que falhar na etapa 4 fica pendente para tentar de novo.
+import { asaasBase } from "./recorrencia.js";
 import type express from "express";
 import axios from "axios";
 import { BUCKET_BACKUP, arquivosDaPasta, locaisDosArquivos, type Arquivo } from "./arquivosDaEmpresa.js";
@@ -418,8 +419,7 @@ export function externosDoServidor(whatsapp: Externos["whatsapp"]): Externos {
     },
     cobranca: !asaas ? null : {
       async cancelar(id) {
-        const base = process.env.ASAAS_ENV === "sandbox" ? "https://sandbox.asaas.com/api/v3" : "https://api.asaas.com/v3";
-        await axios.delete(`${base}/subscriptions/${encodeURIComponent(id)}`, { headers: { access_token: asaas, "User-Agent": "spy-crm" }, timeout: 20_000 });
+        await axios.delete(`${asaasBase()}/subscriptions/${encodeURIComponent(id)}`, { headers: { access_token: asaas, "User-Agent": "spy-crm" }, timeout: 20_000 });
       },
     },
   };
