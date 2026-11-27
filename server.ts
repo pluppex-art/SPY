@@ -46,6 +46,7 @@ import { testEmail, passwordResetEmail, passwordChangedEmail, notificationEmail 
 import { readTenantSnapshot } from "./server/implementationSync.js";
 import { registerTableComparisonRoutes } from "./server/tableComparison.js";
 import { registerProspeccaoCnaeRoutes } from "./server/prospeccaoCnae.js";
+import { registerRadarEmailRoutes, lerResultadosDoRadar } from "./server/radarEmails.js";
 import { registerApisBrasilRoutes } from "./server/apisBrasil.js";
 import { registerEmissaoJaRoutes } from "./server/emissaoja.js";
 import { urlWebhookInterno, temWebhookInterno, comWebhookInterno, grupoCadastradoNaEmpresa } from "./server/sessaoAgentes.js";
@@ -4512,27 +4513,16 @@ app.post("/api/radar/pesquisar", requireUser, aiLimiter, async (req: any, res: a
     // Sem resposta: o Radar recusa em silêncio quando a empresa não tem o módulo Radar no plano.
     if (!resposta.trim()) return res.status(403).json({ error: "O módulo Radar não está habilitado no plano desta empresa (ou a busca não devolveu resposta). Fale com o administrador do sistema." });
     if (/^O modulo Radar/i.test(resposta)) return res.status(403).json({ error: resposta });
-    // O workflow devolve um texto: uma linha por empresa ("- Nome — endereço — avaliação Google: … — contato: … — site: … — whatsapp_chatid: …").
-    const resultados = resposta.split("\n").filter((l: string) => l.startsWith("- ")).map((l: string) => {
-      const partes = l.slice(2).split(" — ");
-      const pega = (prefixo: string) => (partes.find((x) => x.startsWith(prefixo)) || "").slice(prefixo.length).trim();
-      const contato = pega("contato: ");
-      return {
-        empresa: (partes[0] || "").trim(),
-        endereco: (partes[1] || "").trim(),
-        avaliacao: pega("avaliação Google: "),
-        contato: contato && contato !== "não encontrado" ? contato : "",
-        site: pega("site: "),
-        whatsapp: pega("whatsapp_chatid: ").replace(/@c\.us$/, ""),
-      };
-    }).filter((r: any) => r.empresa);
-    res.json({ criterio, resposta, resultados });
+    res.json({ criterio, resposta, resultados: lerResultadosDoRadar(resposta) });
   } catch (err: any) {
     console.error("[radar/pesquisar]", err?.response?.status || err?.code || err?.message);
     const status = err?.response?.status;
     res.status(status === 401 || status === 403 ? 502 : 504).json({ error: status === 401 || status === 403 ? "O Radar recusou o pedido (credencial do webhook)." : "A pesquisa demorou demais ou falhou. Tente de novo em instantes." });
   }
 });
+
+// E-mails das empresas do Radar, para entrar nas campanhas.
+registerRadarEmailRoutes(app, { requireUser, resolveRequestedTenantId, limiter: aiLimiter, supabaseService });
 
 // Cria o Radar (webhook de busca) de uma empresa que já existe (equipe interna). Idempotente.
 app.post("/api/radar/provisionar", requireUser, requireMaster, async (req: any, res: any) => {

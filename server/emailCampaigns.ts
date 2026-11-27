@@ -36,7 +36,7 @@ export interface Audience {
   /** Quais cadastros entram. Leads entra por padrão (false para desligar). */
   leads?: boolean; clientes?: boolean; contatos?: boolean; equipe?: boolean;
   /** Lista própria: pessoas que podem nem estar no sistema (inscritos de um formulário, etc.). */
-  manual?: { email: string; name?: string }[];
+  manual?: { email: string; name?: string; company?: string }[];
   /** E-mails que o usuário tirou da lista na prévia. */
   excluir?: string[];
 }
@@ -391,7 +391,7 @@ export async function resolveAudience(db: any, tenantId: string, aud: Audience) 
   if (aud.clientes) cands.push(...(await pagedTable(db, "clientes", "id, name, email", tenantId, (q) => q.not("email", "is", null).neq("email", ""))).map((r) => ({ id: `cliente:${r.id}`, email: r.email, name: r.name, company: r.name })));
   if (aud.contatos) cands.push(...(await pagedTable(db, "cliente_contatos", "id, nome, email", tenantId, (q) => q.not("email", "is", null).neq("email", ""))).map((r) => ({ id: `contato:${r.id}`, email: r.email, name: r.nome })));
   if (aud.equipe) cands.push(...(await pagedTable(db, "users", "id, name, email, active", tenantId)).filter((r) => r.active !== false).map((r) => ({ id: `usuario:${r.id}`, email: r.email, name: r.name })));
-  if (Array.isArray(aud.manual)) cands.push(...aud.manual.slice(0, MAX_RECIPIENTS + 1).map((m, i) => ({ id: "manual", email: m?.email, name: m?.name })));
+  if (Array.isArray(aud.manual)) cands.push(...aud.manual.slice(0, MAX_RECIPIENTS + 1).map((m, i) => ({ id: "manual", email: m?.email, name: m?.name, company: m?.company })));
   return dedupeCandidates(cands, await optoutSet(db, tenantId), new Set((aud.excluir || []).map((e) => String(e).trim().toLowerCase())));
 }
 
@@ -402,7 +402,7 @@ export function parseAudience(raw: any): Audience {
     sources: arr(raw?.sources), statuses: arr(raw?.statuses), canais: arr(raw?.canais), campanhas: arr(raw?.campanhas),
     leads: raw?.leads !== false, clientes: raw?.clientes === true, contatos: raw?.contatos === true, equipe: raw?.equipe === true,
     excluir: Array.isArray(raw?.excluir) ? raw.excluir.map((e: any) => String(e).slice(0, 254)).slice(0, 20_000) : [],
-    manual: Array.isArray(raw?.manual) ? raw.manual.slice(0, MAX_RECIPIENTS + 1).map((m: any) => ({ email: String(m?.email ?? "").slice(0, 254), name: String(m?.name ?? "").slice(0, 120) })) : [],
+    manual: Array.isArray(raw?.manual) ? raw.manual.slice(0, MAX_RECIPIENTS + 1).map((m: any) => ({ email: String(m?.email ?? "").slice(0, 254), name: String(m?.name ?? "").slice(0, 120), ...(m?.company ? { company: String(m.company).slice(0, 120) } : {}) })) : [],
   };
 }
 

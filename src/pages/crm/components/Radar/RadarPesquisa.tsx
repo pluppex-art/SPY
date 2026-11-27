@@ -1,5 +1,5 @@
 import { useMemo, useState } from "react";
-import { Search, Loader2, UserPlus, Check, Phone, MapPin, Globe, MessageCircle, Star } from "lucide-react";
+import { Search, Loader2, UserPlus, Check, Phone, Mail, MapPin, Globe, MessageCircle, Star } from "lucide-react";
 import { toast } from "sonner";
 import { Card } from "../../../../components/ui/card";
 import { Button } from "../../../../components/ui/button";
@@ -10,7 +10,7 @@ import { getStageId } from "../../../../lib/funilStages";
 import { FUNIS_DEFAULT } from "../../../settings/sections/crm/funisTypes";
 import { inputCls, selectCls } from "../../../finance/components/ModalKit";
 
-interface Resultado { empresa: string; endereco: string; avaliacao: string; contato: string; site: string; whatsapp: string }
+interface Resultado { empresa: string; endereco: string; avaliacao: string; contato: string; site: string; whatsapp: string; email?: string }
 
 const EXEMPLOS = ["clínicas odontológicas em Palmas/TO", "academias em Goiânia/GO", "escritórios de contabilidade em Curitiba/PR", "pet shops em São Paulo/SP"];
 const soDigitos = (v: string) => String(v || "").replace(/\D/g, "");
@@ -52,7 +52,7 @@ export function RadarPesquisa() {
 
   async function virarLead(e: Resultado) {
     const ok = await addLead({
-      name: e.empresa, company: e.empresa, email: "", phone: e.contato || e.whatsapp || "",
+      name: e.empresa, company: e.empresa, email: e.email || "", phone: e.contato || e.whatsapp || "",
       status: "Novo", value: "R$ 0", date: new Date().toISOString().slice(0, 10),
       source: "Radar (pesquisa)", seller: user?.name || "Não Atribuído", title: "Novo Negócio", priority: "Média",
       pipelineId: "comercial", stageId: primeiraEtapa,
@@ -122,6 +122,7 @@ export function RadarPesquisa() {
                   </div>
                   <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-[11px] text-[var(--color-text-muted)]">
                     {e.contato ? <span className="inline-flex items-center gap-1"><Phone className="w-3 h-3" /> {e.contato}</span> : <span className="text-[var(--color-text-faint)]">Sem telefone</span>}
+                    {e.email && <span className="inline-flex items-center gap-1 break-all"><Mail className="w-3 h-3" /> {e.email}</span>}
                     {e.site && e.site !== "nao encontrado" && <a href={/^https?:/.test(e.site) ? e.site : `https://${e.site}`} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1 text-[var(--color-primary-blue)] no-underline truncate max-w-[220px]"><Globe className="w-3 h-3" /> {e.site.replace(/^https?:\/\//, "")}</a>}
                   </div>
                   <div className="flex items-center gap-2 pt-1">

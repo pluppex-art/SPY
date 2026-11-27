@@ -14,6 +14,7 @@ import { EditorConteudoEmail, type FormatoEmail } from "./components/EditorConte
 import { PreviaEmail } from "./components/PreviaEmail";
 import { FiltrosDoPublico } from "./components/FiltrosDoPublico";
 import { ListaDeDestinatarios } from "./components/ListaDeDestinatarios";
+import { PuxarDoRadar, type ContatoDoRadar } from "./components/PuxarDoRadar";
 import { CampanhasEmail, type Campanha as Campaign } from "./components/CampanhasEmail";
 import { DestinatariosDaCampanha } from "./components/DestinatariosDaCampanha";
 import { ReenviarCampanha } from "./components/ReenviarCampanha";
@@ -125,7 +126,10 @@ export default function MarketingEmail() {
   const [fileName, setFileName] = useState("");
   const [excluir, setExcluir] = useState<string[]>([]);
   const [showList, setShowList] = useState(false);
-  const audience = { leads: inclLeads, clientes: inclClientes, contatos: inclContatos, equipe: inclEquipe, sources, statuses, canais, campanhas, manual, excluir };
+  // Empresas puxadas do Radar ficam à parte: digitar ou carregar planilha não apaga.
+  const [doRadar, setDoRadar] = useState<ContatoDoRadar[]>([]);
+  const audience = { leads: inclLeads, clientes: inclClientes, contatos: inclContatos, equipe: inclEquipe, sources, statuses, canais, campanhas, manual: [...manual, ...doRadar], excluir };
+  const temCadastros = inclLeads || inclClientes || inclContatos || inclEquipe;
 
   const onManualText = (t: string) => { setManualText(t); setFileName(""); setManual(parseManualText(t)); };
   const onSheet = async (file?: File | null) => {
@@ -161,7 +165,7 @@ export default function MarketingEmail() {
   }, [activeTenantId]); // eslint-disable-line react-hooks/exhaustive-deps
   useEffect(() => {
     setCampaigns([]); setOptions(null); setCheck(null); setPreview(null); setLoading(true);
-    setExcluir([]); setManual([]); setManualText(""); setFileName(""); setSources([]); setStatuses([]); setCanais([]); setCampanhas([]);
+    setExcluir([]); setManual([]); setDoRadar([]); setManualText(""); setFileName(""); setSources([]); setStatuses([]); setCanais([]); setCampanhas([]);
     setOpen(false); setReenvio(null); setVendo(null); setEditando(null);
     // O que estava sendo escrito é de uma empresa: não passa para outra.
     setName(""); setSubject(""); setSubjectB(""); setBody(""); setBodyHtml(""); setFormato("texto"); setModeloId(""); setAgendarPara(""); setLogoNo({ texto: true, html: false });
@@ -178,7 +182,7 @@ export default function MarketingEmail() {
         .then(json).then((p) => { if (tenantRef.current === t0) setPreview(p); }).catch(() => setPreview(null)).finally(() => setPreviewing(false));
     }, 350);
     return () => clearTimeout(t);
-  }, [open, editando, activeTenantId, sources, statuses, canais, campanhas, inclLeads, inclClientes, inclContatos, inclEquipe, manual, excluir]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [open, editando, activeTenantId, sources, statuses, canais, campanhas, inclLeads, inclClientes, inclContatos, inclEquipe, manual, doRadar, excluir]); // eslint-disable-line react-hooks/exhaustive-deps
 
 
   const create = async () => {
@@ -193,7 +197,7 @@ export default function MarketingEmail() {
 
   const limparFormulario = () => {
     setEditando(null); setName(""); setSubject(""); setSubjectB(""); setBody(""); setBodyHtml(""); setFormato("texto"); setLogoNo({ texto: true, html: false }); setModeloId(""); setAgendarPara(""); setRastrear(true);
-    setSources([]); setStatuses([]); setCanais([]); setCampanhas([]); setManual([]); setManualText(""); setFileName(""); setExcluir([]); setShowList(false);
+    setSources([]); setStatuses([]); setCanais([]); setCampanhas([]); setManual([]); setDoRadar([]); setManualText(""); setFileName(""); setExcluir([]); setShowList(false);
     setInclLeads(true); setInclClientes(false); setInclContatos(false); setInclEquipe(false);
   };
   const novaCampanha = () => { if (editando) limparFormulario(); setOpen(true); };
@@ -474,6 +478,14 @@ export default function MarketingEmail() {
               <textarea value={manualText} onChange={(e) => onManualText(e.target.value)} rows={3} placeholder={"Cole e-mails, um por linha. Pode ser:\nana@email.com\nBruno Alves, bruno@email.com"} className="w-full px-2 py-1.5 rounded-lg text-xs border border-[var(--color-border-default)] bg-[var(--color-surface)] text-[var(--color-text-primary)] resize-y" />
               {(fileName || manual.length > 0) && <p className="text-[11px] text-[var(--color-text-muted)]">{fileName || `${manual.length} e-mail(s) colado(s)`} — a planilha só precisa ter uma coluna com e-mail (e, se quiser, uma "Nome").</p>}
             </div>
+            <PuxarDoRadar key={activeTenantId ?? ""} api={apiFetchTenant} jaNaLista={doRadar.map((c) => c.email)} onAdicionar={(novos) => { setDoRadar((antes) => [...antes, ...novos]); toast.success(`${novos.length} empresa(s) do Radar na lista.`); }} />
+            {doRadar.length > 0 && (
+              <div className="flex flex-wrap items-center gap-x-3 gap-y-1 rounded-xl bg-[var(--color-primary-blue)]/10 p-2.5 text-[11px] text-[var(--color-text-primary)]">
+                <b>{doRadar.length} e-mail(s) do Radar na lista</b>
+                {temCadastros && <button type="button" onClick={() => { setInclLeads(false); setInclClientes(false); setInclContatos(false); setInclEquipe(false); }} className="bg-transparent border-0 p-0 font-bold text-[var(--color-primary-blue)] cursor-pointer">Enviar só para a lista própria (desmarcar os cadastros)</button>}
+                <button type="button" onClick={() => setDoRadar([])} className="ml-auto bg-transparent border-0 p-0 font-bold text-[var(--color-danger)] cursor-pointer">Retirar os do Radar</button>
+              </div>
+            )}
             <div className="p-3 rounded-xl bg-[var(--color-surface-sunken)] border border-[var(--color-border-subtle)] text-xs text-[var(--color-text-muted)]">
               {/* Enquanto recalcula, a lista continua na tela (não some nem volta ao topo a cada retirada). */}
               {previewing && !preview ? <span className="inline-flex items-center gap-1.5"><Loader2 className="w-3.5 h-3.5 animate-spin" /> Calculando…</span>
