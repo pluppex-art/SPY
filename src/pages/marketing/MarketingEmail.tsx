@@ -17,6 +17,7 @@ import { ListaDeDestinatarios } from "./components/ListaDeDestinatarios";
 import { CampanhasEmail, type Campanha as Campaign } from "./components/CampanhasEmail";
 import { DestinatariosDaCampanha } from "./components/DestinatariosDaCampanha";
 import { ReenviarCampanha } from "./components/ReenviarCampanha";
+import { OpcaoDeContagem } from "./components/OpcaoDeContagem";
 import { confirmDialog } from "../../components/ui/confirm-dialog";
 import { HelpTip } from "../../components/ui/help-tip";
 import { useData } from "../../contexts/DataContext";
@@ -70,6 +71,7 @@ export default function MarketingEmail() {
   /** Campanha aberta no formulário para edição (nulo = campanha nova). */
   const [editando, setEditando] = useState<Campaign | null>(null);
   const [salvando, setSalvando] = useState(false);
+  const [rastrear, setRastrear] = useState(true);
   const [descAberto, setDescAberto] = useState(false);
   const [descItens, setDescItens] = useState<{ email: string; created_at: string; motivo?: string | null }[] | null>(null);
   const [descNovo, setDescNovo] = useState("");
@@ -179,7 +181,7 @@ export default function MarketingEmail() {
   const create = async () => {
     setCreating(true);
     try {
-      const r = await apiFetchTenant("/api/email-campaigns", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ name, subject, body: corpo, audience, ...(subjectB.trim() ? { subjectB: subjectB.trim() } : {}), ...(agendarPara ? { agendarPara } : {}) }) }).then(json);
+      const r = await apiFetchTenant("/api/email-campaigns", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ name, subject, body: corpo, audience, rastrear, ...(subjectB.trim() ? { subjectB: subjectB.trim() } : {}), ...(agendarPara ? { agendarPara } : {}) }) }).then(json);
       toast.success(agendarPara ? `Campanha agendada para ${agendarPara.split("-").reverse().join("/")} (${r.total} destinatário(s)). Envie um teste para você antes.` : `Campanha criada com ${r.total} destinatário(s). Envie um teste para você antes de disparar.`);
       setOpen(false); limparFormulario();
       await load();
@@ -187,7 +189,7 @@ export default function MarketingEmail() {
   };
 
   const limparFormulario = () => {
-    setEditando(null); setName(""); setSubject(""); setSubjectB(""); setBody(""); setBodyHtml(""); setFormato("texto"); setLogoNo({ texto: true, html: false }); setModeloId(""); setAgendarPara("");
+    setEditando(null); setName(""); setSubject(""); setSubjectB(""); setBody(""); setBodyHtml(""); setFormato("texto"); setLogoNo({ texto: true, html: false }); setModeloId(""); setAgendarPara(""); setRastrear(true);
     setSources([]); setStatuses([]); setCanais([]); setCampanhas([]); setManual([]); setManualText(""); setFileName(""); setExcluir([]); setShowList(false);
     setInclLeads(true); setInclClientes(false); setInclContatos(false); setInclEquipe(false);
   };
@@ -196,15 +198,15 @@ export default function MarketingEmail() {
   const editar = async (c: Campaign) => {
     try {
       const r = await apiFetchTenant(`/api/email-campaigns/${c.id}`).then(json);
-      limparFormulario(); setEditando(c); setName(r.name); setSubject(r.subject); setSubjectB(r.subjectB || ""); abrirCorpo(r.body);
+      limparFormulario(); setEditando(c); setName(r.name); setSubject(r.subject); setSubjectB(r.subjectB || ""); abrirCorpo(r.body); setRastrear(r.rastrear !== false);
       setReenvio(null); setOpen(true);
     } catch (e: any) { toast.error(e.message); }
   };
   const salvarEdicao = async (depoisReenviar: boolean) => {
     if (!editando) return; setSalvando(true);
     try {
-      await apiFetchTenant(`/api/email-campaigns/${editando.id}`, { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ name, subject, body: corpo, subjectB: subjectB.trim() }) }).then(json);
-      const atualizada = { ...editando, name: name.trim(), subject: subject.trim(), subject_b: subjectB.trim() || null };
+      await apiFetchTenant(`/api/email-campaigns/${editando.id}`, { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ name, subject, body: corpo, subjectB: subjectB.trim(), rastrear }) }).then(json);
+      const atualizada = { ...editando, name: name.trim(), subject: subject.trim(), subject_b: subjectB.trim() || null, sem_rastreio: !rastrear };
       toast.success("Campanha atualizada.");
       setOpen(false); limparFormulario(); await load();
       if (depoisReenviar) setReenvio(atualizada);
@@ -220,7 +222,7 @@ export default function MarketingEmail() {
   };
 
   /** Reenvia a própria campanha para o grupo ou as pessoas escolhidas. */
-  const reenviarNaCampanha = async (c: Campaign, corpoPedido: { quem: string; emails?: string[]; subject?: string }) => {
+  const reenviarNaCampanha = async (c: Campaign, corpoPedido: { quem: string; emails?: string[]; subject?: string; rastrear?: boolean }) => {
     if (running) { toast.error("Espere o envio atual terminar (ou pause)."); return false; }
     try {
       const r = await apiFetchTenant(`/api/email-campaigns/${c.id}/reenviar`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(corpoPedido) }).then(json);
@@ -315,7 +317,7 @@ export default function MarketingEmail() {
   const duplicar = async (c: Campaign) => {
     try {
       const r = await apiFetchTenant(`/api/email-campaigns/${c.id}`).then(json);
-      limparFormulario(); setName(`${r.name} (cópia)`.slice(0, 120)); setSubject(r.subject); abrirCorpo(r.body); setOpen(true);
+      limparFormulario(); setName(`${r.name} (cópia)`.slice(0, 120)); setSubject(r.subject); abrirCorpo(r.body); setRastrear(r.rastrear !== false); setOpen(true);
     } catch (e: any) { toast.error(e.message); }
   };
 
@@ -362,7 +364,7 @@ export default function MarketingEmail() {
 
       <DestinatariosDaCampanha campanha={vendo} api={apiFetchTenant} remetente={options?.sender.from ?? null} onFechar={() => setVendo(null)} onReenviar={reenviarSelecionados} />
       <ReenviarCampanha campanha={reenvio} onFechar={() => setReenvio(null)} onEditar={(c) => void editar(c)}
-        onConfirmar={(c, quem, assunto) => reenviarNaCampanha(c, { quem, ...(assunto ? { subject: assunto } : {}) })} />
+        onConfirmar={(c, quem, mudancas) => reenviarNaCampanha(c, { quem, ...mudancas })} />
 
       {/* A chave recomeça o formulário ao trocar de empresa: nada de uma passa para outra. */}
       <SequenciasEmail key={activeTenantId ?? ""} open={seqAberto} onClose={() => setSeqAberto(false)} api={apiFetchTenant} marca={marca}
@@ -407,6 +409,7 @@ export default function MarketingEmail() {
             </div>
             <label className="flex flex-col gap-1 text-[11px] font-bold text-[var(--color-text-muted)]">Assunto B (opcional, teste A/B)
               <input value={subjectB} onChange={(e) => setSubjectB(e.target.value)} maxLength={200} placeholder="Preencha para testar outro assunto: metade recebe o A e metade o B" className="h-9 px-3 rounded-xl text-xs font-medium border border-[var(--color-border-default)] bg-[var(--color-surface)] text-[var(--color-text-primary)]" /></label>
+            <OpcaoDeContagem ligada={rastrear} onMudar={setRastrear} />
           </Etapa>
 
           <Etapa numero={2} titulo="Conteúdo">

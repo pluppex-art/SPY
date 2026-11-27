@@ -5,6 +5,7 @@ import { Button } from "../../../components/ui/button";
 import { Modal } from "../../../components/ui/modal";
 import { cn } from "../../../lib/utils";
 import type { Campanha } from "./CampanhasEmail";
+import { OpcaoDeContagem } from "./OpcaoDeContagem";
 
 export type GrupoReenvio = "todos" | "nao_abriram" | "clicaram" | "falhas";
 
@@ -13,14 +14,15 @@ export function ReenviarCampanha({ campanha, onFechar, onEditar, onConfirmar }: 
   onFechar: () => void;
   onEditar: (c: Campanha) => void;
   /** Devolve se o reenvio começou. `assunto` só vem quando mudou. */
-  onConfirmar: (c: Campanha, quem: GrupoReenvio, assunto?: string) => Promise<boolean>;
+  onConfirmar: (c: Campanha, quem: GrupoReenvio, mudancas: { subject?: string; rastrear?: boolean }) => Promise<boolean>;
 }) {
   const [quem, setQuem] = useState<GrupoReenvio>("todos");
   const [assunto, setAssunto] = useState("");
   const [enviando, setEnviando] = useState(false);
+  const [contar, setContar] = useState(true);
   useEffect(() => {
     if (!campanha) return;
-    setQuem(campanha.failed > 0 ? "falhas" : "todos"); setAssunto(campanha.subject); setEnviando(false);
+    setQuem(campanha.failed > 0 ? "falhas" : "todos"); setAssunto(campanha.subject); setEnviando(false); setContar(!campanha.sem_rastreio);
   }, [campanha?.id]); // eslint-disable-line react-hooks/exhaustive-deps
   if (!campanha) return null;
 
@@ -28,14 +30,14 @@ export function ReenviarCampanha({ campanha, onFechar, onEditar, onConfirmar }: 
   const semAbrir = Math.max(0, c.sent - (c.opened || 0));
   const grupos: { id: GrupoReenvio; titulo: string; detalhe: string; ha: boolean }[] = [
     { id: "todos", titulo: "Todo mundo", detalhe: `${c.total} pessoa(s) da campanha`, ha: c.total > 0 },
-    { id: "nao_abriram", titulo: "Quem não abriu", detalhe: `cerca de ${semAbrir} pessoa(s)`, ha: semAbrir > 0 },
+    { id: "nao_abriram", titulo: "Quem não abriu", detalhe: `cerca de ${semAbrir} pessoa(s)`, ha: semAbrir > 0 && !c.sem_rastreio },
     { id: "clicaram", titulo: "Quem clicou", detalhe: `${c.clicked || 0} pessoa(s)`, ha: (c.clicked || 0) > 0 },
     { id: "falhas", titulo: "Só as falhas", detalhe: `${c.failed} envio(s)`, ha: c.failed > 0 },
   ];
   const confirmar = async () => {
     setEnviando(true);
     const novo = assunto.trim() && assunto.trim() !== c.subject ? assunto.trim() : undefined;
-    if (await onConfirmar(c, quem, novo)) onFechar();
+    if (await onConfirmar(c, quem, { ...(novo ? { subject: novo } : {}), ...(contar === !c.sem_rastreio ? {} : { rastrear: contar }) })) onFechar();
     else setEnviando(false);
   };
 
@@ -60,6 +62,7 @@ export function ReenviarCampanha({ campanha, onFechar, onEditar, onConfirmar }: 
         <label className="flex flex-col gap-1 text-[11px] font-bold text-[var(--color-text-muted)]">Assunto (mude se quiser)
           <input value={assunto} onChange={(e) => setAssunto(e.target.value)} maxLength={200} className="h-9 px-3 rounded-xl text-xs font-medium border border-[var(--color-border-default)] bg-[var(--color-surface)] text-[var(--color-text-primary)]" />
         </label>
+        <OpcaoDeContagem ligada={contar} onMudar={setContar} />
         <p className="text-[11px] text-[var(--color-text-muted)]">O reenvio acontece nesta mesma campanha. Quem saiu da lista não recebe. Mantenha a página aberta até terminar.</p>
       </div>
     </Modal>

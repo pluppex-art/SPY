@@ -7,7 +7,7 @@ import { ViewToggle } from "../../../components/ui/view-toggle";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "../../../components/ui/dropdown-menu";
 import { cn } from "../../../lib/utils";
 
-export interface Campanha { id: string; name: string; subject: string; status: string; total: number; sent: number; failed: number; opened?: number; clicked?: number; agendada_para?: string | null; subject_b?: string | null; sender: string | null; created_at: string }
+export interface Campanha { id: string; name: string; subject: string; status: string; total: number; sent: number; failed: number; opened?: number; clicked?: number; agendada_para?: string | null; subject_b?: string | null; sender: string | null; created_at: string; /** enviada sem contar aberturas e cliques */ sem_rastreio?: boolean | null }
 export interface AcoesDaCampanha {
   disparar: (c: Campanha) => void;
   retomar: (c: Campanha) => void;
@@ -37,6 +37,8 @@ const SITUACOES = [
 const semAcento = (s: string) => s.normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase();
 const dia = (iso: string) => new Date(iso).toLocaleDateString("pt-BR", { timeZone: "America/Sao_Paulo", day: "2-digit", month: "2-digit", year: "2-digit" });
 const pct = (parte: number, todo: number) => (todo ? Math.round((parte / todo) * 100) : 0);
+/** Percentual de abertura ou clique; sem envio ou sem contagem, um traço. */
+const taxa = (c: Campanha, n: number | undefined) => (c.sent && !(c.sem_rastreio && !n) ? `${pct(n || 0, c.sent)}%` : "—");
 
 function Situacao({ c }: { c: Campanha }) {
   const [texto, cor] = c.status === "ready" && c.agendada_para ? [`Agendada ${dia(c.agendada_para)}`, "bg-amber-500/15 text-amber-700 dark:text-amber-400"]
@@ -145,12 +147,12 @@ export function CampanhasEmail({ campanhas, enviando, acoes }: { campanhas: Camp
                 <div className="flex-1 min-w-0">
                   <h4 title={c.name} className="text-sm font-bold text-[var(--color-text-primary)] truncate">{c.name}</h4>
                   <p title={c.subject} className="text-xs text-[var(--color-text-muted)] truncate">{c.subject}</p>
-                  <p className="text-[11px] text-[var(--color-text-faint)]">Criada em {dia(c.created_at)}</p>
+                  <p className="text-[11px] text-[var(--color-text-faint)]">Criada em {dia(c.created_at)}{c.sem_rastreio ? " · sem contar aberturas" : ""}</p>
                 </div>
                 <Situacao c={c} />
               </div>
               <div className="grid grid-cols-3 gap-2 text-center">
-                {([["Enviados", `${c.sent}/${c.total}`], ["Abriram", c.sent ? `${pct(c.opened || 0, c.sent)}%` : "—"], ["Clicaram", c.sent ? `${pct(c.clicked || 0, c.sent)}%` : "—"]] as const).map(([r, v]) => (
+                {([["Enviados", `${c.sent}/${c.total}`], ["Abriram", taxa(c, c.opened)], ["Clicaram", taxa(c, c.clicked)]] as const).map(([r, v]) => (
                   <div key={r} className="rounded-lg bg-[var(--color-surface-sunken)] py-2">
                     <p className="text-sm font-black tabular-nums text-[var(--color-text-primary)]">{v}</p>
                     <p className="text-[10px] font-bold uppercase text-[var(--color-text-muted)]">{r}</p>
@@ -180,10 +182,10 @@ export function CampanhasEmail({ campanhas, enviando, acoes }: { campanhas: Camp
                 <div><Situacao c={c} /></div>
                 <p className="col-start-2 col-span-2 lg:col-span-1 lg:col-start-auto lg:text-right tabular-nums text-[var(--color-text-primary)]">
                   <span className="lg:hidden text-[var(--color-text-muted)]">Enviados </span>{c.sent}/{c.total}{c.failed > 0 && <span className="text-[var(--color-danger)]"> · {c.failed} ✕</span>}
-                  <span className="lg:hidden text-[var(--color-text-muted)]"> · abriram {c.sent ? `${pct(c.opened || 0, c.sent)}%` : "—"} · clicaram {c.sent ? `${pct(c.clicked || 0, c.sent)}%` : "—"}</span>
+                  <span className="lg:hidden text-[var(--color-text-muted)]"> · abriram {taxa(c, c.opened)} · clicaram {taxa(c, c.clicked)}</span>
                 </p>
-                <p className="hidden lg:block text-right tabular-nums text-[var(--color-text-primary)]">{c.sent ? `${pct(c.opened || 0, c.sent)}%` : "—"}</p>
-                <p className="hidden lg:block text-right tabular-nums text-[var(--color-text-primary)]">{c.sent ? `${pct(c.clicked || 0, c.sent)}%` : "—"}</p>
+                <p className="hidden lg:block text-right tabular-nums text-[var(--color-text-primary)]">{taxa(c, c.opened)}</p>
+                <p className="hidden lg:block text-right tabular-nums text-[var(--color-text-primary)]">{taxa(c, c.clicked)}</p>
                 <div className="col-start-2 col-span-2 lg:col-span-1 lg:col-start-auto lg:w-[240px] flex lg:justify-end"><Acoes compacto c={c} rodando={enviando === c.id} ocupado={!!enviando && enviando !== c.id} acoes={acoes} /></div>
               </li>
             ))}

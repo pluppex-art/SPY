@@ -470,7 +470,7 @@ export function registerEmailCampaignRoutes(app: Express, { requireUser, resolve
   app.get("/api/email-campaigns", requireUser, limiter, async (req: any, res: any) => {
     if (!supabaseService) return noDb(res);
     const tenantId = await resolveRequestedTenantId(req, res); if (!tenantId) return;
-    const colunas = "id, name, subject, status, total, sent, failed, sender, created_at, started_at, finished_at";
+    const colunas = "id, name, subject, status, total, sent, failed, sender, created_at, started_at, finished_at, sem_rastreio:audience->semRastreio";
     // Colunas novas (métricas e agendamento) podem ainda não existir no banco: tenta com tudo e vai tirando.
     let data: any[] | null = null; let error: any = null;
     for (const extra of [", opened, clicked, agendada_para, subject_b", ", opened, clicked, agendada_para", ", opened, clicked", ""]) {
@@ -501,7 +501,8 @@ export function registerEmailCampaignRoutes(app: Express, { requireUser, resolve
       const sel = await resolveAudience(supabaseService, tenantId, aud);
       if (sel.rows.length === 0) return res.status(400).json({ error: "Nenhum destinatário com e-mail válido nesse público." });
       if (sel.rows.length > MAX_RECIPIENTS) return res.status(400).json({ error: `Público com ${sel.rows.length} pessoas; o máximo por campanha é ${MAX_RECIPIENTS}. Filtre por origem ou status.` });
-      const audience = { ...aud, manual: undefined, manualCount: aud.manual?.length || 0 }; // a lista própria fica nos destinatários, não duplicada aqui
+      // a lista própria fica nos destinatários, não duplicada aqui; "semRastreio" = enviar sem contar aberturas e cliques
+      const audience = { ...aud, manual: undefined, manualCount: aud.manual?.length || 0, ...(req.body?.rastrear === false ? { semRastreio: true } : {}) };
       const { data: camp, error } = await supabaseService.from("email_campaigns")
         .insert({ tenant_id: tenantId, name, subject, body, audience, total: sel.rows.length, status: "ready", created_by: req.user.id, ...(agendamento.quando ? { agendada_para: agendamento.quando } : {}), ...(ab ? { subject_b: subjectB } : {}) }).select("id").single();
       if (error && ab && /subject_b/i.test(error.message)) throw new Error("O teste A/B ainda não foi liberado no banco de dados (migração 20261130). Peça para a equipe técnica aplicar ou use um assunto só.");
@@ -524,7 +525,7 @@ export function registerEmailCampaignRoutes(app: Express, { requireUser, resolve
   };
 
   const mailFor = async (camp: any, tenant: { name: string; color: string | null; logo?: string | null }, base: string, r: { id?: string; variant?: string | null; name?: string | null; company?: string | null; email: string }) =>
-    ({ to: r.email, ...buildMail({ subject: r.variant === "b" && camp.subject_b ? camp.subject_b : camp.subject, body: camp.body, name: r.name, company: r.company, tenantName: tenant.name, tenantColor: tenant.color, tenantLogo: tenant.logo, utmCampanha: camp.name, unsubUrl: optoutUrl(base, camp.tenant_id, r.email) , track: r.id ? { base, rid: r.id } : undefined }),
+    ({ to: r.email, ...buildMail({ subject: r.variant === "b" && camp.subject_b ? camp.subject_b : camp.subject, body: camp.body, name: r.name, company: r.company, tenantName: tenant.name, tenantColor: tenant.color, tenantLogo: tenant.logo, utmCampanha: camp.name, unsubUrl: optoutUrl(base, camp.tenant_id, r.email) , track: r.id && !camp.audience?.semRastreio ? { base, rid: r.id } : undefined }),
       headers: { "List-Unsubscribe": `<${optoutUrl(base, camp.tenant_id, r.email)}>`, "List-Unsubscribe-Post": "List-Unsubscribe=One-Click" }, replyToEmpresa: true, deParte: tenant.name });
 
   const tenantNameOf = async (tenantId: string) => {
@@ -543,7 +544,9 @@ export function registerEmailCampaignRoutes(app: Express, { requireUser, resolve
     const to = cleanEmail(req.user?.email);
     if (!to) return res.status(400).json({ error: "Sua conta não tem e-mail válido para receber o teste." });
     try {
-      const mail = await mailFor(camp, await tenantNameOf(tenantId), baseUrl(req), { name: "Nome de Teste", company: "Empresa de Teste", email: to });
+      // O teste é a mesma mensagem do disparo (links e contagem iguais), para o que chegar no teste valer para o envio.
+      // O identificador é inventado: nada é contado.
+      const mail = await mailFor(camp, await tenantNameOf(tenantId), baseUrl(req), { id: crypto.randomUUID(), name: "Nome de Teste", company: "Empresa de Teste", email: to });
       mail.subject = `[TESTE] ${mail.subject}`;
       const r = await sendTenantEmail(supabaseService, tenantId, mail);
       res.json({ ok: true, to, via: r.via, resposta: r.response });
@@ -748,7 +751,7 @@ export function registerEmailCampaignRoutes(app: Express, { requireUser, resolve
     if (!supabaseService) return noDb(res);
     const tenantId = await resolveRequestedTenantId(req, res); if (!tenantId) return;
     const camp = await loadCampaign(req, res, tenantId); if (!camp) return;
-    res.json({ name: camp.name, subject: camp.subject, body: camp.body, ...(camp.subject_b ? { subjectB: camp.subject_b } : {}) });
+    res.json({ name: camp.name, subject: camp.subject, body: camp.body, ...(camp.subject_b ? { subjectB: camp.subject_b } : {}), ...(camp.audience?.semRastreio ? { rastrear: false } : {}) });
   });
 
   const ehDeSequencia = (camp: any) => String(camp.name).startsWith("[Sequência] ");
@@ -771,6 +774,7 @@ export function registerEmailCampaignRoutes(app: Express, { requireUser, resolve
       const b = String(req.body.subjectB || "").replace(/[\r\n]+/g, " ").trim().slice(0, 200);
       mudancas.subject_b = b && b !== subject ? b : null;
     }
+    if (typeof req.body?.rastrear === "boolean") mudancas.audience = { ...(camp.audience || {}), semRastreio: !req.body.rastrear };
     const { error } = await supabaseService.from("email_campaigns").update(mudancas).eq("id", camp.id).neq("status", "sending");
     if (error) return res.status(500).json({ error: error.message });
     res.json({ ok: true });
@@ -810,7 +814,8 @@ export function registerEmailCampaignRoutes(app: Express, { requireUser, resolve
       const reenvios = [...(Array.isArray(camp.audience?.reenvios) ? camp.audience.reenvios : []).filter((r: any) => agora - Date.parse(r?.quando) < 24 * 3600_000),
         ...(jaContavam ? [{ quando: new Date(agora).toISOString(), qtd: jaContavam }] : [])];
       // Primeiro registra o que continua contando no limite; só depois devolve para a fila.
-      const { error: e1 } = await supabaseService.from("email_campaigns").update({ audience: { ...(camp.audience || {}), reenvios } }).eq("id", camp.id);
+      const rastreio = typeof req.body?.rastrear === "boolean" ? { semRastreio: !req.body.rastrear } : {};
+      const { error: e1 } = await supabaseService.from("email_campaigns").update({ audience: { ...(camp.audience || {}), reenvios, ...rastreio } }).eq("id", camp.id);
       if (e1) throw new Error(e1.message);
       for (let i = 0; i < rows.length; i += 200) {
         const { error: e2 } = await supabaseService.from("email_campaign_recipients").update({ status: "pending", error: null, claimed_at: null }).in("id", rows.slice(i, i + 200).map((r: any) => r.id));

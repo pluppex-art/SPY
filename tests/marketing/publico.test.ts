@@ -994,3 +994,13 @@ test("campanha: editar, reenviar na mesma campanha e excluir, só na própria em
     assert.equal((await pedir("POST", `${C}/send-batch`)).status, 404);
   } finally { srv.close(); }
 });
+
+test("contagem desligada: links originais e sem imagem invisível; o teste é a mesma mensagem do disparo", async () => {
+  const { buildMail } = await import("../../server/emailCampaigns.js");
+  const fonte = (await import("node:fs")).readFileSync("server/emailCampaigns.ts", "utf8");
+  assert.match(fonte, /track: r\.id && !camp\.audience\?\.semRastreio \?/);
+  assert.match(fonte, /\{ id: crypto\.randomUUID\(\), name: "Nome de Teste"/);
+  const sem = buildMail({ subject: "a", body: '<div><a href="https://site.com/x">ir</a></div>', tenantName: "E", unsubUrl: "https://s.com/sair" });
+  assert.match(sem.html, /href="https:\/\/site\.com\/x"/);
+  assert.doesNotMatch(sem.html, /api\/email\/(c|o)\//);
+});
