@@ -10,9 +10,9 @@ export function PlansSection() {
     <section id="planos" className="sp-section sp-band" aria-labelledby="sp-planos-title">
       <div className="sp-wrap">
         <h2 id="sp-planos-title" className="sp-h2" {...rv()}>
-          Escolha o nível de autonomia da sua operação.
+          Escolha o tamanho do seu time.
         </h2>
-        <p className="sp-lede" {...rv(1)}>Encontra, entende e age sobre oportunidades de vendas. Valores mensais, mais a implantação de cada plano.</p>
+        <p className="sp-lede" {...rv(1)}>Cada usuário tem o Agente Secreto de Vendas e a Aurora, com o CRM junto. Valores mensais, mais a implantação de cada plano.</p>
 
         <div className="sp-plans">
           {PLANS.map((p, i) => (

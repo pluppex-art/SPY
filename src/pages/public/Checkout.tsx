@@ -269,7 +269,8 @@ export default function Checkout() {
                       <span className="font-black text-[var(--color-text-primary)]">{p.plan.name}{p.badge && <span className="ml-2 rounded-full bg-[var(--color-primary-blue)] px-2 py-0.5 text-[10px] font-black uppercase text-white">{p.badge}</span>}</span>
                       <span className="text-right">
                         {p.discountCents > 0 && <span className="mr-2 text-xs text-[var(--color-text-muted)] line-through">{brl(p.priceCents + p.setupCents)}</span>}
-                        <span className="font-black text-[var(--color-text-primary)]">{brl(p.totalCents)}</span>
+                        <span className="font-black text-[var(--color-text-primary)]">{p.discountCents > 0 ? brl(p.totalCents) : <>{brl(p.priceCents)}<span className="text-xs font-semibold text-[var(--color-text-muted)]">{p.plan.interval === "yearly" ? "/ano" : "/mês"}</span></>}</span>
+                        {p.discountCents === 0 && p.setupCents > 0 && <span className="block text-[11px] text-[var(--color-text-muted)]">+ {brl(p.setupCents)} de implantação</span>}
                       </span>
                     </span>
                     {p.plan.tagline && <span className="mt-1 block text-xs text-[var(--color-text-muted)]">{p.plan.tagline}</span>}
