@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { dataDaSituacao, minhasDeHoje, pedidoDaMudanca, pesoDeAtencao, posicaoNoMetodo, situacaoDoPrazo, vigentes } from "../src/lib/metodo/regras";
+import { chamadosDaAurora, dataDaSituacao, linkDoWhatsApp, saudacao, minhasDeHoje, pedidoDaMudanca, pesoDeAtencao, posicaoNoMetodo, situacaoDoPrazo, vigentes } from "../src/lib/metodo/regras";
 import { interceptar, registrarInterceptador } from "../src/lib/metodo/interceptador";
 
 const tipos = ["novo_lead", "atendimento", "orcamento", "repescagem", "ganho", "perdido", "desqualificado", "atendimento"];
@@ -78,4 +78,17 @@ test("sem método registrado nada é interceptado", () => {
   assert.deepEqual(interceptar("1", {}), {});
   sair();
   assert.equal(interceptar("1", {}), null);
+});
+
+test("chamado da Aurora: um por lead, só da pessoa e só enquanto faz sentido", () => {
+  const a = (id: string, dedupe_key: string, extra: object = {}) => ({ id, dedupe_key, is_read: false, user_id: "eu", lead_id: dedupe_key.split(":")[1], created_at: `2026-11-27T1${id}:00:00Z`, title: id, ...extra });
+  const leads = [{ id: "r", stageId: "m-3" }, { id: "voltou", stageId: "m-2" }, { id: "p", stageId: "m-1" }];
+  const c = chamadosDaAurora([a("1", "repescagem:r"), a("2", "repescagem:r"), a("3", "repescagem:voltou"), a("4", "retorno:p"), a("5", "sla:p"),
+    a("6", "retomar:r", { user_id: "outro" }), a("7", "repescagem:sumido"), a("8", "repescagem:r", { is_read: true })], "eu", leads, funis);
+  assert.deepEqual(c.map((x) => [x.lead.id, x.aviso.id, x.ids.length]), [["p", "4", 1], ["r", "2", 2]]);
+  assert.equal(saudacao("Maria da Silva"), "Olá, Maria! Tudo bem?");
+  assert.equal(saudacao("5563999990000"), "Olá! Tudo bem?");
+  assert.equal(saudacao("Lead WhatsApp"), "Olá! Tudo bem?");
+  assert.equal(linkDoWhatsApp("(63) 99999-0000", "Olá!"), "https://wa.me/5563999990000?text=Ol%C3%A1!");
+  assert.equal(linkDoWhatsApp("123"), null);
 });

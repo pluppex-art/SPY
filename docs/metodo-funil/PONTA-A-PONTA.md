@@ -1,6 +1,10 @@
 # Método do funil · fluxo completo no Funil Comercial da SPY | IA
 
-**Situação:** preparado em 27/11/2026. Falta rodar a migração; depois, publicar o fluxo dos prazos no n8n.
+**Situação em 27/11/2026:** migração aplicada e método ligado (157 leads com situação). Faltam publicar o fluxo dos prazos no n8n e rodar o [ajuste do executor](../../supabase/migrations/20261231_metodo_funil_ajuste_repescagem.sql), porque a versão aplicada é anterior ao último ajuste.
+
+## O que a pessoa vê
+
+O Agente Secreto é quem move. Quando um lead precisa de repescagem, a **Aurora levanta a mão** num pop-up com o motivo, a última nota e o botão **Chamar no WhatsApp**. A pessoa manda a mensagem; o agente acompanha a conversa. No detalhe do lead não há painel nem ações do método; no cartão ficam só os selos de situação.
 
 ## Colunas confirmadas
 
@@ -33,8 +37,8 @@ Ajuste por empresa: `app_settings`, chave `crm_repescagem`, por exemplo `{"orcam
 | Parte | Onde | Situação |
 |---|---|---|
 | Agente lê a conversa e move | `[PLUPPEX AI OS] Agente Secreto` (`4b1f8e1a`) | Publicado |
-| Prazos, repescagem, avisos e método ligado | [20261231_metodo_funil_ponta_a_ponta.sql](../../supabase/migrations/20261231_metodo_funil_ponta_a_ponta.sql) | Falta rodar |
-| Relógio dos prazos | `[PLUPPEX AI OS] Metodo SPY - Motor de Prazos` (`fDm6SGu2RjjbDz5k`), a cada 2 min | Criado desligado |
+| Prazos, repescagem, avisos e método ligado | [20261231_metodo_funil_ponta_a_ponta.sql](../../supabase/migrations/20261231_metodo_funil_ponta_a_ponta.sql) | Aplicada (versão anterior do executor) |
+| Relógio dos prazos | `[PLUPPEX AI OS] Metodo SPY - Motor de Prazos` (`fDm6SGu2RjjbDz5k`), a cada 2 min | Criado, **falta publicar** |
 
 ## O que a migração faz
 

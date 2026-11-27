@@ -21,7 +21,7 @@ import { WebhookModal } from "./components/Pipeline/WebhookModal";
 import { PipelineListaView } from "./components/Pipeline/PipelineListaView";
 import { PipelineFilterBar } from "./components/Pipeline/PipelineFilterBar";
 import { PipelineKanbanBoard } from "./components/Pipeline/PipelineKanbanBoard";
-import { FiltrosDoQuadro, useFiltroDoQuadro } from "../../components/metodo/FiltrosDoQuadro";
+import { useOrdemDoQuadro } from "../../components/metodo/ordemDoQuadro";
 import { PipelineDefaultState } from "./components/Pipeline/PipelineDefaultState";
 import { PipelineEmptySelection } from "./components/Pipeline/PipelineEmptySelection";
 import { isLeadOpen } from "../../lib/leadStatus";
@@ -185,8 +185,8 @@ export default function Pipeline() {
     setSellerFilter("Todos"); setProductFilter("Todos"); setDateFrom(null); setDateTo(null); setStageFilter("Todas"); setSourceFilter("Todas");
   };
 
-  // Funil com o método: filtros por situação, prazo, bola e temperatura, e o que está atrasado primeiro.
-  const doMetodo = useFiltroDoQuadro(activeFunil, filteredItemsList as any[]);
+  // Funil com o método: o que está atrasado aparece primeiro em cada coluna.
+  const ordemDoQuadro = useOrdemDoQuadro(activeFunil);
 
   const listaLeads = useMemo(() =>
     (filteredItemsList as any[])
@@ -258,13 +258,11 @@ export default function Pipeline() {
 
             {noPipelineConfigured ? <PipelineDefaultState /> : null}
 
-            {doMetodo.ativo && <FiltrosDoQuadro funil={activeFunil} filtro={doMetodo.filtro} onFiltro={doMetodo.setFiltro} />}
-
             {activePipelineStages.length > 0 ? (
               <PipelineKanbanBoard
                 activePipelineStages={activePipelineStages}
-                filteredItemsList={doMetodo.lista} tasks={tasks}
-                ordemDeAtencao={doMetodo.ordem}
+                filteredItemsList={filteredItemsList} tasks={tasks}
+                ordemDeAtencao={ordemDoQuadro}
                 showAnalytics={showAnalytics}
                 draggedLeadId={draggedLeadId} setDraggedLeadId={setDraggedLeadId}
                 draggedOverStageId={draggedOverStageId} setDraggedOverStageId={setDraggedOverStageId}

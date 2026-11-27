@@ -17,10 +17,8 @@ import { MotivoModal } from "./MotivoModal";
 import { MOTIVOS_PERDA_LEAD } from "../../lib/motivos";
 import { LeadDetailsModalFooter } from "./lead-details/LeadDetailsModal.Footer";
 import { LeadDetailsModalHero } from "./lead-details/LeadDetailsModalHero";
-import { AbaDoFunil, FaixaDoMetodo } from "../metodo/PainelDoLead";
 import { useMetodo } from "../metodo/MetodoProvider";
 import { interceptar } from "../../lib/metodo/interceptador";
-import { Route } from "lucide-react";
 
 import { useLeadDetails } from "./lead-details/useLeadDetails";
 import { LeadCopilot } from "./LeadCopilot";
@@ -166,9 +164,8 @@ export function LeadDetailsModal({ isOpen, onClose, lead }: LeadDetailsModalProp
     toast.success(`Lead movido para o funil "${funil.nome}".`);
   };
 
-  // Leads de funil com o método ganham a faixa de status e a aba "Funil".
+  // Em funil com o método, a etapa mostrada é a do banco (quem move é o Agente Secreto).
   const noMetodo = !!metodo.info(liveLead);
-  const abas = noMetodo ? [{ id: "funil", short: "FUNIL", icon: Route }, ...LeadDetailsModalTabs] : LeadDetailsModalTabs;
 
   const moveToStage = (stg: any) => {
     const newStatus = statusFromStageName(stg.name);
@@ -252,11 +249,9 @@ export function LeadDetailsModal({ isOpen, onClose, lead }: LeadDetailsModalProp
             onAgendarReuniao={() => setShowAgendarReuniao(true)}
           />
 
-          {noMetodo && <FaixaDoMetodo lead={liveLead} />}
-
           {/* ── Tab bar ── */}
           <div className="flex border-b border-[var(--color-border-subtle)] overflow-x-auto scrollbar-none shrink-0 bg-[var(--color-surface-elevated)] px-2 pt-1.5 gap-1">
-            {abas.map((tab) => {
+            {LeadDetailsModalTabs.map((tab) => {
               const isActive = currentTab === tab.id;
               return (
                 <button
@@ -282,8 +277,6 @@ export function LeadDetailsModal({ isOpen, onClose, lead }: LeadDetailsModalProp
           {/* ── Tab content ── */}
           <div className="flex-1 overflow-y-auto min-h-0 scrollbar-thin scrollbar-thumb-[var(--color-border-default)] scrollbar-track-transparent">
               <div className="h-full">
-                {currentTab === "funil" && noMetodo && <AbaDoFunil lead={liveLead} />}
-
                 {currentTab === "informacoes" && (
                   <div className="px-5 py-4 space-y-3">
                     <ProfileSection

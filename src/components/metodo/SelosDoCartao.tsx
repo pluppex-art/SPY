@@ -14,13 +14,13 @@ export const diaCurto = (iso: string) => new Date(iso).toLocaleDateString("pt-BR
 
 export function SelosDoCartao({ lead }: { lead: { id: string; stageId?: string } }) {
   const info = useMetodo().info(lead);
-  if (!info) return null;
+  if (!info?.situacao) return null; // sem situação (perdidos antigos) não há o que mostrar
   const { estado, situacao } = info;
   const sla = situacaoDoPrazo(estado);
   const pausado = !!estado?.pausa_ate;
   return (
     <div className="flex flex-wrap items-center gap-1">
-      <span className={cn(selo, "bg-[var(--color-surface-sunken)] text-[var(--color-text-primary)]")}>{situacao?.nome_exibido ?? "Sem situação"}</span>
+      <span className={cn(selo, "bg-[var(--color-surface-sunken)] text-[var(--color-text-primary)]")}>{situacao!.nome_exibido}</span>
       {situacao?.bola_com && <span className={cn(selo, "border border-[var(--color-border-default)] text-[var(--color-text-muted)]")}>{NOME_DA_BOLA[situacao.bola_com]}</span>}
       {!pausado && sla && <span className={cn(selo, COR_DO_SLA[sla])}>{NOME_DO_SLA[sla]}</span>}
       {info.tipo === "repescagem" && !!estado?.repescagem_tentativa && <span className={cn(selo, "bg-[var(--color-surface-sunken)] text-[var(--color-text-muted)]")}>Tentativa {estado.repescagem_tentativa}</span>}

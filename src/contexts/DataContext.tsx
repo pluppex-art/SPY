@@ -1,4 +1,5 @@
 import { interceptar } from "../lib/metodo/interceptador";
+import { ehChamado } from "../lib/metodo/regras";
 import { setUnidadeMax, type UnidadeMax } from "../lib/unidadeMaxdata";
 import React, { useState, useEffect, useMemo } from 'react';
 import { findDuplicateLead, fillEmptyLeadFields } from "../lib/leadDedupe";
@@ -1165,7 +1166,8 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
         .on('postgres_changes', { event: '*', schema: 'public', table: 'notifications' }, (payload) => {
           if (payload.eventType === 'INSERT' && payload.new && (payload.new as any).tenant_id === tenantId) {
             const n = payload.new as any;
-            if (shouldPopupNotification(userRef.current as any, n) && !isRuidoDeAutomacao(n)) queueNotificationPopup({ title: n.title, description: n.description || 'Nova notificação', type: n.type, link_url: n.link_url });
+            // Chamado de repescagem tem o pop-up próprio (a Aurora levanta a mão).
+            if (shouldPopupNotification(userRef.current as any, n) && !isRuidoDeAutomacao(n) && !ehChamado(n)) queueNotificationPopup({ title: n.title, description: n.description || 'Nova notificação', type: n.type, link_url: n.link_url });
           }
           applyRealtimeUpsert(setNotifications, payload, (r) => r as Notification, tenantId);
         })

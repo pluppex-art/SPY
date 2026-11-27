@@ -1,4 +1,5 @@
 import { MetodoProvider } from "./metodo/MetodoProvider";
+import { ChamadoDaAurora } from "./metodo/ChamadoDaAurora";
 import { useEdgeSwipeBack } from "../hooks/useSwipeGestures";
 import { setSaleSoundEnabled } from "../lib/notifications";
 import { useState, useEffect, Suspense } from "react";
@@ -117,6 +118,7 @@ export default function Layout() {
             são bloqueadas no backend (server.ts, rota /api/ai/aurora-chat, checagem is_master). */}
         {/* A Aurora aparece para TODOS os usuários da empresa: só depende do módulo da empresa, nunca do cargo. */}
         {isModuleEnabled("aurora") && <AuroraWidget />}
+        {!modoPdv && <ChamadoDaAurora />}
         <OnboardingWizard />
         <WhatsAppPairingModal />
 
