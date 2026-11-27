@@ -25,11 +25,11 @@ export function HeroSection() {
       <div className="sp-wrap sp-hero__grid">
         <div>
           <motion.h1 id="sp-hero-title" {...item(0)}>
-            <span className="sp-nowrap">Nenhum lead esquecido.</span> <span className="sp-nowrap sp-grad">Toda venda, até o caixa.</span>
+            <span>Plataforma de Inteligência</span> <span className="sp-grad">e Gestão Empresarial.</span>
           </motion.h1>
           <motion.p className="sp-hero__sub" {...item(1)}>
-            O S.P.Y. SOA é o Sistema Operacional Autônomo da sua empresa: ele organiza o seu pipeline, envia propostas, fecha contratos e controla o financeiro num só
-            lugar. E a Aurora, nossa IA, acompanha cada lead e aponta o próximo passo, para nenhuma oportunidade esfriar.
+            <strong>Uma plataforma. Quatro pilares:</strong> inteligência, recuperação, dados e gestão. O S.P.Y. capta as informações de venda, retoma o que parou, centraliza tudo e mostra
+            os números para decidir.
           </motion.p>
           <motion.div className="sp-hero__actions" {...item(2)}>
             <Link to="/f/spy" className="sp-btn sp-btn--primary">

@@ -9,14 +9,14 @@ export function SiteFooter() {
       <div className="sp-wrap">
         <div className="sp-footer__grid">
           <div className="sp-footer__brand">
-            <img src="/logo-topbar.webp" alt="S.P.Y. SOA, Sistema Operacional Autônomo" width={720} height={320} loading="lazy" decoding="async" style={{ height: 52, width: "auto", display: "block" }} />
-            <p>SOA, Sistema Operacional Autônomo multiempresa, com a Aurora, assistente de IA.</p>
+            <img src="/logo-topbar.webp" alt="S.P.Y. SOA, Plataforma de Inteligência e Gestão Empresarial" width={720} height={320} loading="lazy" decoding="async" style={{ height: 52, width: "auto", display: "block" }} />
+            <p>Plataforma de Inteligência e Gestão Empresarial, com a Aurora, assistente de IA.</p>
           </div>
           <nav aria-label="Navegação do rodapé">
             <h2>Produto</h2>
             <ul>
               <li><A href="#recursos">O que faz</A></li>
-              <li><A href="#modulos">Módulos</A></li>
+              <li><A href="#modulos">Pilares</A></li>
               <li><A href="#aurora">Aurora</A></li>
               <li><A href="#financeiro">Financeiro</A></li>
               <li><A href="#integracoes">Integrações e segurança</A></li>

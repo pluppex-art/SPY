@@ -30,8 +30,8 @@ export default function LandingPage() {
   useRevealOnScroll(rootRef);
   useLandingFx(rootRef);
   useDocumentMeta(
-    "S.P.Y. SOA — Sistema Operacional Autônomo: nenhum lead esquecido",
-    "SOA, o Sistema Operacional Autônomo com IA para pequenas e médias empresas. Pipeline, propostas, contratos e financeiro num só lugar, com a Aurora acompanhando cada lead até o caixa.",
+    "S.P.Y. — Plataforma de Inteligência e Gestão Empresarial",
+    "Uma plataforma, quatro pilares: inteligência, recuperação, dados e gestão. Capte oportunidades, retome negociações, centralize as informações e acompanhe os indicadores.",
   );
   const { hash } = useLocation();
   // âncoras vindas de outra página (ex.: /lp#planos redirecionado, /landing#contato)

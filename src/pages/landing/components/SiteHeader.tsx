@@ -4,7 +4,7 @@ import { Menu, X } from "lucide-react";
 
 export const NAV_LINKS = [
   { href: "#recursos", label: "O que faz" },
-  { href: "#modulos", label: "Módulos" },
+  { href: "#modulos", label: "Pilares" },
   { href: "#aurora", label: "Aurora" },
   { href: "#nichos", label: "Segmentos" },
   { href: "#planos", label: "Planos" },
@@ -91,7 +91,7 @@ export function SiteHeader() {
       <div className="sp-wrap">
         <div className="sp-header__bar">
           <Link to="/landing" className="sp-brand" aria-label="S.P.Y. — página inicial">
-            <img className="sp-brand__img" src="/logo-topbar.webp" alt="S.P.Y. SOA, Sistema Operacional Autônomo" width={720} height={320} decoding="async" fetchPriority="high" />
+            <img className="sp-brand__img" src="/logo-topbar.webp" alt="S.P.Y. SOA, Plataforma de Inteligência e Gestão Empresarial" width={720} height={320} decoding="async" fetchPriority="high" />
           </Link>
 
           <nav className="sp-nav" aria-label="Principal">

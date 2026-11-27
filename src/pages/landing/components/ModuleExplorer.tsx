@@ -16,16 +16,16 @@ export function ModuleExplorer() {
     <section id="modulos" className="sp-section sp-band" aria-labelledby="sp-mod-title">
       <div className="sp-wrap">
         <h2 id="sp-mod-title" className="sp-h2" {...rv()}>
-          Tudo o que a sua operação usa, no mesmo lugar.
+          Uma plataforma. Quatro pilares.
         </h2>
         <p className="sp-lede" {...rv(1)}>
-          Escolha uma área e veja o que cada módulo entrega. As telas são do S.P.Y. com dados fictícios.
+          Escolha um pilar e veja o que ele entrega. As telas são do S.P.Y. com dados fictícios.
         </p>
 
         <div {...rv(2)}>
           <TabsBar
             prefix="mod"
-            label="Áreas do S.P.Y."
+            label="Pilares do S.P.Y."
             active={tabId}
             onChange={(id) => {
               setTabId(id);

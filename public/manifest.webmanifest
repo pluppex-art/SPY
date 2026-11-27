@@ -2,7 +2,7 @@
   "id": "/app/dashboard",
   "name": "S.P.Y. SOA",
   "short_name": "S.P.Y.",
-  "description": "SOA, Sistema Operacional Autônomo, com IA: pipeline, tarefas, reuniões, financeiro e mensageria.",
+  "description": "Plataforma de Inteligência e Gestão Empresarial: pipeline, tarefas, reuniões, financeiro e mensageria.",
   "lang": "pt-BR",
   "dir": "ltr",
   "start_url": "/app/dashboard?source=pwa",
