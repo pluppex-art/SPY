@@ -4,7 +4,7 @@ import type { Estado, Motivo, Situacao } from "./regras";
 
 export interface Nota { id: string; etapa_tipo: string; texto: string; autor_tipo: "ia" | "usuario"; autor_id: string | null; concorrente: string | null; valor_esperado: number | null; data_retorno: string | null; created_at: string }
 export interface Registro { id: string; dimensao: string; de: string | null; para: string | null; autor_tipo: "ia" | "sistema" | "usuario"; motivo: string | null; operacao_id: string | null; desfaz_id: string | null; created_at: string }
-export interface Pagamento { id: string; metodo: string | null; valor: number; status: string; origem: string; vencimento: string | null; confirmado_em: string | null; created_at: string }
+export interface Pagamento { id: string; metodo: string | null; valor: number; status: string; origem: string; gateway: string | null; vencimento: string | null; confirmado_em: string | null; created_at: string }
 
 const cliente = () => { if (!supabase) throw new Error("Sem conexão com o banco."); return supabase; };
 const ok = <T>(r: { data: T; error: any }): T => { if (r.error) throw new Error(r.error.message); return r.data; };

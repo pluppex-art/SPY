@@ -130,7 +130,7 @@ export function AbaDoFunil({ lead }: { lead: any }) {
           {dados.pagamentos.map((p) => (
             <li key={p.id} className={cn(cartao, "flex flex-wrap items-center gap-x-3")}>
               <b className="text-[var(--color-text-primary)]">{dinheiro(p.valor)}</b><span>{NOME_DO_PAGAMENTO[p.status] ?? p.status}</span>
-              <span className="text-[var(--color-text-muted)]">{[p.metodo, p.origem === "manual" ? "marcado à mão" : "avisado pelo meio de pagamento"].filter(Boolean).join(" · ")}</span>
+              <span className="text-[var(--color-text-muted)]">{[p.metodo, p.origem === "manual" ? "marcado à mão" : p.gateway === "agente" ? "identificado pelo Agente Secreto" : "avisado pelo meio de pagamento"].filter(Boolean).join(" · ")}</span>
               <span className="ml-auto text-[10px] text-[var(--color-text-faint)]">{quando(p.confirmado_em ?? p.created_at)}</span>
             </li>))}
         </ul>}
