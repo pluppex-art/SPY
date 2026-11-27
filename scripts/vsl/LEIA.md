@@ -20,6 +20,8 @@ Requer macOS (comando `say`), ffmpeg, o Playwright do projeto e internet (fontes
 
 ## Trocar a voz
 
+- Voz do ElevenLabs (ou outra) em blocos: salve como `scripts/vsl/voz/<vídeo>/bloco-1.mp3`, `bloco-2.mp3`...,
+  com `<break time="1.5s" />` entre as falas no texto. O gerador corta nas pausas sozinho.
 - Sua voz: grave uma fala por arquivo em `scripts/vsl/voz/<vídeo>/<cena>-<n>.m4a` (também .wav ou .mp3), começando em 0.
   Ex.: `voz/varejo/balcao-0.m4a`. Os tempos do vídeo se ajustam sozinhos à gravação.
 - Outra voz do Mac: `VSL_VOZ="Nome da voz" node scripts/vsl/gerar.mjs varejo`.

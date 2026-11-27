@@ -29,6 +29,41 @@ function aparar(a) {
   return a.subarray(Math.max(0, i - 960), Math.min(a.length, f + 2400));
 }
 
+/**
+ * Narração em blocos (ex.: ElevenLabs): voz/<vídeo>/bloco-1.mp3, bloco-2.mp3... com uma pausa longa entre as falas.
+ * Junta os blocos na ordem e corta nas maiores pausas, uma fala por trecho. Para se não der para separar com segurança.
+ */
+function falasDosBlocos(pasta, quantas) {
+  if (!fs.existsSync(pasta)) return null;
+  const blocos = fs.readdirSync(pasta).filter((n) => /^bloco-\d+\.(wav|mp3|m4a)$/i.test(n))
+    .sort((a, b) => parseInt(a.slice(6), 10) - parseInt(b.slice(6), 10));
+  if (!blocos.length) return null;
+  const emenda = new Float32Array(Math.round(SR * 1.2));
+  const partes = blocos.flatMap((n, i) => [...(i ? [emenda] : []), aparar(amostras(path.join(pasta, n)))]);
+  const tudo = new Float32Array(partes.reduce((s, p) => s + p.length, 0));
+  let pos = 0;
+  for (const p of partes) { tudo.set(p, pos); pos += p.length; }
+  let pico = 0;
+  for (const v of tudo) pico = Math.max(pico, Math.abs(v));
+  const janela = SR / 100;
+  const pausas = [];
+  let inicio = null;
+  for (let i = 0; i < tudo.length; i += janela) {
+    let alto = 0;
+    for (let k = i; k < Math.min(i + janela, tudo.length); k++) alto = Math.max(alto, Math.abs(tudo[k]));
+    if (alto < pico * 0.025) inicio ??= i;
+    else { if (inicio !== null && inicio > 0) pausas.push([inicio, i]); inicio = null; }
+  }
+  const cortes = pausas.sort((a, b) => b[1] - b[0] - (a[1] - a[0])).slice(0, quantas - 1);
+  const menor = Math.min(...cortes.map(([a, b]) => (b - a) / SR));
+  if (cortes.length < quantas - 1 || menor < 0.7) {
+    throw new Error(`Não separei ${quantas} falas em ${blocos.length} bloco(s): achei ${cortes.filter(([a, b]) => (b - a) / SR >= 0.7).length + 1}. Confira se a pausa <break> ficou entre todas as falas.`);
+  }
+  cortes.sort((a, b) => a[0] - b[0]);
+  const limites = [0, ...cortes.flat(), tudo.length];
+  return Array.from({ length: quantas }, (_, i) => aparar(tudo.subarray(limites[i * 2], limites[i * 2 + 1])));
+}
+
 // ---------- síntese ----------
 const nota = (semitom) => 440 * Math.pow(2, (semitom - 69) / 12);
 function somar(destino, inicio, dur, gerar) {
@@ -87,17 +122,20 @@ export function prepararAudio(roteiro, raiz, saida) {
   let relogio = 0;
   const vozes = [];
   const efeitos = [];
+  const emBlocos = falasDosBlocos(propria, roteiro.cenas.reduce((s, c) => s + c.falas.length, 0));
+  let ordem = 0;
   const cenas = roteiro.cenas.map((c) => {
     let t = c.entrada ?? 0.45;
     const falas = c.falas.map((f, n) => {
       const fala = typeof f === "string" ? { texto: f } : f;
       const gravada = ["wav", "mp3", "m4a"].map((e) => path.join(propria, `${c.id}-${n}.${e}`)).find((p) => fs.existsSync(p));
+      const doBloco = emBlocos?.[ordem++];
       let arquivo = gravada;
-      if (!arquivo) {
+      if (!arquivo && !doBloco) {
         arquivo = path.join(pasta, `${c.id}-${n}.aiff`);
         narrar(fala.dito || fala.texto, arquivo, roteiro.ritmo || 185);
       }
-      const a = aparar(amostras(arquivo));
+      const a = gravada || !doBloco ? aparar(amostras(arquivo)) : doBloco;
       const ini = t;
       const fim = ini + a.length / SR;
       t = fim + (fala.pausa ?? 0.22);
