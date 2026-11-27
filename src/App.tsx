@@ -5,6 +5,10 @@ import { requestNotificationPermission } from "./lib/notifications";
 import { ensurePushSubscription } from "./lib/push";
 import { LpRedirect } from "./pages/landing/LpRedirect";
 const LandingPage = lazy(() => import("./pages/landing/LandingPage"));
+const VendaEspiao = lazy(() => import("./pages/vendas/VendaEspiao"));
+const VendaRecuperacao = lazy(() => import("./pages/vendas/VendaRecuperacao"));
+const VendaVideo = lazy(() => import("./pages/vendas/VendaVideo"));
+const VendaDireta = lazy(() => import("./pages/vendas/VendaDireta"));
 // Lazy: páginas públicas de marketing/institucionais, sem dependência do app autenticado — ficam no
 // próprio chunk pra quem visita /landing não baixar o bundle inteiro do CRM.
 const PoliticaPrivacidade = lazy(() => import("./pages/landing/pages/PoliticaPrivacidade"));
@@ -680,6 +684,12 @@ function AppContent() {
         {/* Aprovação de conteúdo pelo cliente da agência — acesso só pelo token do link */}
         <Route path="/aprovar/:token" element={<AprovacaoConteudoPublica />} />
         <Route path="/checkout" element={<Checkout />} />
+
+        {/* Páginas de venda (públicas); todas levam ao checkout */}
+        <Route path="/vendas/espiao" element={<VendaEspiao />} />
+        <Route path="/vendas/recuperacao" element={<VendaRecuperacao />} />
+        <Route path="/vendas/video" element={<VendaVideo />} />
+        <Route path="/vendas/planos" element={<VendaDireta />} />
 
         {/* Marketing/Capture Forms Hub */}
         <Route path="/f/:niche" element={<InteractiveForm />} />

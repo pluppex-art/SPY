@@ -45,7 +45,7 @@ export function PlansSection() {
                   </li>
                 ))}
               </ul>
-              <Link to="/f/spy" className={`sp-btn ${p.highlight ? "sp-btn--primary" : "sp-btn--outline"}`}>
+              <Link to={`/checkout?plano=${p.id}`} className={`sp-btn ${p.highlight ? "sp-btn--primary" : "sp-btn--outline"}`}>
                 {p.ctaText}
                 <ArrowRight size={18} strokeWidth={1.75} aria-hidden="true" />
               </Link>
