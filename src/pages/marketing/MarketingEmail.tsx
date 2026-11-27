@@ -13,6 +13,7 @@ import { enviarImagemDeEmail } from "../../lib/imagemEmail";
 import { EditorConteudoEmail, type FormatoEmail } from "./components/EditorConteudoEmail";
 import { PreviaEmail } from "./components/PreviaEmail";
 import { FiltrosDoPublico } from "./components/FiltrosDoPublico";
+import { ListaDeDestinatarios } from "./components/ListaDeDestinatarios";
 import { confirmDialog } from "../../components/ui/confirm-dialog";
 import { HelpTip } from "../../components/ui/help-tip";
 import { useData } from "../../contexts/DataContext";
@@ -292,7 +293,7 @@ export default function MarketingEmail() {
     } catch (e: any) { toast.error(e.message); }
   };
 
-  const canCreate = name.trim() && subject.trim() && corpo.trim() && (preview?.total ?? 0) > 0 && !creating;
+  const canCreate = name.trim() && subject.trim() && corpo.trim() && (preview?.total ?? 0) > 0 && !creating && !previewing;
   const falta = [!name.trim() && "nome", !subject.trim() && "assunto", !corpo.trim() && "conteúdo", !(preview?.total ?? 0) && "público"].filter(Boolean) as string[];
 
   return (
@@ -487,22 +488,16 @@ export default function MarketingEmail() {
               {(fileName || manual.length > 0) && <p className="text-[11px] text-[var(--color-text-muted)]">{fileName || `${manual.length} e-mail(s) colado(s)`} — a planilha só precisa ter uma coluna com e-mail (e, se quiser, uma "Nome").</p>}
             </div>
             <div className="p-3 rounded-xl bg-[var(--color-surface-sunken)] border border-[var(--color-border-subtle)] text-xs text-[var(--color-text-muted)]">
-              {previewing ? <span className="inline-flex items-center gap-1.5"><Loader2 className="w-3.5 h-3.5 animate-spin" /> Calculando…</span>
-                : preview ? <><b className="text-[var(--color-text-primary)] text-sm">{preview.total.toLocaleString("pt-BR")}</b> destinatário(s){preview.repetidos + preview.descadastrados + preview.semEmail > 0 && <> · fora da lista: {preview.repetidos} repetido(s), {preview.descadastrados} descadastrado(s), {preview.semEmail} com e-mail inválido</>}
+              {/* Enquanto recalcula, a lista continua na tela (não some nem volta ao topo a cada retirada). */}
+              {previewing && !preview ? <span className="inline-flex items-center gap-1.5"><Loader2 className="w-3.5 h-3.5 animate-spin" /> Calculando…</span>
+                : preview ? <><b className="text-[var(--color-text-primary)] text-sm">{preview.total.toLocaleString("pt-BR")}</b> destinatário(s){previewing && <Loader2 className="inline w-3.5 h-3.5 ml-1 align-text-bottom animate-spin" />}{preview.repetidos + preview.descadastrados + preview.semEmail > 0 && <> · fora da lista: {preview.repetidos} repetido(s), {preview.descadastrados} descadastrado(s), {preview.semEmail} com e-mail inválido</>}
                   {!!preview.excluidos && <> · {preview.excluidos} retirado(s) por você</>}
-                  {preview.sample.length > 0 && (
+                  {(preview.sample.length > 0 || excluir.length > 0) && (
                     <div className="mt-1.5">
                       <button type="button" onClick={() => setShowList((v) => !v)} className="font-bold text-[var(--color-primary-blue)] bg-transparent border-none cursor-pointer p-0">{showList ? "Ocultar lista" : "Ver e retirar destinatários"}</button>
                       {excluir.length > 0 && <button type="button" onClick={() => setExcluir([])} className="ml-3 font-bold text-[var(--color-text-muted)] bg-transparent border-none cursor-pointer p-0">Desfazer retiradas ({excluir.length})</button>}
-                      {showList && (
-                        <ul className="mt-1.5 max-h-40 overflow-auto divide-y divide-[var(--color-border-subtle)] rounded-lg border border-[var(--color-border-subtle)] bg-[var(--color-surface)]">
-                          {preview.sample.map((s) => (
-                            <li key={s.email} className="flex items-center justify-between gap-2 px-2 py-1">
-                              <span className="truncate"><span className="text-[var(--color-text-primary)] font-medium">{s.email}</span>{s.name && <span> · {s.name}</span>}</span>
-                              <button type="button" aria-label={`Retirar ${s.email}`} onClick={() => setExcluir((p) => [...p, s.email])} className="shrink-0 font-bold text-[var(--color-danger)] bg-transparent border-none cursor-pointer">Retirar</button>
-                            </li>))}
-                        </ul>)}
-                      {showList && preview.total > preview.sample.length && <p className="mt-1">Mostrando os {preview.sample.length} primeiros de {preview.total}.</p>}
+                      {showList && <ListaDeDestinatarios itens={preview.sample.filter((s) => !excluir.includes(s.email))} onRetirar={(emails) => setExcluir((p) => [...new Set([...p, ...emails])])} />}
+                      {showList && preview.total > preview.sample.length && <p className="mt-1">Mostrando os {preview.sample.length} primeiros de {preview.total}. Ao retirar, os próximos aparecem.</p>}
                     </div>)}</>
                   : "Não foi possível calcular o público."}
             </div>

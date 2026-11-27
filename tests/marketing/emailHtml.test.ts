@@ -136,3 +136,10 @@ test("modelo que chama a logo por arquivo do computador: a logo da empresa entra
   // Sem largura definida, a altura fica: senão a imagem apareceria no tamanho original.
   assert.match(trocarImagem(`<img height="40" src="logo.png">`, "logo.png", "https://s.com/l.png"), /<img height="40" src="https:\/\/s\.com\/l\.png">/);
 });
+
+test("retirados são contados por pessoa, mesmo repetidos em dois cadastros", async () => {
+  const { dedupeCandidates } = await import("../../server/emailCampaigns.js");
+  const c = ["a@x.com.br", "a@x.com.br", "b@x.com.br", "b@x.com.br", "c@x.com.br"].map((email, i) => ({ id: String(i), email }));
+  const r = dedupeCandidates(c, new Set(), new Set(["a@x.com.br"]));
+  assert.deepEqual([r.rows.map((x) => x.email), r.excluidos, r.repetidos], [["b@x.com.br", "c@x.com.br"], 1, 2]);
+});

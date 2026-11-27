@@ -250,13 +250,14 @@ export async function bloquearEnderecoInexistente(db: any, tenantId: string, ema
 
 /** Tira inválidos, descadastrados e repetidos (o mesmo e-mail entra uma vez só, venha de onde vier). */
 export function dedupeCandidates(cands: Candidate[], optouts: Set<string>, excluir: Set<string> = new Set()) {
-  const seen = new Set<string>();
+  const seen = new Set<string>(), retirados = new Set<string>();
   const rows: { lead_id: string; email: string; name: string; company: string | null }[] = [];
   let semEmail = 0, descadastrados = 0, repetidos = 0, excluidos = 0;
   for (const c of cands) {
     const email = cleanEmail(c.email);
     if (!email) { semEmail++; continue; }
-    if (excluir.has(email)) { excluidos++; continue; }
+    // Um e-mail retirado que aparece em dois cadastros conta como uma pessoa retirada (a segunda vez é repetição).
+    if (excluir.has(email)) { if (retirados.has(email)) repetidos++; else { retirados.add(email); excluidos++; } continue; }
     if (optouts.has(email)) { descadastrados++; continue; }
     if (seen.has(email)) { repetidos++; continue; }
     seen.add(email);
