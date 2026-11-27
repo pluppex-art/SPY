@@ -4,6 +4,7 @@ import { toast } from "sonner";
 import { Button } from "../../components/ui/button";
 import { Modal } from "../../components/ui/modal";
 import { confirmDialog } from "../../components/ui/confirm-dialog";
+import { FiltrosDoPublico } from "./components/FiltrosDoPublico";
 
 type Api = (path: string, init?: RequestInit) => Promise<Response>;
 interface Passo { dias: number; subject: string; body: string }
@@ -11,7 +12,6 @@ interface Seq { id: string; name: string; status: string; passos: Passo[]; auto?
 interface Opt { value: string; count: number }
 const json = async (r: Response) => { const b = await r.json().catch(() => ({})); if (!r.ok) throw new Error(b?.error || "Falha na requisição."); return b; };
 const campo = "h-9 px-2 rounded-lg text-xs font-medium border border-[var(--color-border-default)] bg-[var(--color-surface)] text-[var(--color-text-primary)]";
-const chip = (on: boolean) => `px-2.5 py-1 rounded-full text-[11px] font-bold border cursor-pointer ${on ? "bg-[var(--color-primary-blue)] text-white border-transparent" : "bg-transparent text-[var(--color-text-muted)] border-[var(--color-border-default)]"}`;
 const novoPasso = (dias: number): Passo => ({ dias, subject: "", body: "" });
 
 /** Sequências de e-mail: vários e-mails em dias seguidos para cada pessoa inscrita. */
@@ -31,7 +31,6 @@ export function SequenciasEmail({ open, onClose, api }: { open: boolean; onClose
   const [pararClicar, setPararClicar] = useState(false);
   const [editId, setEditId] = useState<string | null>(null);
   const [inscId, setInscId] = useState<{ id: string; nome: string } | null>(null);
-  const toggle = (l: string[], set: (v: string[]) => void, v: string) => set(l.includes(v) ? l.filter((x) => x !== v) : [...l, v]);
   const audience = { leads, clientes, sources, statuses, canais };
 
   const carregar = useCallback(async () => {
@@ -144,11 +143,13 @@ export function SequenciasEmail({ open, onClose, api }: { open: boolean; onClose
               <label className="inline-flex items-center gap-1.5 cursor-pointer"><input type="checkbox" checked={leads} onChange={(e) => setLeads(e.target.checked)} /> Leads</label>
               <label className="inline-flex items-center gap-1.5 cursor-pointer"><input type="checkbox" checked={clientes} onChange={(e) => setClientes(e.target.checked)} /> Clientes</label>
             </div>
-            {leads && opts && (<div className="flex flex-wrap gap-1.5">
-              {opts.sources.slice(0, 30).map((o) => <button key={`s${o.value}`} type="button" onClick={() => toggle(sources, setSources, o.value)} className={chip(sources.includes(o.value))}>{o.value || "(sem origem)"} · {o.count}</button>)}
-              {opts.statuses.map((o) => <button key={`t${o.value}`} type="button" onClick={() => toggle(statuses, setStatuses, o.value)} className={chip(statuses.includes(o.value))}>Status: {o.value || "—"} · {o.count}</button>)}
-              {(opts.canais || []).slice(0, 20).map((o) => <button key={`c${o.value}`} type="button" onClick={() => toggle(canais, setCanais, o.value)} className={chip(canais.includes(o.value))}>Canal: {o.value} · {o.count}</button>)}
-            </div>)}
+            {leads && opts && (
+              <FiltrosDoPublico grupos={[
+                { titulo: "Origem", opcoes: opts.sources, marcados: sources, onMarcados: setSources, vazio: "(sem origem)" },
+                { titulo: "Status", opcoes: opts.statuses, marcados: statuses, onMarcados: setStatuses },
+                { titulo: "Canal", opcoes: opts.canais || [], marcados: canais, onMarcados: setCanais },
+              ]} />
+            )}
             {!inscId && <label className="inline-flex items-start gap-1.5 cursor-pointer text-xs text-[var(--color-text-primary)]"><input type="checkbox" className="mt-0.5" checked={pararClicar} onChange={(e) => setPararClicar(e.target.checked)} /> <span><b>Parar</b> de enviar para quem clicar em um link de algum e-mail (já demonstrou interesse)</span></label>}
             {leads && !inscId && <label className="inline-flex items-start gap-1.5 cursor-pointer text-xs text-[var(--color-text-primary)]"><input type="checkbox" className="mt-0.5" checked={autoNovos} onChange={(e) => setAutoNovos(e.target.checked)} /> <span>Também inscrever <b>automaticamente</b> quem virar lead daqui para frente (com esses mesmos filtros de origem, status e canal)</span></label>}
             <p className="text-[11px] text-[var(--color-text-muted)]">{total === null ? "Contando…" : <><b className="text-[var(--color-text-primary)]">{total}</b> pessoa(s) com e-mail válido entram (sem repetidos nem descadastrados).</>}</p>

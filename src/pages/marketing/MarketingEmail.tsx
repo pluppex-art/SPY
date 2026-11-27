@@ -11,6 +11,7 @@ import { csvEngajamento } from "../../lib/csvEngajamento";
 import { comoHtml, ehHtml, MAX_HTML, MAX_TEXTO } from "../../lib/emailHtml";
 import { EditorConteudoEmail, type FormatoEmail } from "./components/EditorConteudoEmail";
 import { PreviaEmail } from "./components/PreviaEmail";
+import { FiltrosDoPublico } from "./components/FiltrosDoPublico";
 import { confirmDialog } from "../../components/ui/confirm-dialog";
 import { HelpTip } from "../../components/ui/help-tip";
 import { useData } from "../../contexts/DataContext";
@@ -181,7 +182,6 @@ export default function MarketingEmail() {
     return () => clearTimeout(t);
   }, [open, activeTenantId, sources, statuses, canais, campanhas, inclLeads, inclClientes, inclContatos, inclEquipe, manual, excluir]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  const toggle = (list: string[], set: (v: string[]) => void, v: string) => set(list.includes(v) ? list.filter((x) => x !== v) : [...list, v]);
 
   const create = async () => {
     setCreating(true);
@@ -288,7 +288,7 @@ export default function MarketingEmail() {
   };
 
   const canCreate = name.trim() && subject.trim() && corpo.trim() && (preview?.total ?? 0) > 0 && !creating;
-  const falta = [!name.trim() && "o nome", !subject.trim() && "o assunto", !corpo.trim() && "o conteúdo", !(preview?.total ?? 0) && "o público"].filter(Boolean) as string[];
+  const falta = [!name.trim() && "nome", !subject.trim() && "assunto", !corpo.trim() && "conteúdo", !(preview?.total ?? 0) && "público"].filter(Boolean) as string[];
 
   return (
     <PageContainer
@@ -421,7 +421,7 @@ export default function MarketingEmail() {
 
       <Modal isOpen={open} onClose={() => !creating && setOpen(false)} closeOnBackdrop={false} title="Nova campanha de e-mail" maxWidth="max-w-6xl"
         footer={<>
-          {!canCreate && !creating && falta.length > 0 && <span className="mr-auto text-[11px] text-[var(--color-text-faint)]">Falta {falta.join(", ")}.</span>}
+          {!canCreate && !creating && falta.length > 0 && <span className="mr-auto text-[11px] text-[var(--color-text-faint)]">Para criar, falta: {falta.join(", ")}.</span>}
           <label className="flex items-center gap-2 text-[11px] font-bold text-[var(--color-text-muted)]">Enviar em
             <input type="date" value={agendarPara} min={new Date(Date.now() - 3 * 3600_000).toISOString().slice(0, 10)} onChange={(e) => setAgendarPara(e.target.value)} className="h-9 px-2 rounded-lg text-xs border border-[var(--color-border-default)] bg-[var(--color-surface)] text-[var(--color-text-primary)]" />
             <HelpTip label="Agendamento">Deixe em branco para disparar você mesmo quando quiser. Com uma data, a campanha sai sozinha no envio automático das 10h (Brasília) desse dia, mesmo com o sistema fechado. Você ainda pode enviar antes pelo botão.</HelpTip>
@@ -460,22 +460,14 @@ export default function MarketingEmail() {
               {([["Leads", inclLeads, setInclLeads], ["Clientes", inclClientes, setInclClientes], ["Contatos das empresas", inclContatos, setInclContatos], ["Equipe (usuários do sistema)", inclEquipe, setInclEquipe]] as const).map(([l, v, set]) => (
                 <label key={l} className="inline-flex items-center gap-1.5 cursor-pointer"><input type="checkbox" checked={v} onChange={(e) => set(e.target.checked)} /> {l}</label>))}
             </div>
-            {inclLeads && <p className="text-[11px] text-[var(--color-text-muted)]">Leads: sem filtro = todos com e-mail. Filtre por origem (ex.: o evento) e/ou status:</p>}
-            {inclLeads && options && options.sources.length > 0 && (
-              <div className="flex flex-wrap gap-1.5">{options.sources.slice(0, 40).map((o) => (
-                <button key={`s-${o.value}`} type="button" onClick={() => toggle(sources, setSources, o.value)} className={`px-2.5 py-1 rounded-full text-[11px] font-bold border cursor-pointer ${sources.includes(o.value) ? "bg-[var(--color-primary-blue)] text-white border-transparent" : "bg-transparent text-[var(--color-text-muted)] border-[var(--color-border-default)]"}`}>{o.value || "(sem origem)"} · {o.count}</button>))}</div>
-            )}
-            {inclLeads && options && options.statuses.length > 0 && (
-              <div className="flex flex-wrap gap-1.5">{options.statuses.map((o) => (
-                <button key={`t-${o.value}`} type="button" onClick={() => toggle(statuses, setStatuses, o.value)} className={`px-2.5 py-1 rounded-full text-[11px] font-bold border cursor-pointer ${statuses.includes(o.value) ? "bg-[var(--color-primary-blue)] text-white border-transparent" : "bg-transparent text-[var(--color-text-muted)] border-[var(--color-border-default)]"}`}>Status: {o.value || "—"} · {o.count}</button>))}</div>
-            )}
-            {inclLeads && options && (options.canais?.length ?? 0) > 0 && (
-              <div className="flex flex-wrap gap-1.5">{options.canais!.slice(0, 40).map((o) => (
-                <button key={`c-${o.value}`} type="button" onClick={() => toggle(canais, setCanais, o.value)} className={`px-2.5 py-1 rounded-full text-[11px] font-bold border cursor-pointer ${canais.includes(o.value) ? "bg-[var(--color-primary-blue)] text-white border-transparent" : "bg-transparent text-[var(--color-text-muted)] border-[var(--color-border-default)]"}`}>Canal: {o.value} · {o.count}</button>))}</div>
-            )}
-            {inclLeads && options && (options.campanhas?.length ?? 0) > 0 && (
-              <div className="flex flex-wrap gap-1.5">{options.campanhas!.slice(0, 40).map((o) => (
-                <button key={`k-${o.value}`} type="button" onClick={() => toggle(campanhas, setCampanhas, o.value)} className={`px-2.5 py-1 rounded-full text-[11px] font-bold border cursor-pointer ${campanhas.includes(o.value) ? "bg-[var(--color-primary-blue)] text-white border-transparent" : "bg-transparent text-[var(--color-text-muted)] border-[var(--color-border-default)]"}`}>Campanha: {o.value} · {o.count}</button>))}</div>
+            {inclLeads && <p className="text-[11px] text-[var(--color-text-muted)]">Leads: sem nada marcado, entram todos com e-mail. Marque para filtrar.</p>}
+            {inclLeads && options && (
+              <FiltrosDoPublico grupos={[
+                { titulo: "Origem", opcoes: options.sources, marcados: sources, onMarcados: setSources, vazio: "(sem origem)" },
+                { titulo: "Status", opcoes: options.statuses, marcados: statuses, onMarcados: setStatuses },
+                { titulo: "Canal", opcoes: options.canais ?? [], marcados: canais, onMarcados: setCanais },
+                { titulo: "Campanha", opcoes: options.campanhas ?? [], marcados: campanhas, onMarcados: setCampanhas },
+              ]} />
             )}
             <div className="space-y-1.5 p-3 rounded-xl border border-dashed border-[var(--color-border-default)]">
               <div className="flex items-center justify-between gap-2">
