@@ -1,6 +1,6 @@
 # Método do funil · Entrega 2: motor de regras
 
-**Situação:** plano e migração para revisão (27/11/2026). **Nada foi aplicado e o SQL ainda não foi executado:** o ensaio no banco não chegou a rodar.
+**Situação:** ensaio aprovado em 27/11/2026 ("ENSAIO OK", rodado no SQL Editor; conferido que nada ficou gravado). **Falta aplicar** a migração.
 
 **Pronto quando:** chamando as funções direto no banco, o lead percorre o funil com nota, histórico, prazos e tarefas corretos.
 
