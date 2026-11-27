@@ -3,6 +3,7 @@ import { SiteHeader } from "./components/SiteHeader";
 import { HeroSection } from "./components/HeroSection";
 import { LifecycleSection } from "./components/LifecycleSection";
 import { ModuleExplorer } from "./components/ModuleExplorer";
+import { AgentsSection } from "./components/AgentsSection";
 import { ComplementSection } from "./components/ComplementSection";
 import { TrustSecuritySection } from "./components/TrustSecuritySection";
 import { ContactSection } from "./components/ContactSection";
@@ -51,6 +52,7 @@ export default function LandingPage() {
         <TrustRow />
         <ProblemSection />
         <ModuleExplorer />
+        <AgentsSection />
         <ComplementSection />
         <LifecycleSection />
         <NeuralSection />

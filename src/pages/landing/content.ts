@@ -108,9 +108,17 @@ export const EXPLORER: ExplorerTab[] = [
   },
 ];
 
+/** Agentes contratados à parte, além do Agente Secreto de Vendas e da Aurora que já vêm no plano. Textos do catálogo (src/lib/catalogoSpy.ts). */
+export const OTHER_AGENTS: { id: "interno" | "julia" | "closer" | "cs"; name: string; text: string }[] = [
+  { id: "interno", name: "Agente Secreto Interno", text: "Acompanha os grupos da equipe por departamento e transforma as mensagens em tarefas, ordens de serviço e pedidos." },
+  { id: "julia", name: "Júlia, vendedora de IA", text: "Atende e qualifica quem chega, e passa a conversa para o vendedor." },
+  { id: "closer", name: "Agente Closer", text: "Conduz a negociação e o fechamento das propostas." },
+  { id: "cs", name: "Sucesso do Cliente", text: "Acompanha os clientes depois da venda." },
+];
+
 /** Módulos que complementam os quatro pilares, contratados à parte (ver "Preciso usar todos os módulos?" no FAQ). */
 export const COMPLEMENTS: { areas: string[]; segments: { name: string; form: string }[] } = {
-  areas: ["Financeiro", "Marketing", "Agente Secreto Interno", "Equipe e RH", "Ordens de serviço"],
+  areas: ["Financeiro", "Marketing", "Equipe e RH", "Ordens de serviço"],
   segments: [
     { name: "Varejo", form: "/f/varejo" },
     { name: "Automotivo", form: "/f/automotivo" },

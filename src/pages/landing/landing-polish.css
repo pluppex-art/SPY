@@ -1209,6 +1209,18 @@ html:has(.sp-root) body {
 }
 
 /* ---------- módulos complementares: faixa pequena ---------- */
+/* outros agentes: seção curta entre os pilares e os módulos complementares */
+.sp-outros { padding-block: 40px 8px; }
+.sp-root .sp-outros h2 { font-size: clamp(22px, 2.6vw, 28px); letter-spacing: -0.02em; line-height: 1.2; text-align: center; }
+.sp-outros .sp-wrap > p { margin: 8px auto 0; max-width: 60ch; text-align: center; color: var(--sp-muted); font-size: 15px; }
+.sp-outros ul { display: grid; gap: 14px; margin-top: 24px; }
+.sp-outros li { padding: 18px; border: 1px solid var(--sp-line); border-radius: 16px; background: var(--sp-panel); }
+.sp-outros__icone { display: grid; place-items: center; width: 38px; height: 38px; border-radius: 11px; background: var(--sp-brand-tint); color: var(--sp-brand-tint-text); }
+.sp-outros h3 { margin-top: 12px; font-size: 16px; letter-spacing: -0.01em; line-height: 1.3; }
+.sp-outros li p { margin-top: 4px; font-size: 14px; line-height: 1.55; color: var(--sp-body); }
+@media (min-width: 680px) { .sp-outros ul { grid-template-columns: 1fr 1fr; } }
+@media (min-width: 1100px) { .sp-outros ul { grid-template-columns: repeat(4, 1fr); } }
+
 .sp-compl { padding-block: 28px; }
 .sp-compl__box { display: grid; gap: 14px; padding: 20px; border: 1px dashed var(--sp-line-strong); border-radius: 16px; }
 .sp-compl h2 { font-size: 17px; letter-spacing: -0.01em; }
