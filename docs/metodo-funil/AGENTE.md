@@ -1,6 +1,6 @@
 # Método do funil · Passo 1: o Agente Secreto move o lead
 
-**Situação:** preparado em 27/11/2026, **para revisar**. Nada publicado e nenhuma migração aplicada.
+**Situação:** em 27/11/2026 a migração foi aplicada (conferida) e o agente da Pluppex publicado, às 17:59. O funil de teste foi desligado a pedido: o método vai para o funil comercial que já existe. Nenhum funil está com o método ligado, então o agente se comporta como antes.
 
 Direção definida: o vendedor não escreve nota nem move lead. O agente faz isso; o vendedor recebe o aviso de repescagem e chama o cliente.
 
@@ -8,9 +8,9 @@ Direção definida: o vendedor não escreve nota nem move lead. O agente faz iss
 
 | Parte | Onde | Situação |
 |---|---|---|
-| Função `spy_agente` | [20261231_metodo_funil_agente.sql](../../supabase/migrations/20261231_metodo_funil_agente.sql) | Falta rodar no SQL Editor |
-| Passos novos no `[PLUPPEX AI OS] Agente Secreto` | n8n, rascunho `4e16c53a-2683-4748-a11d-84f8c7020461` | Falta publicar |
-| Publicada hoje (para voltar) | `673f307a-fb40-45ef-b1c6-ffddf74c7d9b` | Em uso |
+| Função `spy_agente` | [20261231_metodo_funil_agente.sql](../../supabase/migrations/20261231_metodo_funil_agente.sql) | Aplicada |
+| Passos novos no `[PLUPPEX AI OS] Agente Secreto` | n8n, versão `4e16c53a-2683-4748-a11d-84f8c7020461` | Publicada |
+| Versão anterior (para voltar) | `673f307a-fb40-45ef-b1c6-ffddf74c7d9b` | Guardada |
 
 ## O que o agente passa a fazer (só em funil com o método ligado)
 
@@ -31,12 +31,12 @@ Direção definida: o vendedor não escreve nota nem move lead. O agente faz iss
 - Uma mensagem já analisada não é aplicada de novo, nem refaz o que foi desfeito.
 - No fluxo, a etapa e o status deixam de ser gravados direto nesses funis. Nos outros funis, nada muda.
 
-## Ordem para ligar
+## Próximos passos
 
-1. Rodar a migração no SQL Editor. Esperado: `instalado = true`, `logado_pode_chamar = false`, `sobras = 0`. Ela traz um autoteste de 11 passos que é desfeito no fim; se um passo falhar, nada é aplicado.
-2. Publicar o rascunho (com a sua confirmação).
-3. Testar com um número de teste na SPY | IA, com o lead no funil de teste.
-4. Repassar para o agente da Luminar e ligar o método no funil dela.
+1. Definir o que cada coluna do funil comercial significa no método e confirmar.
+2. Permitir que o agente continue andando entre colunas do mesmo significado (hoje, em funil com o método, ele só muda quando o significado muda).
+3. Marcar os tipos, ligar o método no funil e dar a situação aos leads atuais sem prazos retroativos.
+4. Repassar o fluxo às cópias dos clientes (Luminar primeiro).
 
 ## O que ainda não faz
 
