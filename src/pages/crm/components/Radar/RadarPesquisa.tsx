@@ -16,12 +16,21 @@ type Resultado = EmpresaDoRadar;
 
 const soDigitos = (v: string) => String(v || "").replace(/\D/g, "");
 
+/** A última busca fica neste navegador: recarregar a página não apaga (nem gasta o limite do dia de novo). */
+interface Guardada { resultados: Resultado[]; feita: string | null; mais: FiltroRadar | null }
+const chaveGuardada = (tenantId: string | null) => `spy_radar_busca:${tenantId ?? ""}`;
+function lerGuardada(tenantId: string | null): Guardada {
+  try { const g = JSON.parse(localStorage.getItem(chaveGuardada(tenantId)) || "null"); if (Array.isArray(g?.resultados)) return g; } catch { /* sem armazenamento: começa vazio */ }
+  return { resultados: [], feita: null, mais: null };
+}
+function guardar(tenantId: string | null, g: Guardada) { try { localStorage.setItem(chaveGuardada(tenantId), JSON.stringify(g)); } catch { /* cheio ou bloqueado: só não persiste */ } }
+
 /**
  * Pesquisa do Radar por CNAE (base da Receita) ou por tipo de empresa (Google Maps), em cidades escolhidas, dentro do
  * limite diário. Cada resultado pode virar lead com um clique.
  */
 export function RadarPesquisa() {
-  const { addLead, funis } = useData();
+  const { addLead, funis, leads } = useData();
   const { user, activeTenantId } = useAuth();
   const [restante, setRestante] = useState<number | null>(null);
   const [mais, setMais] = useState<FiltroRadar | null>(null);
@@ -33,6 +42,16 @@ export function RadarPesquisa() {
   const [feita, setFeita] = useState<string | null>(null);
   const [resultados, setResultados] = useState<Resultado[]>([]);
   const [criados, setCriados] = useState<Set<string>>(new Set());
+  const [visao, setVisao] = useState<"busca" | "salvas">("busca");
+  const [salvas, setSalvas] = useState<Resultado[] | null>(null);
+  const empresaAtual = useRef(activeTenantId); empresaAtual.current = activeTenantId;
+  // CNPJs que já são lead: o botão já nasce como "Já é lead".
+  const cnpjsDosLeads = useMemo(() => new Set((leads || []).map((l: any) => soDigitos(l.cnpj)).filter(Boolean)), [leads]);
+  useEffect(() => {
+    const g = lerGuardada(activeTenantId);
+    setResultados(g.resultados); setFeita(g.feita); setMais(g.mais);
+    setVisao("busca"); setSalvas(null); setErro(null); setBuscando(false); setEsperaAte(null); setCriados(new Set()); setRestante(null);
+  }, [activeTenantId]);
 
   const primeiraEtapa = useMemo(() => {
     const lista: any[] = (funis?.length ? funis : FUNIS_DEFAULT).filter((f: any) => f.ativo !== false && f.tipo === "comercial");
@@ -41,13 +60,30 @@ export function RadarPesquisa() {
 
   const api = (path: string, init?: RequestInit) => apiFetch(activeTenantId ? `${path}${path.includes("?") ? "&" : "?"}tenantId=${encodeURIComponent(activeTenantId)}` : path, init);
 
+  async function abrirSalvas() {
+    setVisao("salvas"); setSalvas(null);
+    const empresa = activeTenantId;
+    try {
+      const r = await api("/api/radar/empresas-salvas?todas=1");
+      const j = await r.json().catch(() => ({}));
+      if (!r.ok) throw new Error(j.error);
+      if (empresaAtual.current === empresa) setSalvas(j.empresas ?? []);
+    } catch { if (empresaAtual.current === empresa) { setSalvas([]); toast.error("Não foi possível abrir as empresas salvas."); } }
+  }
+
   async function pesquisar(filtro: FiltroRadar, somar = false) {
     parada.current?.abort();
     const controle = new AbortController(); parada.current = controle;
     const antes = somar ? resultados : [];
-    const mostrar = (novas: Resultado[]) => setResultados([...new Map([...antes, ...novas].map((e) => [chaveDaEmpresa(e), e])).values()]);
-    setBuscando(true); setErro(null); setMais(null); setEsperaAte(null);
-    if (!somar) { setResultados([]); setFeita(descreverBusca(filtro)); setCriados(new Set()); }
+    const empresa = activeTenantId;
+    const titulo = somar ? feita : descreverBusca(filtro);
+    // A busca anterior só sai da tela quando a nova trouxer algo (um erro não apaga o que já estava ali).
+    const mostrar = (novas: Resultado[], proxima: FiltroRadar | null = null) => {
+      const juntas = [...new Map([...antes, ...novas].map((e) => [chaveDaEmpresa(e), e])).values()];
+      setResultados(juntas); setFeita(titulo); setMais(proxima);
+      guardar(empresa, { resultados: juntas, feita: titulo, mais: proxima });
+    };
+    setVisao("busca"); setBuscando(true); setErro(null); setEsperaAte(null);
     try {
       const r = await pesquisarNoRadar(api, filtro, {
         sinal: controle.signal,
@@ -55,7 +91,7 @@ export function RadarPesquisa() {
         aoEsperar: (s) => { if (parada.current === controle) setEsperaAte(s === null ? null : Date.now() + (s + 1) * 1000); },
       });
       if (parada.current !== controle) return;
-      mostrar(r.empresas); setMais(r.mais); setErro(r.aviso);
+      mostrar(r.empresas, r.mais); setErro(r.aviso);
       if (r.restante !== null) setRestante(r.restante);
     } catch (e: any) {
       setErro(e instanceof TypeError ? "Não foi possível pesquisar agora. Tente de novo." : e.message);
@@ -72,9 +108,11 @@ export function RadarPesquisa() {
       customFields: { endereco: e.endereco || undefined, site: e.site && e.site !== "nao encontrado" ? e.site : undefined, pesquisa: feita || undefined },
     } as any);
     if (ok === false) { toast.error("Não foi possível criar o lead."); return; }
-    setCriados((s) => new Set(s).add(e.empresa + e.endereco));
+    setCriados((s) => new Set(s).add(chaveDaEmpresa(e)));
     toast.success(`${e.empresa} agora é um lead.`);
   }
+
+  const lista = visao === "salvas" ? salvas ?? [] : resultados;
 
   return (
     <div className="space-y-4">
@@ -93,22 +131,32 @@ export function RadarPesquisa() {
         <Card className="p-10 text-center text-sm text-[var(--color-text-muted)] flex items-center justify-center gap-2"><Loader2 className="w-4 h-4 animate-spin" /> Procurando empresas… pode levar alguns segundos.</Card>
       )}
 
-      {!buscando && feita && !erro && resultados.length === 0 && (
+      <div role="group" aria-label="Mostrar" className="flex gap-1.5">
+        {([["busca", "Última busca"], ["salvas", "Já salvas (CNAE)"]] as const).map(([id, t]) => (
+          <button key={id} type="button" aria-pressed={visao === id} onClick={() => (id === "salvas" ? void abrirSalvas() : setVisao("busca"))}
+            className={`rounded-full border px-3 py-1.5 text-[11px] font-bold cursor-pointer ${visao === id ? "bg-[var(--color-primary-blue)] border-[var(--color-primary-blue)] !text-white" : "bg-transparent border-[var(--color-border-default)] text-[var(--color-text-muted)]"}`}>{t}</button>
+        ))}
+      </div>
+
+      {visao === "salvas" && salvas === null && <Card className="p-8 text-center text-sm text-[var(--color-text-muted)] flex items-center justify-center gap-2"><Loader2 className="w-4 h-4 animate-spin" /> Abrindo…</Card>}
+      {visao === "salvas" && salvas?.length === 0 && <Card className="p-8 text-center text-sm text-[var(--color-text-muted)]">Nenhuma empresa salva ainda. As buscas por CNAE ficam guardadas aqui.</Card>}
+
+      {visao === "busca" && !buscando && feita && !erro && resultados.length === 0 && (
         <Card className="p-8 text-center">
           <p className="text-sm font-bold text-[var(--color-text-primary)]">Nenhuma empresa encontrada para "{feita}"</p>
           <p className="text-xs text-[var(--color-text-muted)] mt-1">Tente outro tipo de empresa ou outra cidade.</p>
         </Card>
       )}
 
-      {resultados.length > 0 && (
+      {lista.length > 0 && (
         <div className="space-y-2">
-          <p className="text-xs text-[var(--color-text-muted)]">{resultados.length} empresa(s) para <strong className="text-[var(--color-text-primary)]">{feita}</strong></p>
+          <p className="text-xs text-[var(--color-text-muted)]">{lista.length} empresa(s) {visao === "salvas" ? "salvas, das mais novas para as mais antigas" : <>para <strong className="text-[var(--color-text-primary)]">{feita}</strong></>}</p>
           <div className="grid gap-3 lg:grid-cols-2">
-            {resultados.map((e) => {
-              const criado = criados.has(e.empresa + e.endereco);
+            {lista.map((e) => {
+              const criado = criados.has(chaveDaEmpresa(e)) || (!!e.cnpj && cnpjsDosLeads.has(soDigitos(e.cnpj)));
               const tel = soDigitos(e.whatsapp || e.contato);
               return (
-                <Card key={e.empresa + e.endereco} className="p-4 flex flex-col gap-2">
+                <Card key={chaveDaEmpresa(e)} className="p-4 flex flex-col gap-2">
                   <div className="flex items-start justify-between gap-3">
                     <div className="min-w-0">
                       <p className="text-sm font-bold text-[var(--color-text-primary)] truncate">{e.empresa}</p>
@@ -136,7 +184,7 @@ export function RadarPesquisa() {
               );
             })}
           </div>
-          {mais && <div className="flex justify-center pt-1"><Button variant="outline" disabled={buscando} onClick={() => void pesquisar(mais, true)} className="h-9 px-4 text-xs font-bold">Trazer as próximas empresas</Button></div>}
+          {visao === "busca" && mais && <div className="flex justify-center pt-1"><Button variant="outline" disabled={buscando} onClick={() => void pesquisar(mais, true)} className="h-9 px-4 text-xs font-bold">Trazer as próximas empresas</Button></div>}
         </div>
       )}
     </div>

@@ -356,15 +356,23 @@ export function somarReenvios(audiences: unknown[], agora: number = Date.now()):
   return n;
 }
 
-/** Data de envio escolhida (AAAA-MM-DD, horário de Brasília): de hoje até 90 dias. O disparo automático sai a partir das 9h desse dia. */
-export function parseAgendamento(raw: unknown, agora: Date = new Date()): { ok: true; quando: string | null } | { ok: false; erro: string } {
+/**
+ * Data (AAAA-MM-DD) e hora (HH:MM) do envio, no horário de Brasília: de agora até 90 dias à frente. Sem hora, 9h.
+ * A rotina automática dispara em até 5 minutos depois do horário.
+ */
+export function parseAgendamento(raw: unknown, agora: Date = new Date(), hora?: unknown): { ok: true; quando: string | null } | { ok: false; erro: string } {
   if (raw === undefined || raw === null || raw === "") return { ok: true, quando: null };
   const d = String(raw);
   if (!/^\d{4}-\d{2}-\d{2}$/.test(d) || Number.isNaN(Date.parse(d))) return { ok: false, erro: "Data de agendamento inválida." };
   const hojeBR = new Date(agora.getTime() - 3 * 3600_000).toISOString().slice(0, 10);
   if (d < hojeBR) return { ok: false, erro: "A data do agendamento já passou." };
   if (Date.parse(d) - Date.parse(hojeBR) > 90 * 86400_000) return { ok: false, erro: "Agende no máximo 90 dias à frente." };
-  return { ok: true, quando: `${d}T09:00:00-03:00` };
+  const informada = hora !== undefined && hora !== null && hora !== "";
+  const h = informada ? String(hora) : "09:00";
+  if (!/^([01]\d|2[0-3]):[0-5]\d$/.test(h)) return { ok: false, erro: "Horário de agendamento inválido." };
+  const quando = `${d}T${h}:00-03:00`;
+  if (informada && Date.parse(quando) < agora.getTime() - 5 * 60_000) return { ok: false, erro: "Esse horário já passou." };
+  return { ok: true, quando };
 }
 
 export function selectAudience(leads: any[], aud: Audience, optouts: Set<string>) {
@@ -502,7 +510,7 @@ export function registerEmailCampaignRoutes(app: Express, { requireUser, resolve
     if (!name || !subject || !body) return res.status(400).json({ error: "Informe nome, assunto e mensagem." });
     const subjectB = String(req.body?.subjectB || "").replace(/[\r\n]+/g, " ").trim().slice(0, 200);
     const ab = !!subjectB && subjectB !== subject;
-    const agendamento = parseAgendamento(req.body?.agendarPara);
+    const agendamento = parseAgendamento(req.body?.agendarPara, new Date(), req.body?.agendarHora);
     if (agendamento.ok === false) return res.status(400).json({ error: agendamento.erro });
     try {
       const aud = parseAudience(req.body?.audience);

@@ -138,18 +138,22 @@ export function registerRadarEmailRoutes(app: Express, { requireUser, resolveReq
     res.json({ emails });
   });
 
-  // Empresas que a busca por CNAE do Radar já guardou, com e-mail.
+  // Empresas que a busca por CNAE do Radar já guardou: as com e-mail (campanha) ou todas (?todas=1, tela do Radar).
   app.get("/api/radar/empresas-salvas", requireUser, limiter, async (req: any, res: any) => {
     if (!supabaseService) return res.status(503).json({ error: "Servidor sem acesso ao banco." });
     const tenantId = await resolveRequestedTenantId(req, res); if (!tenantId) return;
-    const { data, error } = await supabaseService.from("radar_empresas_frias").select("id, razao_social, nome_fantasia, email, municipio, uf, cnae_descricao, created_at")
-      .eq("tenant_id", tenantId).not("email", "is", null).neq("email", "").order("created_at", { ascending: false }).limit(500);
+    const todas = req.query?.todas === "1";
+    let consulta = supabaseService.from("radar_empresas_frias").select("id, cnpj, razao_social, nome_fantasia, email, telefones, endereco, municipio, uf, cnae_descricao, created_at").eq("tenant_id", tenantId);
+    if (!todas) consulta = consulta.not("email", "is", null).neq("email", "");
+    const { data, error } = await consulta.order("created_at", { ascending: false }).limit(500);
     if (error) return res.status(500).json({ error: "Não foi possível ler as empresas salvas do Radar." });
     res.json({
-      empresas: (data || []).map((e: any) => ({
-        empresa: String(e.nome_fantasia || e.razao_social || ""), email: cleanEmail(e.email),
-        detalhe: [[e.municipio, e.uf].filter(Boolean).join("/"), e.cnae_descricao].filter(Boolean).join(" · "),
-      })).filter((e: any) => e.email),
+      empresas: (data || []).map((e: any) => {
+        const empresa = String(e.nome_fantasia || e.razao_social || ""), email = cleanEmail(e.email);
+        const cidade = [e.municipio, e.uf].filter(Boolean).join("/");
+        const base = { empresa, email, detalhe: [cidade, e.cnae_descricao].filter(Boolean).join(" · ") };
+        return todas ? { ...base, cnpj: String(e.cnpj || ""), razaoSocial: String(e.razao_social || ""), endereco: [e.endereco, cidade].filter(Boolean).join(" · "), contato: String(e.telefones?.[0] || ""), avaliacao: "", site: "", whatsapp: "" } : base;
+      }).filter((e: any) => todas || e.email),
     });
   });
 }

@@ -152,6 +152,9 @@ export default function MarketingEmail() {
   const [previewing, setPreviewing] = useState(false);
   const [creating, setCreating] = useState(false);
   const [agendarPara, setAgendarPara] = useState("");
+  const [agendarHora, setAgendarHora] = useState("09:00");
+  // Horário de Brasília, como o servidor interpreta.
+  const horarioPassou = !!agendarPara && !!agendarHora && Date.parse(`${agendarPara}T${agendarHora}:00-03:00`) < Date.now() - 60_000;
 
   const tenantRef = useRef(activeTenantId);
   tenantRef.current = activeTenantId;
@@ -168,7 +171,7 @@ export default function MarketingEmail() {
     setExcluir([]); setManual([]); setDoRadar([]); setManualText(""); setFileName(""); setSources([]); setStatuses([]); setCanais([]); setCampanhas([]);
     setOpen(false); setReenvio(null); setVendo(null); setEditando(null);
     // O que estava sendo escrito é de uma empresa: não passa para outra.
-    setName(""); setSubject(""); setSubjectB(""); setBody(""); setBodyHtml(""); setFormato("texto"); setModeloId(""); setAgendarPara(""); setLogoNo({ texto: true, html: false });
+    setName(""); setSubject(""); setSubjectB(""); setBody(""); setBodyHtml(""); setFormato("texto"); setModeloId(""); setAgendarPara(""); setAgendarHora("09:00"); setLogoNo({ texto: true, html: false });
     if (activeTenantId) void load();
   }, [activeTenantId]); // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -188,15 +191,15 @@ export default function MarketingEmail() {
   const create = async () => {
     setCreating(true);
     try {
-      const r = await apiFetchTenant("/api/email-campaigns", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ name, subject, body: corpo, audience, rastrear, ...(subjectB.trim() ? { subjectB: subjectB.trim() } : {}), ...(agendarPara ? { agendarPara } : {}) }) }).then(json);
-      toast.success(agendarPara ? `Campanha agendada para ${agendarPara.split("-").reverse().join("/")} (${r.total} destinatário(s)). Envie um teste para você antes.` : `Campanha criada com ${r.total} destinatário(s). Envie um teste para você antes de disparar.`);
+      const r = await apiFetchTenant("/api/email-campaigns", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ name, subject, body: corpo, audience, rastrear, ...(subjectB.trim() ? { subjectB: subjectB.trim() } : {}), ...(agendarPara ? { agendarPara, agendarHora } : {}) }) }).then(json);
+      toast.success(agendarPara ? `Campanha agendada para ${agendarPara.split("-").reverse().join("/")} às ${agendarHora} (${r.total} destinatário(s)). Envie um teste para você antes.` : `Campanha criada com ${r.total} destinatário(s). Envie um teste para você antes de disparar.`);
       setOpen(false); limparFormulario();
       await load();
     } catch (e: any) { toast.error(e.message); } finally { setCreating(false); }
   };
 
   const limparFormulario = () => {
-    setEditando(null); setName(""); setSubject(""); setSubjectB(""); setBody(""); setBodyHtml(""); setFormato("texto"); setLogoNo({ texto: true, html: false }); setModeloId(""); setAgendarPara(""); setRastrear(true);
+    setEditando(null); setName(""); setSubject(""); setSubjectB(""); setBody(""); setBodyHtml(""); setFormato("texto"); setLogoNo({ texto: true, html: false }); setModeloId(""); setAgendarPara(""); setAgendarHora("09:00"); setRastrear(true);
     setSources([]); setStatuses([]); setCanais([]); setCampanhas([]); setManual([]); setDoRadar([]); setManualText(""); setFileName(""); setExcluir([]); setShowList(false);
     setInclLeads(true); setInclClientes(false); setInclContatos(false); setInclEquipe(false);
   };
@@ -349,8 +352,8 @@ export default function MarketingEmail() {
     } catch (e: any) { toast.error(e.message); }
   };
 
-  const canCreate = name.trim() && subject.trim() && corpo.trim() && (preview?.total ?? 0) > 0 && !creating && !previewing;
-  const falta = [!name.trim() && "nome", !subject.trim() && "assunto", !corpo.trim() && "conteúdo", !(preview?.total ?? 0) && "público"].filter(Boolean) as string[];
+  const canCreate = name.trim() && subject.trim() && corpo.trim() && (preview?.total ?? 0) > 0 && !(agendarPara && (!agendarHora || horarioPassou)) && !creating && !previewing;
+  const falta = [!name.trim() && "nome", !subject.trim() && "assunto", !corpo.trim() && "conteúdo", !(preview?.total ?? 0) && "público", !!agendarPara && (!agendarHora || horarioPassou) && "um horário que ainda não passou"].filter(Boolean) as string[];
 
   return (
     <PageContainer
@@ -419,9 +422,11 @@ export default function MarketingEmail() {
           <Button onClick={() => void salvarEdicao(false)} disabled={salvando || !name.trim() || !subject.trim() || !corpo.trim()} className="h-9 px-5 text-xs font-bold gap-1.5">{salvando && <Loader2 className="w-3.5 h-3.5 animate-spin" />} Salvar alterações</Button>
         </> : <>
           {!canCreate && !creating && falta.length > 0 && <span className="mr-auto text-[11px] text-[var(--color-text-faint)]">Para criar, falta: {falta.join(", ")}.</span>}
-          <label className="flex items-center gap-2 text-[11px] font-bold text-[var(--color-text-muted)]" title="Sai sozinha a partir das 9h do dia escolhido">Enviar em (9h)
+          <label className="flex items-center gap-2 text-[11px] font-bold text-[var(--color-text-muted)]" >Enviar em
             <input type="date" value={agendarPara} min={new Date(Date.now() - 3 * 3600_000).toISOString().slice(0, 10)} onChange={(e) => setAgendarPara(e.target.value)} className="h-9 px-2 rounded-lg text-xs border border-[var(--color-border-default)] bg-[var(--color-surface)] text-[var(--color-text-primary)]" />
-            <HelpTip label="Agendamento">Deixe em branco para disparar você mesmo quando quiser. Com uma data, a campanha sai sozinha no envio automático das 10h (Brasília) desse dia, mesmo com o sistema fechado. Você ainda pode enviar antes pelo botão.</HelpTip>
+            às
+            <input type="time" step={300} aria-label="Horário do envio (Brasília)" value={agendarHora} disabled={!agendarPara} onChange={(e) => setAgendarHora(e.target.value)} className="h-9 px-2 rounded-lg text-xs border border-[var(--color-border-default)] bg-[var(--color-surface)] text-[var(--color-text-primary)] disabled:opacity-50" />
+            <HelpTip label="Agendamento">Deixe a data em branco para disparar você mesmo quando quiser. Com data e hora (de Brasília), a campanha sai sozinha em até 5 minutos depois do horário, mesmo com o sistema fechado. Você ainda pode enviar antes pelo botão.</HelpTip>
           </label>
           <Button variant="outline" onClick={fecharFormulario} disabled={creating} className="h-9 px-4 text-xs">Cancelar</Button>
           <Button onClick={() => void create()} disabled={!canCreate} className="h-9 px-5 text-xs font-bold gap-1.5">{creating && <Loader2 className="w-3.5 h-3.5 animate-spin" />} {agendarPara ? "Agendar campanha" : "Criar campanha"}</Button>

@@ -239,6 +239,11 @@ test("e-mail agendado: data válida de hoje até 90 dias, em horário de Brasíl
   assert.deepEqual(parseAgendamento("", agora), { ok: true, quando: null });
   assert.deepEqual(parseAgendamento("2026-11-19", agora), { ok: true, quando: "2026-11-19T09:00:00-03:00" });
   assert.equal(parseAgendamento("2026-11-18", agora).ok, false);
+  assert.deepEqual(parseAgendamento("2026-11-20", agora, "14:35"), { ok: true, quando: "2026-11-20T14:35:00-03:00" });
+  assert.equal(parseAgendamento("2026-11-20", agora, "25:00").ok, false);
+  const meioDia = new Date("2026-11-19T15:00:00Z"); // 12h em Brasília
+  assert.equal(parseAgendamento("2026-11-19", meioDia, "11:00").ok, false);
+  assert.equal(parseAgendamento("2026-11-19", meioDia, "12:30").ok, true);
   assert.equal(parseAgendamento("2027-03-01", agora).ok, false);
   assert.equal(parseAgendamento("amanhã", agora).ok, false);
   // 01h UTC ainda é "ontem" em Brasília

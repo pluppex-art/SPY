@@ -36,12 +36,13 @@ const SITUACOES = [
 
 const semAcento = (s: string) => s.normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase();
 const dia = (iso: string) => new Date(iso).toLocaleDateString("pt-BR", { timeZone: "America/Sao_Paulo", day: "2-digit", month: "2-digit", year: "2-digit" });
+const hora = (iso: string) => new Date(iso).toLocaleTimeString("pt-BR", { timeZone: "America/Sao_Paulo", hour: "2-digit", minute: "2-digit" });
 const pct = (parte: number, todo: number) => (todo ? Math.round((parte / todo) * 100) : 0);
 /** Percentual de abertura ou clique; sem envio ou sem contagem, um traço. */
 const taxa = (c: Campanha, n: number | undefined) => (c.sent && !(c.sem_rastreio && !n) ? `${pct(n || 0, c.sent)}%` : "—");
 
 function Situacao({ c }: { c: Campanha }) {
-  const [texto, cor] = c.status === "ready" && c.agendada_para ? [`Agendada ${dia(c.agendada_para)}`, "bg-amber-500/15 text-amber-700 dark:text-amber-400"]
+  const [texto, cor] = c.status === "ready" && c.agendada_para ? [`Agendada ${dia(c.agendada_para)} ${hora(c.agendada_para)}`, "bg-amber-500/15 text-amber-700 dark:text-amber-400"]
     : c.status === "ready" ? ["Pronta", "bg-sky-500/15 text-sky-700 dark:text-sky-400"]
       : c.status === "sending" ? ["Enviando", "bg-[var(--color-primary-blue)]/15 text-[var(--color-primary-blue)]"]
         : c.status === "done" ? ["Enviada", "bg-emerald-500/15 text-emerald-700 dark:text-emerald-400"]
