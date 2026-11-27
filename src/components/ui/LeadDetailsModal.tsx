@@ -17,8 +17,6 @@ import { MotivoModal } from "./MotivoModal";
 import { MOTIVOS_PERDA_LEAD } from "../../lib/motivos";
 import { LeadDetailsModalFooter } from "./lead-details/LeadDetailsModal.Footer";
 import { LeadDetailsModalHero } from "./lead-details/LeadDetailsModalHero";
-import { useMetodo } from "../metodo/MetodoProvider";
-import { interceptar } from "../../lib/metodo/interceptador";
 
 import { useLeadDetails } from "./lead-details/useLeadDetails";
 import { LeadCopilot } from "./LeadCopilot";
@@ -127,7 +125,6 @@ export function LeadDetailsModal({ isOpen, onClose, lead }: LeadDetailsModalProp
     navigate("/app/reunioes/" + reuniaoId);
   };
 
-  const metodo = useMetodo();
   if (!lead) return null;
 
   const leadActs = leadActivities.filter((a: any) => a.leadId === lead.id);
@@ -164,14 +161,9 @@ export function LeadDetailsModal({ isOpen, onClose, lead }: LeadDetailsModalProp
     toast.success(`Lead movido para o funil "${funil.nome}".`);
   };
 
-  // Em funil com o método, a etapa mostrada é a do banco (quem move é o Agente Secreto).
-  const noMetodo = !!metodo.info(liveLead);
-
   const moveToStage = (stg: any) => {
-    const newStatus = statusFromStageName(stg.name);
-    const ganhou = newStatus === "Fechado" || stg.id === findWonStage(stagesDef)?.id;
-    if (interceptar(lead.id, { stageId: stg.id, status: newStatus }, () => { setCurrentStageId(stg.id); if (ganhou) enrollInLinkedTurmas(); })) return;
     setCurrentStageId(stg.id);
+    const newStatus = statusFromStageName(stg.name);
     updateLead(lead.id, { stageId: stg.id, status: newStatus });
     if (isLeadLost(newStatus)) setPedirMotivo(true);
     else if (liveLead?.lost_reason) updateLead(lead.id, { lost_reason: null });
@@ -235,7 +227,7 @@ export function LeadDetailsModal({ isOpen, onClose, lead }: LeadDetailsModalProp
             priority={priority}
             slaStatus={slaStatus}
             stagesDef={stagesDef}
-            currentStageId={noMetodo ? String(liveLead.stageId) : currentStageId}
+            currentStageId={currentStageId}
             lead={lead}
             seller={seller}
             setAlterationLogs={setAlterationLogs}

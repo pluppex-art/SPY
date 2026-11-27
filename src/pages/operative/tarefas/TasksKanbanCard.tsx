@@ -6,7 +6,6 @@ import { KanbanColConfig } from "../../../hooks/useKanbanConfig";
 import { useData } from "../../../contexts/DataContext";
 import { cn } from "../../../lib/utils";
 import { formatDueDate, isTaskOverdue, parseTaskMeta, initialsOf, PRIORITY_CHIP } from "./taskUtils";
-import { SeloDaTarefa } from "../../../components/metodo/SeloDaTarefa";
 
 interface TasksKanbanCardProps {
   task: Task;
@@ -110,7 +109,6 @@ export function TasksKanbanCard({
       </div>
 
       <div className="mt-1.5 flex flex-wrap items-center gap-1.5">
-        <SeloDaTarefa task={task} />
         {task.departamento && (
           <span className="inline-flex items-center px-2 py-0.5 rounded-md bg-[var(--color-surface-sunken)] border border-[var(--color-border-default)] text-[10px] font-black uppercase tracking-wide text-[var(--color-text-muted)]">{task.departamento}</span>
         )}

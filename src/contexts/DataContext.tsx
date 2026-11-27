@@ -1,10 +1,8 @@
-import { interceptar } from "../lib/metodo/interceptador";
-import { ehChamado, linkDoWhatsApp, saudacao } from "../lib/metodo/regras";
 import { setUnidadeMax, type UnidadeMax } from "../lib/unidadeMaxdata";
 import React, { useState, useEffect, useMemo } from 'react';
 import { findDuplicateLead, fillEmptyLeadFields } from "../lib/leadDedupe";
 import { toast } from 'sonner';
-import { queueNotificationPopup, queueChamadoPopup, showPendingSummaryPopup, showSalePopup, showNewLeadPopup } from '../lib/popups';
+import { queueNotificationPopup, showPendingSummaryPopup, showSalePopup, showNewLeadPopup } from '../lib/popups';
 import { shouldPopupNewLead, shouldPopupNotification, isRuidoDeAutomacao } from '../lib/notificationRules';
 import { sendPushNotification } from "../lib/notifications";
 import { supabase, fetchTenantPrimaryColor, updateTenantTheme } from '../lib/supabase';
@@ -691,9 +689,6 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
     horarioFim: r.horario_fim || '',
     diasSemana: r.dias_semana || [],
     contextoIA: r.contexto_ia || '',
-    // Método do funil (só leitura aqui: quem liga é o banco).
-    metodoAtivo: !!r.metodo_ativo,
-    template: r.template,
   });
 
   const funilToRow = (f: any) => ({
@@ -1166,12 +1161,7 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
         .on('postgres_changes', { event: '*', schema: 'public', table: 'notifications' }, (payload) => {
           if (payload.eventType === 'INSERT' && payload.new && (payload.new as any).tenant_id === tenantId) {
             const n = payload.new as any;
-            const paraMim = shouldPopupNotification(userRef.current as any, n) && !isRuidoDeAutomacao(n);
-            if (paraMim && ehChamado(n) && n.lead_id) {
-              // Repescagem: a mesma notificação em pop-up, e o toque abre a conversa no WhatsApp (o agente acompanha dali).
-              const lead = (leadsRef.current as any[]).find((l) => l.id === n.lead_id);
-              queueChamadoPopup({ leadId: n.lead_id, nome: lead?.name || n.description || 'lead', motivo: n.title, whatsapp: linkDoWhatsApp(lead?.phone, saudacao(lead?.name)), onOpen: () => markNotificationAsRead(n.id) });
-            } else if (paraMim) queueNotificationPopup({ title: n.title, description: n.description || 'Nova notificação', type: n.type, link_url: n.link_url });
+            if (shouldPopupNotification(userRef.current as any, n) && !isRuidoDeAutomacao(n)) queueNotificationPopup({ title: n.title, description: n.description || 'Nova notificação', type: n.type, link_url: n.link_url });
           }
           applyRealtimeUpsert(setNotifications, payload, (r) => r as Notification, tenantId);
         })
@@ -2079,21 +2069,7 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
     }
   };
 
-  /** Relê um lead depois que uma função do banco o alterou. */
-  const recarregarLead = React.useCallback(async (id: string) => {
-    if (!supabase) return;
-    const { data, error } = await supabase.from('leads').select('*').eq('id', id).maybeSingle();
-    if (error || !data) { console.warn('[leads] recarregar:', error?.message); return; }
-    setLeads(prev => prev.map(l => (l.id === id ? (mapLeadRow(data) as Lead) : l)));
-  }, []);
-
   const updateLead = async (id: string, updates: Partial<Lead>) => {
-    // Funil com o método ligado: mudança de etapa passa pela janela própria (nota, motivo, pagamento). O resto segue.
-    const restante = interceptar(id, updates as Record<string, any>);
-    if (restante) {
-      if (!Object.keys(restante).length) return false; // nada gravado ainda: a pessoa decide na janela
-      updates = restante as Partial<Lead>;
-    }
     let hasStatusOrStageChange = false;
     let becameWon = false;
     // Capturado dentro do updater para repassar pro recálculo de score abaixo —
@@ -3827,7 +3803,7 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
       leads: vis?.leads ?? leads, avgWonTicket, tasks: vis?.tasks ?? tasks, contracts: vis?.contracts ?? contracts, vendasDiretas, notifications: visibleNotifications, leadActivities: vis?.leadActivities ?? leadActivities, loadLeadHistory, financeEntries, appointments,
       sellerRestricted,
       theme, toggleTheme,
-      addLead, ensureLeadForCliente, updateLead, recarregarLead, deleteLead, moveLead,
+      addLead, ensureLeadForCliente, updateLead, deleteLead, moveLead,
       addTask, updateTask, deleteTask, addContract, updateContract, deleteContract,
       addNotification, markNotificationAsRead, markAllNotificationsAsRead, deleteNotifications, clearAllNotifications,
       addLeadActivity,

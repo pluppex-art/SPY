@@ -21,7 +21,6 @@ import { WebhookModal } from "./components/Pipeline/WebhookModal";
 import { PipelineListaView } from "./components/Pipeline/PipelineListaView";
 import { PipelineFilterBar } from "./components/Pipeline/PipelineFilterBar";
 import { PipelineKanbanBoard } from "./components/Pipeline/PipelineKanbanBoard";
-import { useOrdemDoQuadro } from "../../components/metodo/ordemDoQuadro";
 import { PipelineDefaultState } from "./components/Pipeline/PipelineDefaultState";
 import { PipelineEmptySelection } from "./components/Pipeline/PipelineEmptySelection";
 import { isLeadOpen } from "../../lib/leadStatus";
@@ -84,7 +83,6 @@ export default function Pipeline() {
     triggerCelebration, exportPDF,
     handleExportIAResume, handleTransferToComercial,
     handleWinStageDrop,
-    activeFunil,
   } = usePipeline();
   const { formatCurrency } = useLocalization();
 
@@ -185,9 +183,6 @@ export default function Pipeline() {
     setSellerFilter("Todos"); setProductFilter("Todos"); setDateFrom(null); setDateTo(null); setStageFilter("Todas"); setSourceFilter("Todas");
   };
 
-  // Funil com o método: o que está atrasado aparece primeiro em cada coluna.
-  const ordemDoQuadro = useOrdemDoQuadro(activeFunil);
-
   const listaLeads = useMemo(() =>
     (filteredItemsList as any[])
       .filter((l: any) => temperatureFilter === "Todas" || l.temperature === temperatureFilter)
@@ -262,7 +257,6 @@ export default function Pipeline() {
               <PipelineKanbanBoard
                 activePipelineStages={activePipelineStages}
                 filteredItemsList={filteredItemsList} tasks={tasks}
-                ordemDeAtencao={ordemDoQuadro}
                 showAnalytics={showAnalytics}
                 draggedLeadId={draggedLeadId} setDraggedLeadId={setDraggedLeadId}
                 draggedOverStageId={draggedOverStageId} setDraggedOverStageId={setDraggedOverStageId}

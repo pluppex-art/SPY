@@ -1,4 +1,3 @@
-import { interceptar } from "../../../lib/metodo/interceptador";
 import React from "react";
 import { AI_OUTSIDE_AURORA_ENABLED } from "../../../lib/featureFlags";
 import { Trophy, ThumbsDown, X, Brain, ChevronRight, User, Check, CalendarPlus } from "lucide-react";
@@ -74,7 +73,6 @@ export function LeadDetailsModalHero({
             <button
               onClick={() => {
                 const wonStage = findWonStage(stagesDef);
-                if (interceptar(lead.id, { status: "Fechado" })) return;
                 updateLead(lead.id, {
                   stageId: wonStage?.id ?? "5",
                   status: "Fechado",
@@ -94,7 +92,6 @@ export function LeadDetailsModalHero({
             </button>
             <button
               onClick={() => {
-                if (interceptar(lead.id, { status: "Perdido" })) return;
                 updateLead(lead.id, {
                   status: "Perdido",
                   scoreIA: 10,
