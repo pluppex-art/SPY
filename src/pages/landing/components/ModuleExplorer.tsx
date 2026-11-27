@@ -19,25 +19,25 @@ export function ModuleExplorer() {
           Uma plataforma. Quatro pilares.
         </h2>
         <p className="sp-lede" {...rv(1)}>
-          Escolha um pilar e veja o que ele entrega. As telas são do S.P.Y. com dados fictícios.
+          É o centro do S.P.Y. Escolha um pilar e veja o que ele entrega. As telas são do sistema, com dados fictícios.
         </p>
 
         <div {...rv(2)}>
           <TabsBar
             prefix="mod"
             label="Pilares do S.P.Y."
+            className="sp-tabs--pilares"
             active={tabId}
             onChange={(id) => {
               setTabId(id);
               setItemIdx(0);
             }}
-            items={EXPLORER.map((t) => ({ id: t.id, label: t.label }))}
+            items={EXPLORER.map((t, i) => ({ id: t.id, label: t.label, desc: t.intro, icon: <span className="sp-tab__num" aria-hidden="true">{String(i + 1).padStart(2, "0")}</span> }))}
           />
         </div>
 
         <div role="tabpanel" id="mod-panel" aria-labelledby={`mod-tab-${tabId}`} className={`sp-mod${hasImg ? "" : " sp-mod--noimg"}`} key={tabId} data-anim="panel">
           <div>
-            <p className="sp-mod__intro">{tab.intro}</p>
             <ul className="sp-mod__list">
               {tab.items.map((it, i) => (
                 <li key={it.title}>

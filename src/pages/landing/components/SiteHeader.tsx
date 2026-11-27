@@ -3,10 +3,10 @@ import { Link, useLocation } from "react-router-dom";
 import { Menu, X } from "lucide-react";
 
 export const NAV_LINKS = [
-  { href: "#recursos", label: "O que faz" },
   { href: "#modulos", label: "Pilares" },
+  { href: "#recursos", label: "Como funciona" },
   { href: "#aurora", label: "Aurora" },
-  { href: "#nichos", label: "Segmentos" },
+  { href: "#complementares", label: "Módulos" },
   { href: "#planos", label: "Planos" },
   { href: "#faq", label: "Perguntas" },
 ];

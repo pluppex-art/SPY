@@ -5,6 +5,8 @@ export interface TabItem {
   id: string;
   label: string;
   icon?: ReactNode;
+  /** Linha de apoio abaixo do nome (abas em cartão, como a dos pilares). */
+  desc?: string;
 }
 
 /** Abas acessíveis (roving tabindex, setas, Home/End). O painel é responsabilidade do pai: id `${prefix}-panel`, aria-labelledby `${prefix}-tab-${id}`. */
@@ -58,7 +60,7 @@ export function TabsBar({
             onClick={() => onChange(t.id, true)}
           >
             {t.icon}
-            {t.label}
+            {t.desc ? <span className="sp-tab__txt"><strong>{t.label}</strong><span>{t.desc}</span></span> : t.label}
           </button>
         );
       })}

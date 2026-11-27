@@ -15,10 +15,10 @@ export function SiteFooter() {
           <nav aria-label="Navegação do rodapé">
             <h2>Produto</h2>
             <ul>
-              <li><A href="#recursos">O que faz</A></li>
               <li><A href="#modulos">Pilares</A></li>
+              <li><A href="#recursos">Como funciona</A></li>
               <li><A href="#aurora">Aurora</A></li>
-              <li><A href="#financeiro">Financeiro</A></li>
+              <li><A href="#complementares">Módulos complementares</A></li>
               <li><A href="#integracoes">Integrações e segurança</A></li>
               <li><A href="#planos">Planos</A></li>
               <li><A href="#implantacao">Implantação</A></li>

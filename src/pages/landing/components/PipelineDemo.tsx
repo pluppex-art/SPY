@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { LayoutGroup, motion, useInView, useReducedMotion } from "motion/react";
-import { Check, Columns3, Sparkles, Wallet, LayoutDashboard, CalendarDays, Mail, BarChart3 } from "lucide-react";
+import { Check, Columns3, Sparkles, FileCheck2, FileText, LayoutDashboard, CalendarDays, Mail, BarChart3 } from "lucide-react";
 
 const EASE = [0.23, 1, 0.32, 1] as const;
 const STEP_MS = 1600;
@@ -10,7 +10,7 @@ const SIDE = [
   { icon: LayoutDashboard, label: "Visão Geral" },
   { icon: Columns3, label: "Leads & Pipeline", current: true },
   { icon: CalendarDays, label: "Agenda & Reuniões" },
-  { icon: Wallet, label: "Gestão Financeira" },
+  { icon: FileText, label: "Propostas" },
   { icon: Mail, label: "Chat" },
   { icon: BarChart3, label: "Inteligência & BI" },
 ];
@@ -22,7 +22,7 @@ const STATIC = [
 
 /**
  * Demonstração ilustrativa (dados de exemplo): um lead percorre Novo → Em contato → Proposta → Fechado
- * e a fatura aparece no financeiro. Roda uma vez, 1 passo a cada 1,6 s, só quando visível e com a aba ativa.
+ * e o contrato nasce do aceite. Roda uma vez, 1 passo a cada 1,6 s, só quando visível e com a aba ativa.
  * Com reduced-motion mostra direto o estado final.
  */
 export function PipelineDemo() {
@@ -54,7 +54,7 @@ export function PipelineDemo() {
   const transition = reduce ? { duration: 0 } : { duration: 0.55, ease: EASE };
 
   return (
-    <div className="sp-app" role="img" aria-label="Exemplo ilustrativo: um lead passa pelas etapas do pipeline e a fatura é gerada no financeiro." ref={ref}>
+    <div className="sp-app" role="img" aria-label="Exemplo ilustrativo: um lead passa pelas etapas do pipeline e o contrato é criado a partir do aceite." ref={ref}>
       <div className="sp-app__bar" aria-hidden="true">
         <Columns3 size={16} strokeWidth={1.75} />
         <strong>Leads & Pipeline</strong>
@@ -103,8 +103,8 @@ export function PipelineDemo() {
         </LayoutGroup>
       </div>
       <div className="sp-invoice" data-on={step >= 4} aria-hidden="true">
-        <Wallet size={18} strokeWidth={1.75} />
-        Fatura gerada no financeiro
+        <FileCheck2 size={18} strokeWidth={1.75} />
+        Contrato criado a partir do aceite
       </div>
       <div className="sp-app__foot" aria-hidden="true">
         <Sparkles size={16} strokeWidth={1.75} />

@@ -3,8 +3,7 @@ import { SiteHeader } from "./components/SiteHeader";
 import { HeroSection } from "./components/HeroSection";
 import { LifecycleSection } from "./components/LifecycleSection";
 import { ModuleExplorer } from "./components/ModuleExplorer";
-import { FinanceSection } from "./components/FinanceSection";
-import { SegmentsSection } from "./components/SegmentsSection";
+import { ComplementSection } from "./components/ComplementSection";
 import { TrustSecuritySection } from "./components/TrustSecuritySection";
 import { ContactSection } from "./components/ContactSection";
 import { NeuralSection } from "./components/NeuralSection";
@@ -51,12 +50,11 @@ export default function LandingPage() {
         <HeroSection />
         <TrustRow />
         <ProblemSection />
-        <LifecycleSection />
         <ModuleExplorer />
+        <ComplementSection />
+        <LifecycleSection />
         <NeuralSection />
-        <FinanceSection />
         <RoiSimulator />
-        <SegmentsSection />
         <TrustSecuritySection />
         <PlansSection />
         <ProcessSection />

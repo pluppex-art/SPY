@@ -36,16 +36,9 @@ export const LIFECYCLE: LifecycleStep[] = [
   {
     id: "contrato",
     label: "Contrato",
-    title: "Do aceite nascem o contrato e o lançamento a receber",
-    text: "Quando o cliente aceita, o contrato e o lançamento a receber são criados automaticamente, sem digitar duas vezes e sem duplicar se o aceite for repetido.",
-    points: ["Contrato criado a partir do aceite", "Lançamento a receber criado junto", "Reconciliação sem duplicidade"],
-  },
-  {
-    id: "financeiro",
-    label: "Financeiro",
-    title: "O dinheiro acompanhado até o caixa",
-    text: "Contas a receber, cobranças e inadimplência por faixa de atraso, com fluxo de caixa, projeção, DRE e MRR no mesmo sistema.",
-    points: ["Contas a pagar e a receber", "Inadimplência por faixa de atraso", "Fluxo de caixa, projeção, DRE e MRR"],
+    title: "Do aceite nasce o contrato, sem digitar de novo",
+    text: "Quando o cliente aceita, o contrato é criado automaticamente, sem duplicar se o aceite for repetido. Com o módulo Financeiro, o lançamento a receber nasce junto.",
+    points: ["Contrato criado a partir do aceite", "Editor de cláusulas e PDF", "Sem duplicidade se o aceite se repetir"],
   },
 ];
 
@@ -65,20 +58,18 @@ export interface ExplorerTab {
 export const EXPLORER: ExplorerTab[] = [
   {
     id: "inteligencia",
-    label: "01. Inteligência",
+    label: "Inteligência",
     intro: "Identificação e acompanhamento de oportunidades. É o espião que capta os dados.",
     slot: "pipeline",
     items: [
       { title: "Agente Secreto de Vendas", text: "Acompanha o WhatsApp conectado de cada vendedor e alimenta o funil de vendas.", slot: "pipeline" },
       { title: "Radar de busca e de grupos", text: "Busca empresas no Google Maps e acompanha os grupos cadastrados, avisando o vendedor quando acha uma oportunidade." },
-      { title: "Agente Secreto Interno", text: "Acompanha os grupos da equipe por departamento e cria tarefas, ordens de serviço e pedidos a partir das mensagens.", slot: "tarefas" },
       { title: "Rodízio e captação", text: "Formulário público, API pública com chave, importação CSV e rodízio de leads entre vendedores." },
-      { title: "Marketing", text: "Campanhas, conteúdo, analytics, landing pages e formulários." },
     ],
   },
   {
     id: "recuperacao",
-    label: "02. Recuperação",
+    label: "Recuperação",
     intro: "Retomada de clientes e negociações.",
     slot: "agenda",
     items: [
@@ -91,7 +82,7 @@ export const EXPLORER: ExplorerTab[] = [
   },
   {
     id: "dados",
-    label: "03. Dados",
+    label: "Dados",
     intro: "Organização e centralização das informações.",
     slot: "pipeline",
     items: [
@@ -105,118 +96,30 @@ export const EXPLORER: ExplorerTab[] = [
   },
   {
     id: "gestao",
-    label: "04. Gestão",
+    label: "Gestão",
     intro: "Relatórios, indicadores e acompanhamento.",
     slot: "dashboard",
     items: [
       { title: "Central de Receita", text: "Painel executivo com a receita e os indicadores da operação.", slot: "dashboard" },
       { title: "Indicadores e relatórios executivos", text: "Relatórios para a diretoria e performance do SDR e da IA." },
-      { title: "Financeiro completo", text: "Contas a pagar e a receber, DRE, MRR, conciliação e mais.", slot: "financeiro" },
-      { title: "Comissões", text: "Cálculo de comissões por vendedor." },
-      { title: "Equipe e RH", text: "Colaboradores, cargos e permissões de acesso." },
-      { title: "Ordens de serviço", text: "Registro e acompanhamento das ordens de serviço." },
+      { title: "Auditoria de pipeline e performance", text: "A Aurora revisa o funil e o desempenho do time e aponta o que merece atenção.", slot: "aurora" },
+      { title: "Briefing diário", text: "Um resumo do dia, entregue por automação com n8n." },
     ],
   },
 ];
 
-export const FINANCE_GROUPS: { title: string; items: string[] }[] = [
-  { title: "Contas e cobrança", items: ["Contas a pagar e a receber", "Cobranças", "Inadimplência por faixa de atraso", "Comissões"] },
-  { title: "Caixa e visão", items: ["Fluxo de caixa", "Projeção", "DRE", "MRR", "Orçamentos"] },
-  { title: "Bancos", items: ["Contas bancárias e transferências", "Conciliação de extrato OFX e QFX", "Importação por CSV"] },
-  { title: "Organização", items: ["Centros de custo", "Tags", "Rateio", "Anexos nos lançamentos"] },
-  { title: "Relatórios", items: ["Extrato", "Desempenho mensal e anual", "Relatórios agrupados"] },
-  { title: "Controle", items: ["Bloqueio de período", "Trilha de auditoria financeira"] },
-];
-
-export interface Segment {
-  id: string;
-  name: string;
-  form: string;
-  modules: string[];
-  scenarioTitle: string;
-  scenario: string[];
-}
-
-export const SEGMENTS: Segment[] = [
-  {
-    id: "clinica",
-    name: "Clínica",
-    form: "/f/clinica",
-    modules: ["Agenda médica", "Pacientes", "Prontuários", "Telemedicina", "Faturamento clínico", "Exames e laboratórios", "BI clínico"],
-    scenarioTitle: "Da primeira mensagem ao faturamento",
-    scenario: [
-      "O contato do paciente entra no pipeline como lead.",
-      "A consulta é marcada na agenda médica, com Google Calendar e link do Meet para telemedicina.",
-      "Prontuário e exames ficam registrados no cadastro do paciente.",
-      "O faturamento clínico chega ao contas a receber do financeiro.",
-    ],
-  },
-  {
-    id: "automotivo",
-    name: "Concessionária",
-    form: "/f/automotivo",
-    modules: ["Captações", "Avaliações de usados", "Consignações", "Trocas e repasses", "Test-drives agendados", "Vendedores"],
-    scenarioTitle: "Do interessado ao veículo entregue",
-    scenario: [
-      "O lead entra com score de IA e temperatura, e cai no rodízio dos vendedores.",
-      "O test-drive é marcado na agenda.",
-      "O usado do cliente passa por avaliação e a proposta inclui a troca.",
-      "O cliente aceita online; contrato e lançamento a receber nascem do aceite.",
-    ],
-  },
-  {
-    id: "imobiliaria",
-    name: "Imobiliária",
-    form: "/f/imobiliaria",
-    modules: ["Proprietários", "Captações", "Empreendimentos", "Corretores", "Visitas agendadas", "Portal público do imóvel"],
-    scenarioTitle: "Da captação do imóvel à proposta",
-    scenario: [
-      "O imóvel é captado e vinculado ao proprietário.",
-      "O imóvel ganha uma página pública, e o corretor, o seu portfólio.",
-      "A visita é agendada e acompanhada no pipeline.",
-      "A proposta segue por link, com aceite online e contrato.",
-    ],
-  },
-  {
-    id: "varejo",
-    name: "Varejo",
-    form: "/f/varejo",
-    modules: ["Frente de Caixa (PDV)", "Movimentações de estoque", "Fornecedores", "Pedidos de compra", "Notas de entrada", "Catálogo de produtos"],
-    scenarioTitle: "Do balcão ao caixa da empresa",
-    scenario: [
-      "O cliente chega pelo formulário ou pelo balcão e vira cliente cadastrado, sem duplicidade.",
-      "A venda é registrada na Frente de Caixa (PDV).",
-      "Compras, fornecedores e notas de entrada ficam no mesmo sistema do estoque.",
-      "Recebimentos e despesas aparecem no financeiro, com DRE.",
-    ],
-  },
-  {
-    id: "solar",
-    name: "Energia solar",
-    form: "/f/solar",
-    modules: ["Projetos solares", "Vistorias técnicas", "Análise de fatura e kWp por IA", "Instalações e obras", "Homologações", "Manutenções e pós-venda"],
-    scenarioTitle: "Da fatura de luz à usina instalada",
-    scenario: [
-      "O lead envia a fatura de energia e a IA ajuda na análise e no dimensionamento em kWp.",
-      "A proposta sai com os itens do projeto e vai por link para o aceite.",
-      "Vistoria técnica, instalação e obra são acompanhadas por projeto.",
-      "Homologação e manutenções ficam registradas no pós-venda.",
-    ],
-  },
-  {
-    id: "educacao",
-    name: "Escola",
-    form: "/f/educacao",
-    modules: ["Turmas", "Base de alunos", "Banco de conteúdo", "Certificados", "Mensalidades"],
-    scenarioTitle: "Da matrícula ao certificado",
-    scenario: [
-      "O interessado entra no pipeline por formulário e recebe o contato do time.",
-      "O aluno é cadastrado e vinculado a uma turma.",
-      "As mensalidades são acompanhadas no financeiro, com inadimplência por faixa.",
-      "Ao final do curso, o certificado é emitido pelo sistema.",
-    ],
-  },
-];
+/** Módulos que complementam os quatro pilares, contratados à parte (ver "Preciso usar todos os módulos?" no FAQ). */
+export const COMPLEMENTS: { areas: string[]; segments: { name: string; form: string }[] } = {
+  areas: ["Financeiro", "Marketing", "Agente Secreto Interno", "Equipe e RH", "Ordens de serviço"],
+  segments: [
+    { name: "Varejo", form: "/f/varejo" },
+    { name: "Automotivo", form: "/f/automotivo" },
+    { name: "Energia solar", form: "/f/solar" },
+    { name: "Imobiliária", form: "/f/imobiliaria" },
+    { name: "Clínica", form: "/f/clinica" },
+    { name: "Educação", form: "/f/educacao" },
+  ],
+};
 
 export const AURORA_CAPS: [string, string][] = [
   ["Consulta os seus dados", "Pergunte sobre pipeline, leads sem contato, reuniões, tarefas, financeiro, propostas, clientes e produtos."],

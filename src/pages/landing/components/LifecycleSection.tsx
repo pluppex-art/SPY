@@ -6,7 +6,7 @@ import { PipelineDemo } from "./PipelineDemo";
 import { LIFECYCLE } from "../content";
 import { rv } from "../reveal";
 
-/** "Do lead ao dinheiro": passos clicáveis. Avança sozinho até a primeira interação (e nunca com reduced-motion). */
+/** "Do lead ao contrato": passos clicáveis. Avança sozinho até a primeira interação (e nunca com reduced-motion). */
 export function LifecycleSection() {
   const reduce = useReducedMotion();
   const [active, setActive] = useState(LIFECYCLE[0].id);
@@ -33,10 +33,10 @@ export function LifecycleSection() {
     <section id="recursos" className="sp-section" aria-labelledby="sp-recursos-title">
       <div className="sp-wrap">
         <h2 id="sp-recursos-title" className="sp-h2" {...rv()}>
-          Do lead ao dinheiro, sem sair do sistema.
+          Do lead ao contrato, sem sair do sistema.
         </h2>
         <p className="sp-lede" {...rv(1)}>
-          Vendas e financeiro usam a mesma base. O que acontece no pipeline chega ao caixa sem digitar duas vezes. Clique em cada etapa para ver o que o S.P.Y. faz.
+          Os quatro pilares trabalhando juntos no dia a dia: o que acontece no pipeline segue para a proposta e o contrato sem digitar duas vezes. Clique em cada etapa.
         </p>
 
         <div className="sp-life" ref={ref} {...rv(2)}>
