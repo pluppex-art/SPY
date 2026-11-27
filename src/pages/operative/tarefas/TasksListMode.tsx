@@ -7,6 +7,7 @@ import {
 import { Task } from "../../../types";
 import { KanbanColConfig } from "../../../hooks/useKanbanConfig";
 import { useData } from "../../../contexts/DataContext";
+import { SeloDaTarefa } from "../../../components/metodo/SeloDaTarefa";
 
 /** Formata `due_date` (ISO) pro estilo "Hoje, 09:00" / "Amanhã" / "12 mar". */
 function formatDueDate(iso?: string | null): string {
@@ -98,6 +99,7 @@ export function TasksListMode({
                      }`}>
                        {t.status}
                      </span>
+                     <SeloDaTarefa task={t} />
                   </div>
                   <h4
                     onClick={() => onOpenDetails?.(t)}

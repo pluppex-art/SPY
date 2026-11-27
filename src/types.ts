@@ -141,6 +141,9 @@ export interface Task {
   filial_id?: string | null;
   /** Área responsável pela tarefa (Comercial, Dev, Marketing...). Vazio = sem área definida. */
   departamento?: string | null;
+  /** Método do funil (só leitura: quem preenche é o banco). 'automacao' = criada pelo método. */
+  origem?: 'manual' | 'automacao' | null;
+  situacao_codigo?: string | null;
 
   // Campos auxiliares de integração com Google Calendar — não são colunas da
   // tabela `tasks` (removidos do payload antes do insert/update em

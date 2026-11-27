@@ -10,6 +10,7 @@ import { calculateLeadScore, normalizeText } from "../../../../lib/leadScore";
 import { statusFromStageName, isLeadLost } from "../../../../lib/leadStatus";
 import { MotivoModal } from "../../../../components/ui/MotivoModal";
 import { MOTIVOS_PERDA_LEAD } from "../../../../lib/motivos";
+import { interceptar } from "../../../../lib/metodo/interceptador";
 import { useFillViewportHeight } from "../../../../hooks/useFillViewportHeight";
 import { useAuth } from "../../../../contexts/AuthContext";
 import { useMaxdataPage, useMaxdataStats, MAXDATA_TODAS } from "../../../../lib/useMaxdataPage";
@@ -77,6 +78,8 @@ interface PipelineKanbanBoardProps {
   triggerCelebration?: () => void;
   onReuniaoStageDrop?: (leadId: string, stage: any) => void;
   onWinStageDrop?: (leadId: string, stage: any) => void;
+  /** Ordem extra dentro da coluna (funil com o método: prazo estourado e lead quente primeiro). */
+  ordemDeAtencao?: (a: any, b: any) => number;
 }
 
 export function PipelineKanbanBoard({
@@ -103,6 +106,7 @@ export function PipelineKanbanBoard({
   triggerCelebration,
   onReuniaoStageDrop,
   onWinStageDrop,
+  ordemDeAtencao,
 }: PipelineKanbanBoardProps) {
   const { products, proposals } = useData();
   const { formatCurrency } = useLocalization();
@@ -141,6 +145,13 @@ export function PipelineKanbanBoard({
       const targetLead = filteredItemsList.find((l: any) => l.id === leadId);
       const newStatus = statusFromStageName(stage.name);
       const isWon = newStatus === "Fechado";
+
+      // Funil com o método: a janela própria cuida da mudança; comemoração e automações de ganho só se confirmar.
+      if (interceptar(leadId, { stageId: stage.id, status: newStatus }, isWon ? () => { triggerCelebration?.(); onWinStageDrop?.(leadId, stage); } : undefined)) {
+        setDraggedOverStageId(null);
+        setDraggedLeadId(null);
+        return;
+      }
 
       // Recalcular Score IA do Lead considerando a nova etapa e as notas existentes do cliente
       const scoreCalculation = calculateLeadScore(
@@ -230,7 +241,8 @@ export function PipelineKanbanBoard({
         const isMinimized = minimizedColumns.has(stage.id);
         const rawStageLeads = filteredItemsList.filter((l: any) => matchesStage(l, stage));
         if (stageIdx === 0) rawStageLeads.push(...unmatchedLeads);
-        const stageLeads = sortByRecency(rawStageLeads, stageIdx === 0 ? createdKey : activityKey);
+        const porData = sortByRecency(rawStageLeads, stageIdx === 0 ? createdKey : activityKey);
+        const stageLeads = ordemDeAtencao ? porData.sort(ordemDeAtencao) : porData; // a ordenação é estável: entre iguais vale a data
         const visibleCount = visibleCounts[stage.id] ?? CARDS_PAGE_SIZE;
         const visibleStageLeads = stageLeads.slice(0, visibleCount);
         const stageValue = stageLeads.reduce((sum: number, item: any) => sum + getLeadValue(item), 0);

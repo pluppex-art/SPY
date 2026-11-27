@@ -11,6 +11,7 @@ import {
 } from 'lucide-react';
 import { cn, parseCurrencyBR } from '../../../../lib/utils';
 import { leadInterestEstimate } from '../../../../components/ui/lead-details/LeadDetailsModal.helpers';
+import { SelosDoCartao } from '../../../../components/metodo/SelosDoCartao';
 import { getProposalMonthlyTotal, getProposalDiscountRatio } from '../../../../lib/saleCalculator';
 
 interface LeadCardProps {
@@ -359,6 +360,8 @@ export function LeadCard({
             <p className="text-[10px] text-[var(--color-text-muted)] truncate-desktop mt-0.5">{item.company}</p>
           )}
         </div>
+
+        <SelosDoCartao lead={item} />
 
         {/* Pills row: source + reservas — a etapa já está implícita na coluna
             do Kanban onde o card está, e o cliente já aparece no título logo

@@ -8,6 +8,7 @@ import { connectGoogleCalendar } from "../../../lib/google-auth";
 import { getGoogleIntegrationsStatus, syncGoogleIntegrations } from "../../../lib/googleIntegrations";
 import { toast } from "sonner";
 import { listarDepartamentosTarefa, mesmoDepartamento } from "../../../lib/departamentosTarefa";
+import { minhasDeHoje } from "../../../lib/metodo/regras";
 
 export function useTarefas() {
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -37,6 +38,8 @@ export function useTarefas() {
   // Departamento da tarefa ("__none__" = sem departamento) e escopo ("cliente" | "interna").
   const [departamentoFilter, setDepartamentoFilter] = useState<string>("");
   const [escopoFilter, setEscopoFilter] = useState<string>("");
+  // Método do funil: minhas tarefas abertas com prazo até hoje, a mais atrasada primeiro.
+  const [soMinhasDeHoje, setSoMinhasDeHoje] = useState(false);
   const { tasks, addTask, updateTask, deleteTask, appSettings, leads, colaboradores, products } = useData();
   const { activeTenantId, user } = useAuth();
 
@@ -150,7 +153,7 @@ export function useTarefas() {
   };
 
   const filteredTasks = useMemo(() => {
-    return tasks.filter(t => {
+    return (soMinhasDeHoje ? minhasDeHoje(tasks, user?.id || "") : tasks).filter(t => {
       const leadLabel = getLeadLabel(t).toLowerCase();
       const matchesSearch = t.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
                             leadLabel.includes(searchQuery.toLowerCase()) ||
@@ -173,7 +176,7 @@ export function useTarefas() {
 
       return matchesSearch && matchesPriority && matchesDeadline && matchesStatus && matchesAssignee && matchesCliente && matchesDepartamento && matchesEscopo;
     });
-  }, [tasks, searchQuery, selectedPriorities, deadlineFilter, statusFilter, assigneeFilter, clienteFilter, departamentoFilter, escopoFilter, leads]);
+  }, [tasks, searchQuery, selectedPriorities, deadlineFilter, statusFilter, assigneeFilter, clienteFilter, departamentoFilter, escopoFilter, leads, soMinhasDeHoje, user?.id]);
 
   const departamentoOptions = useMemo(() => listarDepartamentosTarefa(colaboradores as any[], tasks as any[]), [colaboradores, tasks]);
 
@@ -200,10 +203,10 @@ export function useTarefas() {
 
   const clearFilters = () => {
     setSearchQuery(""); setSelectedPriorities([]); setDeadlineFilter("");
-    setStatusFilter(""); setAssigneeFilter(""); setClienteFilter(""); setDepartamentoFilter(""); setEscopoFilter("");
+    setStatusFilter(""); setAssigneeFilter(""); setClienteFilter(""); setDepartamentoFilter(""); setEscopoFilter(""); setSoMinhasDeHoje(false);
   };
   const activeFilterCount = (searchQuery.trim() ? 1 : 0) + (deadlineFilter ? 1 : 0) + (selectedPriorities.length > 0 ? 1 : 0)
-    + (statusFilter ? 1 : 0) + (assigneeFilter ? 1 : 0) + (clienteFilter ? 1 : 0) + (departamentoFilter ? 1 : 0) + (escopoFilter ? 1 : 0);
+    + (statusFilter ? 1 : 0) + (assigneeFilter ? 1 : 0) + (clienteFilter ? 1 : 0) + (departamentoFilter ? 1 : 0) + (escopoFilter ? 1 : 0) + (soMinhasDeHoje ? 1 : 0);
 
   const duplicateTask = (task: Task) => {
     addTask({
@@ -329,7 +332,7 @@ export function useTarefas() {
     statusFilter, setStatusFilter,
     assigneeFilter, setAssigneeFilter,
     clienteFilter, setClienteFilter,
-    departamentoFilter, setDepartamentoFilter, escopoFilter, setEscopoFilter, departamentoOptions,
+    departamentoFilter, setDepartamentoFilter, soMinhasDeHoje, setSoMinhasDeHoje, escopoFilter, setEscopoFilter, departamentoOptions,
     assigneeOptions, clienteOptions, clienteLeadIds,
     clearFilters, activeFilterCount, duplicateTask,
     tasks, addTask, updateTask, deleteTask,

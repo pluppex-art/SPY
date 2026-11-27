@@ -1,3 +1,4 @@
+import { interceptar } from "../../../lib/metodo/interceptador";
 import { useState, useEffect, useMemo } from "react";
 import { useData } from "../../../contexts/DataContext";
 import { useLocalization } from "../../../contexts/LocalizationContext";
@@ -298,6 +299,7 @@ export function useLeadDetails(lead: any, onClose: () => void) {
 
   const handleConvertLead = () => {
     const wonStage = findWonStage(stagesDef);
+    if (interceptar(lead.id, { status: "Fechado" })) return;
     updateLead(lead.id, { stageId: wonStage?.id ?? "5", status: "Fechado" });
 
     const winConfig = appSettings[WIN_FUNIL_CONFIG_KEY] as Record<string, string> | undefined;

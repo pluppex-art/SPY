@@ -36,7 +36,7 @@ export default function Tarefas() {
     deadlineFilter,
     setDeadlineFilter,
     statusFilter, setStatusFilter, assigneeFilter, setAssigneeFilter, clienteFilter, setClienteFilter,
-    departamentoFilter, setDepartamentoFilter, escopoFilter, setEscopoFilter, departamentoOptions,
+    departamentoFilter, setDepartamentoFilter, escopoFilter, setEscopoFilter, departamentoOptions, soMinhasDeHoje, setSoMinhasDeHoje,
     assigneeOptions, clienteOptions, clienteLeadIds, clearFilters, activeFilterCount, duplicateTask,
     needsAuth,
     isSyncing,
@@ -78,7 +78,7 @@ export default function Tarefas() {
     tasks: pagedTasks, total: pagedTotal, page: tasksPage, setPage: setTasksPage,
     totalPages: tasksTotalPages, pageSize: tasksPageSize, loading: tasksLoading,
     refetch: refetchTasksList,
-  } = useTarefasList({ searchQuery, selectedPriorities, deadlineFilter, active: viewMode === "list", statusFilter, assigneeFilter, clienteFilter, clienteLeadIds, departamentoFilter, escopoFilter });
+  } = useTarefasList({ searchQuery, selectedPriorities, deadlineFilter, active: viewMode === "list" && !soMinhasDeHoje, statusFilter, assigneeFilter, clienteFilter, clienteLeadIds, departamentoFilter, escopoFilter });
 
   const refetchIfList = () => { if (viewMode === "list") refetchTasksList(); };
   // Refetch logo após a promise de salvar resolver (em vez de um atraso fixo).
@@ -176,6 +176,8 @@ export default function Tarefas() {
           escopoFilter={escopoFilter}
           setEscopoFilter={setEscopoFilter}
           activeCount={activeFilterCount}
+          soMinhasDeHoje={soMinhasDeHoje}
+          setSoMinhasDeHoje={setSoMinhasDeHoje}
           onClear={clearFilters}
         />
 
@@ -183,7 +185,8 @@ export default function Tarefas() {
         {viewMode === 'list' ? (
           <>
             <TasksListMode
-              filteredTasks={pagedTasks}
+              // "Minhas de hoje" é filtrada aqui mesmo (sem paginar no servidor), com a mais atrasada primeiro.
+              filteredTasks={soMinhasDeHoje ? filteredTasks : pagedTasks}
               toggleTaskStatus={listToggleTaskStatus}
               getPriorityColor={getPriorityColor}
               updateTask={listUpdateTask}
@@ -193,7 +196,7 @@ export default function Tarefas() {
               handleDeleteTask={handleDeleteTask}
               onOpenDetails={setDetailTask}
             />
-            <Pagination
+            {!soMinhasDeHoje && <Pagination
               page={tasksPage}
               totalPages={tasksTotalPages}
               total={pagedTotal}
@@ -201,7 +204,7 @@ export default function Tarefas() {
               loading={tasksLoading}
               onPageChange={setTasksPage}
               itemLabel="tarefa"
-            />
+            />}
           </>
         ) : (
           <TasksKanbanMode

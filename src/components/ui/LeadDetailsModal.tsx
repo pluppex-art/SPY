@@ -17,6 +17,10 @@ import { MotivoModal } from "./MotivoModal";
 import { MOTIVOS_PERDA_LEAD } from "../../lib/motivos";
 import { LeadDetailsModalFooter } from "./lead-details/LeadDetailsModal.Footer";
 import { LeadDetailsModalHero } from "./lead-details/LeadDetailsModalHero";
+import { AbaDoFunil, FaixaDoMetodo } from "../metodo/PainelDoLead";
+import { useMetodo } from "../metodo/MetodoProvider";
+import { interceptar } from "../../lib/metodo/interceptador";
+import { Route } from "lucide-react";
 
 import { useLeadDetails } from "./lead-details/useLeadDetails";
 import { LeadCopilot } from "./LeadCopilot";
@@ -125,6 +129,7 @@ export function LeadDetailsModal({ isOpen, onClose, lead }: LeadDetailsModalProp
     navigate("/app/reunioes/" + reuniaoId);
   };
 
+  const metodo = useMetodo();
   if (!lead) return null;
 
   const leadActs = leadActivities.filter((a: any) => a.leadId === lead.id);
@@ -161,9 +166,15 @@ export function LeadDetailsModal({ isOpen, onClose, lead }: LeadDetailsModalProp
     toast.success(`Lead movido para o funil "${funil.nome}".`);
   };
 
+  // Leads de funil com o método ganham a faixa de status e a aba "Funil".
+  const noMetodo = !!metodo.info(liveLead);
+  const abas = noMetodo ? [{ id: "funil", short: "FUNIL", icon: Route }, ...LeadDetailsModalTabs] : LeadDetailsModalTabs;
+
   const moveToStage = (stg: any) => {
-    setCurrentStageId(stg.id);
     const newStatus = statusFromStageName(stg.name);
+    const ganhou = newStatus === "Fechado" || stg.id === findWonStage(stagesDef)?.id;
+    if (interceptar(lead.id, { stageId: stg.id, status: newStatus }, () => { setCurrentStageId(stg.id); if (ganhou) enrollInLinkedTurmas(); })) return;
+    setCurrentStageId(stg.id);
     updateLead(lead.id, { stageId: stg.id, status: newStatus });
     if (isLeadLost(newStatus)) setPedirMotivo(true);
     else if (liveLead?.lost_reason) updateLead(lead.id, { lost_reason: null });
@@ -227,7 +238,7 @@ export function LeadDetailsModal({ isOpen, onClose, lead }: LeadDetailsModalProp
             priority={priority}
             slaStatus={slaStatus}
             stagesDef={stagesDef}
-            currentStageId={currentStageId}
+            currentStageId={noMetodo ? String(liveLead.stageId) : currentStageId}
             lead={lead}
             seller={seller}
             setAlterationLogs={setAlterationLogs}
@@ -241,9 +252,11 @@ export function LeadDetailsModal({ isOpen, onClose, lead }: LeadDetailsModalProp
             onAgendarReuniao={() => setShowAgendarReuniao(true)}
           />
 
+          {noMetodo && <FaixaDoMetodo lead={liveLead} />}
+
           {/* ── Tab bar ── */}
           <div className="flex border-b border-[var(--color-border-subtle)] overflow-x-auto scrollbar-none shrink-0 bg-[var(--color-surface-elevated)] px-2 pt-1.5 gap-1">
-            {LeadDetailsModalTabs.map((tab) => {
+            {abas.map((tab) => {
               const isActive = currentTab === tab.id;
               return (
                 <button
@@ -269,6 +282,8 @@ export function LeadDetailsModal({ isOpen, onClose, lead }: LeadDetailsModalProp
           {/* ── Tab content ── */}
           <div className="flex-1 overflow-y-auto min-h-0 scrollbar-thin scrollbar-thumb-[var(--color-border-default)] scrollbar-track-transparent">
               <div className="h-full">
+                {currentTab === "funil" && noMetodo && <AbaDoFunil lead={liveLead} />}
+
                 {currentTab === "informacoes" && (
                   <div className="px-5 py-4 space-y-3">
                     <ProfileSection

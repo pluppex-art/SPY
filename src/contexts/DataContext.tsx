@@ -1,3 +1,4 @@
+import { interceptar } from "../lib/metodo/interceptador";
 import { setUnidadeMax, type UnidadeMax } from "../lib/unidadeMaxdata";
 import React, { useState, useEffect, useMemo } from 'react';
 import { findDuplicateLead, fillEmptyLeadFields } from "../lib/leadDedupe";
@@ -689,6 +690,9 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
     horarioFim: r.horario_fim || '',
     diasSemana: r.dias_semana || [],
     contextoIA: r.contexto_ia || '',
+    // Método do funil (só leitura aqui: quem liga é o banco).
+    metodoAtivo: !!r.metodo_ativo,
+    template: r.template,
   });
 
   const funilToRow = (f: any) => ({
@@ -2069,7 +2073,21 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
     }
   };
 
+  /** Relê um lead depois que uma função do banco o alterou. */
+  const recarregarLead = React.useCallback(async (id: string) => {
+    if (!supabase) return;
+    const { data, error } = await supabase.from('leads').select('*').eq('id', id).maybeSingle();
+    if (error || !data) { console.warn('[leads] recarregar:', error?.message); return; }
+    setLeads(prev => prev.map(l => (l.id === id ? (mapLeadRow(data) as Lead) : l)));
+  }, []);
+
   const updateLead = async (id: string, updates: Partial<Lead>) => {
+    // Funil com o método ligado: mudança de etapa passa pela janela própria (nota, motivo, pagamento). O resto segue.
+    const restante = interceptar(id, updates as Record<string, any>);
+    if (restante) {
+      if (!Object.keys(restante).length) return false; // nada gravado ainda: a pessoa decide na janela
+      updates = restante as Partial<Lead>;
+    }
     let hasStatusOrStageChange = false;
     let becameWon = false;
     // Capturado dentro do updater para repassar pro recálculo de score abaixo —
@@ -3803,7 +3821,7 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
       leads: vis?.leads ?? leads, avgWonTicket, tasks: vis?.tasks ?? tasks, contracts: vis?.contracts ?? contracts, vendasDiretas, notifications: visibleNotifications, leadActivities: vis?.leadActivities ?? leadActivities, loadLeadHistory, financeEntries, appointments,
       sellerRestricted,
       theme, toggleTheme,
-      addLead, ensureLeadForCliente, updateLead, deleteLead, moveLead,
+      addLead, ensureLeadForCliente, updateLead, recarregarLead, deleteLead, moveLead,
       addTask, updateTask, deleteTask, addContract, updateContract, deleteContract,
       addNotification, markNotificationAsRead, markAllNotificationsAsRead, deleteNotifications, clearAllNotifications,
       addLeadActivity,

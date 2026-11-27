@@ -1,3 +1,4 @@
+import { MetodoProvider } from "./metodo/MetodoProvider";
 import { useEdgeSwipeBack } from "../hooks/useSwipeGestures";
 import { setSaleSoundEnabled } from "../lib/notifications";
 import { useState, useEffect, Suspense } from "react";
@@ -64,72 +65,74 @@ export default function Layout() {
   }, [user, navigate]);
 
   return (
-    <div className="h-dvh overflow-hidden bg-[var(--color-surface)] text-[var(--color-text-primary)] font-sans flex transition-all">
-      {!modoPdv && (
-        <Sidebar
-          isSidebarCollapsed={isSidebarCollapsed}
-          setIsSidebarCollapsed={setIsSidebarCollapsed}
-          isMobileSidebarOpen={isMobileSidebarOpen}
-          setIsMobileSidebarOpen={setIsMobileSidebarOpen}
-          setIsSDRWebhookOpen={setIsSDRWebhookOpen}
+    <MetodoProvider>
+      <div className="h-dvh overflow-hidden bg-[var(--color-surface)] text-[var(--color-text-primary)] font-sans flex transition-all">
+        {!modoPdv && (
+          <Sidebar
+            isSidebarCollapsed={isSidebarCollapsed}
+            setIsSidebarCollapsed={setIsSidebarCollapsed}
+            isMobileSidebarOpen={isMobileSidebarOpen}
+            setIsMobileSidebarOpen={setIsMobileSidebarOpen}
+            setIsSDRWebhookOpen={setIsSDRWebhookOpen}
+          />
+        )}
+
+        <main className="flex-1 flex flex-col min-w-0 overflow-hidden relative">
+          <div className="absolute top-[-300px] right-[-100px] w-[800px] h-[800px] bg-blue-600/5 blur-[150px] rounded-full pointer-events-none"></div>
+
+          <Topbar
+            isSidebarCollapsed={isSidebarCollapsed}
+            setIsSidebarCollapsed={setIsSidebarCollapsed}
+            isMobileSidebarOpen={isMobileSidebarOpen}
+            setIsMobileSidebarOpen={setIsMobileSidebarOpen}
+            modoPdv={modoPdv}
+          />
+
+          <BillingBanner />
+          <InstallAppPrompt />
+
+          <div className={`flex-1 min-h-0 relative ${location.pathname.includes("/messaging") || location.pathname.includes("/mensageria") ? "overflow-clip p-1 pb-[calc(5rem+env(safe-area-inset-bottom))] md:p-2 md:pb-[calc(5rem+env(safe-area-inset-bottom))] lg:pb-2.5" : "overflow-y-auto overscroll-contain p-4 md:px-8 md:pt-4 md:pb-[calc(6rem+env(safe-area-inset-bottom))] pb-[calc(6rem+env(safe-area-inset-bottom))] lg:pb-8"}`}>
+            <ErrorBoundary resetKey={location.pathname}>
+              <Suspense fallback={<div role="status" aria-live="polite" className="flex items-center justify-center py-24 text-sm text-[var(--color-text-faint)]">Carregando...</div>}>
+                {isBlocked ? <SuspendedScreen /> : <AcessoPorPerfil><Outlet /></AcessoPorPerfil>}
+              </Suspense>
+            </ErrorBoundary>
+          </div>
+        </main>
+
+        {!modoPdv && (
+          <MobileNav
+            isMobileMoreOpen={isMobileMoreOpen}
+            setIsMobileMoreOpen={setIsMobileMoreOpen}
+            setIsSDRWebhookOpen={setIsSDRWebhookOpen}
+          />
+        )}
+        <SDRWebhookModal isOpen={isSDRWebhookOpen} onClose={() => setIsSDRWebhookOpen(false)} />
+
+        {/* Aurora era restrita a usuários master (G-TECH) porque as ferramentas de escrita
+            (calendário/WhatsApp) estavam hardcoded pro tenant da G-TECH. Liberada aqui pra
+            qualquer tenant com o módulo "aurora" ativo — a parametrização por tenant das
+            ferramentas de escrita está sendo feita em paralelo (n8n / backend); até isso
+            terminar, tenants não-master verão o widget mas chamadas à Aurora pessoal ainda
+            são bloqueadas no backend (server.ts, rota /api/ai/aurora-chat, checagem is_master). */}
+        {/* A Aurora aparece para TODOS os usuários da empresa: só depende do módulo da empresa, nunca do cargo. */}
+        {isModuleEnabled("aurora") && <AuroraWidget />}
+        <OnboardingWizard />
+        <WhatsAppPairingModal />
+
+        <Toaster
+          theme={theme}
+          position={typeof window !== "undefined" && window.matchMedia("(max-width: 639px)").matches ? "top-center" : "top-right"}
+          richColors
+          closeButton
+          toastOptions={{
+            classNames: {
+              toast: "!rounded-[var(--radius-panel)] !border-[var(--color-border-default)] !bg-[var(--color-surface-elevated)] !text-[var(--color-text-primary)] !shadow-[var(--shadow-panel)]",
+              description: "!text-[var(--color-text-muted)]",
+            },
+          }}
         />
-      )}
-
-      <main className="flex-1 flex flex-col min-w-0 overflow-hidden relative">
-        <div className="absolute top-[-300px] right-[-100px] w-[800px] h-[800px] bg-blue-600/5 blur-[150px] rounded-full pointer-events-none"></div>
-
-        <Topbar
-          isSidebarCollapsed={isSidebarCollapsed}
-          setIsSidebarCollapsed={setIsSidebarCollapsed}
-          isMobileSidebarOpen={isMobileSidebarOpen}
-          setIsMobileSidebarOpen={setIsMobileSidebarOpen}
-          modoPdv={modoPdv}
-        />
-
-        <BillingBanner />
-        <InstallAppPrompt />
-
-        <div className={`flex-1 min-h-0 relative ${location.pathname.includes("/messaging") || location.pathname.includes("/mensageria") ? "overflow-clip p-1 pb-[calc(5rem+env(safe-area-inset-bottom))] md:p-2 md:pb-[calc(5rem+env(safe-area-inset-bottom))] lg:pb-2.5" : "overflow-y-auto overscroll-contain p-4 md:px-8 md:pt-4 md:pb-[calc(6rem+env(safe-area-inset-bottom))] pb-[calc(6rem+env(safe-area-inset-bottom))] lg:pb-8"}`}>
-          <ErrorBoundary resetKey={location.pathname}>
-            <Suspense fallback={<div role="status" aria-live="polite" className="flex items-center justify-center py-24 text-sm text-[var(--color-text-faint)]">Carregando...</div>}>
-              {isBlocked ? <SuspendedScreen /> : <AcessoPorPerfil><Outlet /></AcessoPorPerfil>}
-            </Suspense>
-          </ErrorBoundary>
-        </div>
-      </main>
-
-      {!modoPdv && (
-        <MobileNav
-          isMobileMoreOpen={isMobileMoreOpen}
-          setIsMobileMoreOpen={setIsMobileMoreOpen}
-          setIsSDRWebhookOpen={setIsSDRWebhookOpen}
-        />
-      )}
-      <SDRWebhookModal isOpen={isSDRWebhookOpen} onClose={() => setIsSDRWebhookOpen(false)} />
-
-      {/* Aurora era restrita a usuários master (G-TECH) porque as ferramentas de escrita
-          (calendário/WhatsApp) estavam hardcoded pro tenant da G-TECH. Liberada aqui pra
-          qualquer tenant com o módulo "aurora" ativo — a parametrização por tenant das
-          ferramentas de escrita está sendo feita em paralelo (n8n / backend); até isso
-          terminar, tenants não-master verão o widget mas chamadas à Aurora pessoal ainda
-          são bloqueadas no backend (server.ts, rota /api/ai/aurora-chat, checagem is_master). */}
-      {/* A Aurora aparece para TODOS os usuários da empresa: só depende do módulo da empresa, nunca do cargo. */}
-      {isModuleEnabled("aurora") && <AuroraWidget />}
-      <OnboardingWizard />
-      <WhatsAppPairingModal />
-
-      <Toaster
-        theme={theme}
-        position={typeof window !== "undefined" && window.matchMedia("(max-width: 639px)").matches ? "top-center" : "top-right"}
-        richColors
-        closeButton
-        toastOptions={{
-          classNames: {
-            toast: "!rounded-[var(--radius-panel)] !border-[var(--color-border-default)] !bg-[var(--color-surface-elevated)] !text-[var(--color-text-primary)] !shadow-[var(--shadow-panel)]",
-            description: "!text-[var(--color-text-muted)]",
-          },
-        }}
-      />
-    </div>
+      </div>
+    </MetodoProvider>
   );
 }

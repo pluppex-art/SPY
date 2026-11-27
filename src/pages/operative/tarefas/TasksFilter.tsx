@@ -1,3 +1,4 @@
+import { useMetodo } from "../../../components/metodo/MetodoProvider";
 import React, { useState } from "react";
 import { Calendar, Filter, Search, X } from "lucide-react";
 import { Card } from "../../../components/ui/card";
@@ -27,6 +28,8 @@ interface TasksFilterProps {
   setEscopoFilter: (v: string) => void;
   activeCount: number;
   onClear: () => void;
+  soMinhasDeHoje: boolean;
+  setSoMinhasDeHoje: (v: boolean) => void;
 }
 
 const selectCls =
@@ -35,6 +38,7 @@ const selectCls =
 /** Barra de filtros de Tarefas: busca, status, responsável, prioridade, cliente e "Mais filtros" (prazo). */
 export function TasksFilter(p: TasksFilterProps) {
   const [showMais, setShowMais] = useState(false);
+  const metodo = useMetodo();
   // No celular os 4 selects ficam recolhidos atrás de um botão "Filtros" (a busca fica sempre visível).
   const [showSel, setShowSel] = useState(false);
   const selHide = !showSel ? "max-xl:hidden" : "";
@@ -59,6 +63,17 @@ export function TasksFilter(p: TasksFilterProps) {
         >
           <Filter className="w-4 h-4" /> Filtros{p.activeCount > 0 ? ` (${p.activeCount})` : ""}
         </Button>
+        {metodo.ligado && (
+          <Button
+            type="button"
+            variant="outline"
+            aria-pressed={p.soMinhasDeHoje}
+            onClick={() => p.setSoMinhasDeHoje(!p.soMinhasDeHoje)}
+            className={cn("h-11 xl:h-10 col-span-2 xl:col-span-1 text-xs font-bold", p.soMinhasDeHoje && "!bg-[var(--color-primary-blue)] !text-white !border-[var(--color-primary-blue)]")}
+          >
+            Minhas de hoje
+          </Button>
+        )}
         <select value={p.statusFilter} onChange={(e) => p.setStatusFilter(e.target.value)} className={cn(selectCls, selHide)}>
           <option value="">Status: Todos</option>
           {p.statusOptions.map((s) => <option key={s.id} value={s.id}>{s.nome}</option>)}
