@@ -31,6 +31,7 @@ test("módulos novos: só os que passaram a ligado", () => {
   assert.deepEqual(modulosDeAgenteNovos({ aurora: true, crm: false }, { aurora: true, crm: true, agente_secreto: true, radar: true, sdr: true }), ["agente_secreto"]);
   assert.deepEqual(modulosDeAgenteNovos({ aurora: true }, { aurora: false }), []);
   assert.deepEqual(modulosDeAgenteNovos(null, { aurora: true, cs: "true" }), ["aurora"]);
+  assert.deepEqual(modulosDeAgenteNovos({ chatbot: false }, { chatbot: true }), ["chatbot"]);
 });
 
 test("chama o agente sem telefone e com o nome da empresa", async () => {
