@@ -7,6 +7,8 @@ import { apiFetch } from "../../lib/apiClient";
 import { SocialProofPopup } from "../../components/SocialProofPopup";
 import { ArrowLeft, ArrowRight, Check, CheckCircle2, Copy, Loader2, Lock, MessageCircle, QrCode, ShieldCheck, Star, Tag, Upload, UserCheck } from "lucide-react";
 import { Perguntas, PERGUNTAS } from "../vendas/comum";
+import { DESCONTO_ANUAL, precoDoCiclo, type Ciclo, type ItemVenda } from "../../lib/catalogoSpy";
+import { Adicionais, type Escolhidos } from "./CheckoutAdicionais";
 import "./checkout.css";
 
 type Quote = {
@@ -14,10 +16,14 @@ type Quote = {
   priceCents: number; setupCents: number; discountCents: number; totalCents: number;
   promo: { label: string; code: string | null; auto: boolean } | null;
   badge?: string | null; highlight?: boolean; listCents: number; listSetupCents?: number | null; listMonthlyCents?: number | null;
+  ciclo?: Ciclo; itensCents?: number; itens?: LinhaItem[];
 };
+type LinhaItem = { sku: string; nome: string; qtd: number; valorCents: number };
+/** Cotação de quem já é cliente e está comprando só adicionais (calculada no servidor). */
+type CotacaoAdicional = { ciclo: Ciclo; fim: string | null; temAssinatura: boolean; proporcional: boolean; itens: LinhaItem[]; recorrenteCents: number; setupCents: number; totalCents: number; catalogo: ItemVenda[]; ativos: string[]; empresa: string };
 type Dados = { nome: string; telefone: string; email: string; documento: string; empresa: string };
 type Pedido = { token: string; totalCents: number; pixPayload: string; status: string };
-type Info = { kind: "new" | "renewal"; emailEnviado: boolean | null; email: string };
+type Info = { kind: "new" | "renewal" | "addon"; emailEnviado: boolean | null; email: string };
 
 const LS_TOKEN = "spy_checkout_token";
 const POLITICA_VERSAO = "2026-11";
@@ -44,7 +50,10 @@ async function api<T>(url: string, body?: unknown): Promise<T> {
   return json as T;
 }
 
-const periodo = (q: Quote) => (q.plan.interval === "yearly" ? "/ano" : "/mês");
+const porCiclo = (c: Ciclo) => (c === "yearly" ? "/ano" : "/mês");
+/** ?add=SKU,SKU ou ?adicionar=SKU (vindo do cadeado) já marca o item. */
+const marcadosNaUrl = (p: URLSearchParams): Escolhidos =>
+  Object.fromEntries(`${p.get("add") || ""},${p.get("adicionar") || ""}`.split(",").map((s) => s.trim().toUpperCase()).filter((s) => s.startsWith("SPY-")).map((s) => [s, 1]));
 
 const DEPOIS: [typeof Check, string, string][] = [
   [CheckCircle2, "Pagamento conferido", "Você anexa o comprovante e a nossa equipe confirma o Pix."],
@@ -90,14 +99,26 @@ export default function Checkout() {
   const [info, setInfo] = useState<Info | null>(null);
   const [semSessao, setSemSessao] = useState(false);
   const renovar = params.get("renovar") === "1";
+  /** Empresa que já usa o S.P.Y. comprando adicionais (precisa estar logada). */
+  const avulso = !renovar && params.has("adicionar");
+  const [ciclo, setCiclo] = useState<Ciclo>(params.get("ciclo") === "anual" ? "yearly" : "monthly");
+  const [escolhidos, setEscolhidos] = useState<Escolhidos>(() => marcadosNaUrl(params));
+  const [catalogo, setCatalogo] = useState<ItemVenda[]>([]);
+  const [cotada, setCotada] = useState("");
+  const [extra, setExtra] = useState<CotacaoAdicional | null>(null);
+  const [erroExtra, setErroExtra] = useState("");
+  const pedidoItens = useMemo(() => Object.entries(escolhidos).filter(([, q]) => q > 0).map(([sku, qtd]) => ({ sku, qtd })), [escolhidos]);
+  const ordem = useRef(0);
   const tentativasAcesso = useRef(0);
   const topo = useRef<HTMLDivElement>(null);
 
   useEffect(() => { document.title = "Assinar o S.P.Y."; }, []);
+  const chave = `${planoCode}|${ciclo}|${JSON.stringify(pedidoItens)}`;
 
   useEffect(() => {
-    api<{ enabled: boolean; single: Quote | null; plans: Quote[] }>("/api/checkout/plans")
+    api<{ enabled: boolean; single: Quote | null; plans: Quote[]; itens?: ItemVenda[] }>("/api/checkout/plans")
       .then((r) => {
+        setCatalogo(r.itens || []);
         setHabilitado(r.enabled);
         setPlanos(r.plans);
         if (r.single) { setSingle(r.single); setCotacao(r.single); setPlanoCode(r.single.plan.code); return; }
@@ -106,18 +127,24 @@ export default function Checkout() {
       .catch(() => setPlanos([]));
   }, []);
 
-  const cotar = useCallback(async (code: string, promoCode: string) => {
+  const cotar = useCallback(async (code: string, promoCode: string, c: Ciclo, itens: { sku: string; qtd: number }[]) => {
     if (!code) return;
-    try { setCotacao(await api<Quote>("/api/checkout/quote", { planCode: code, promoCode })); setErro(""); }
-    catch (e: any) { setErro(e.message); }
+    const minha = ++ordem.current; // resposta de uma escolha antiga é descartada
+    try {
+      const q = await api<Quote>("/api/checkout/quote", { planCode: code, promoCode, ciclo: c, itens });
+      if (minha !== ordem.current) return;
+      setCotacao(q); setCotada(`${code}|${c}|${JSON.stringify(itens)}`); setErro("");
+    } catch (e: any) { if (minha === ordem.current) setErro(e.message); }
   }, []);
-  useEffect(() => { if (!single && !renovar && planos?.some((p) => p.plan.code === planoCode)) void cotar(planoCode, cupom); }, [planos, planoCode]); // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => { if (!single && !renovar && !avulso && planos?.some((p) => p.plan.code === planoCode)) void cotar(planoCode, cupom, ciclo, pedidoItens); }, [planos, planoCode, ciclo, pedidoItens]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  const PASSOS = renovar ? ["Pagamento"] : single ? ["Seus dados", "Pagamento"] : ["Plano", "Seus dados", "Pagamento"];
+  const temAdicionais = catalogo.length > 0;
+  const PASSOS = renovar ? ["Pagamento"] : avulso ? ["Adicionais", "Pagamento"] : single ? ["Seus dados", "Pagamento"] : temAdicionais ? ["Plano", "Adicionais", "Seus dados", "Pagamento"] : ["Plano", "Seus dados", "Pagamento"];
   const payIdx = PASSOS.length - 1;
-  const passoDados = single ? 0 : 1;
+  const passoDados = PASSOS.indexOf("Seus dados");
   const irPara = (n: number) => { setErro(""); setPasso(n); topo.current?.scrollIntoView({ behavior: "smooth", block: "start" }); };
-  const cotacaoPronta = !!cotacao && cotacao.plan.code === planoCode;
+  const cotacaoPronta = !!cotacao && cotada === chave;
+  const marcar = (sku: string, qtd: number) => { setErro(""); setEscolhidos((e) => ({ ...e, [sku]: qtd })); };
 
   const dadosOk = useMemo(() => {
     const d = dados.documento.replace(/\D/g, "");
@@ -136,7 +163,7 @@ export default function Checkout() {
     if (planos === null || restaurado.current) return;
     restaurado.current = true;
     const token = lsGet();
-    if (renovar || !token) return;
+    if (renovar || avulso || !token) return;
     api<{ status: string; totalCents: number; planName?: string; pixPayload: string; nome: string; email: string; kind: "new" | "renewal"; emailEnviado: boolean | null; empresa?: string }>(`/api/checkout/order/${token}`)
       .then(async (r) => {
         // So restaura pedido novo e ainda em andamento; renovacao nunca (computador compartilhado).
@@ -149,6 +176,36 @@ export default function Checkout() {
       })
       .catch(() => lsSet(""));
   }, [planos, single, renovar]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Adicionais: cliente logado; o preço (proporcional ao período) vem do servidor a cada escolha.
+  useEffect(() => {
+    if (!avulso || !supabase) return;
+    let vivo = true;
+    (async () => {
+      const { data } = await supabase!.auth.getSession();
+      if (!data.session) { if (vivo) setSemSessao(true); return; }
+      try {
+        const res = await apiFetch("/api/checkout/addon-quote", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ itens: pedidoItens }) });
+        const json = await res.json().catch(() => ({}));
+        if (!res.ok) throw new Error(json?.error || "Não foi possível calcular os adicionais.");
+        if (vivo) { setExtra(json as CotacaoAdicional); setErroExtra(""); setInfo((i) => i ?? { kind: "addon", emailEnviado: null, email: data.session!.user.email || "" }); }
+      } catch (e: any) { if (vivo) setErroExtra(e.message); }
+    })();
+    return () => { vivo = false; };
+  }, [avulso, pedidoItens]);
+
+  const gerarPixAdicionais = async () => {
+    setOcupado(true); setErro("");
+    try {
+      const res = await apiFetch("/api/checkout/addon-order", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ itens: pedidoItens }) });
+      const json = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(json?.error || "Não foi possível gerar o Pix.");
+      setPedidoPlano("Adicionais");
+      await mostrarPedido(json as Pedido);
+      irPara(payIdx);
+    } catch (e: any) { setErro(e.message); }
+    finally { setOcupado(false); }
+  };
 
   // Renovação: cliente logado gera o Pix do plano atual da empresa dele.
   useEffect(() => {
@@ -176,7 +233,7 @@ export default function Checkout() {
   const gerarPix = async () => {
     setOcupado(true); setErro("");
     try {
-      const p = await api<Pedido>("/api/checkout/order", { planCode: planoCode, promoCode: cupom, ...dados, documento: dados.documento.replace(/\D/g, ""), consentimento: aceite, politicaVersao: POLITICA_VERSAO });
+      const p = await api<Pedido>("/api/checkout/order", { planCode: planoCode, promoCode: cupom, ciclo, itens: pedidoItens, ...dados, documento: dados.documento.replace(/\D/g, ""), consentimento: aceite, politicaVersao: POLITICA_VERSAO });
       lsSet(p.token);
       setInfo({ kind: "new", emailEnviado: null, email: dados.email });
       setPedidoPlano(cotacao?.plan.name || "");
@@ -190,12 +247,12 @@ export default function Checkout() {
   useEffect(() => {
     if (!pedido || status === "expired" || status === "canceled") return;
     // Pago: continua consultando enquanto o envio do acesso nao foi concluido (emailEnviado null), por no maximo ~5 min.
-    if (status === "paid" && (info?.kind === "renewal" || (info?.emailEnviado ?? null) !== null)) return;
+    if (status === "paid" && (info?.kind !== "new" || (info?.emailEnviado ?? null) !== null)) return;
     const t = setInterval(() => {
       if (status === "paid" && ++tentativasAcesso.current > 40) { // desiste de esperar: orienta o caminho seguro ("Esqueci a senha")
         setInfo((i) => (i ? { ...i, emailEnviado: false } : i)); return;
       }
-      api<{ status: string; kind: "new" | "renewal"; emailEnviado: boolean | null; email: string }>(`/api/checkout/order/${pedido.token}`)
+      api<{ status: string; kind: Info["kind"]; emailEnviado: boolean | null; email: string }>(`/api/checkout/order/${pedido.token}`)
         .then((r) => { setStatus(r.status); setInfo({ kind: r.kind, emailEnviado: r.emailEnviado, email: r.email }); if (r.status === "expired" || r.status === "canceled") lsSet(""); })
         .catch(() => {});
     }, 8000);
@@ -235,12 +292,13 @@ export default function Checkout() {
   const conferindo = status === "awaiting_confirmation";
   const obrigado = !!pedido && (pago || conferindo);
   useEffect(() => { if (pago) lsSet(""); }, [pago]);
-  const novoPedido = () => { lsSet(""); setPedido(null); setQr(""); setStatus("pending"); setArquivo(null); setErro(""); if (renovar) window.location.reload(); else irPara(passoDados); };
+  const novoPedido = () => { lsSet(""); setPedido(null); setQr(""); setStatus("pending"); setArquivo(null); setErro(""); if (renovar) window.location.reload(); else irPara(avulso ? 0 : passoDados); };
 
   const aberto = planos !== null && habilitado;
   const pagando = !!pedido && passo === payIdx && !obrigado;
   // No pagamento vale o que está no pedido; o detalhamento só aparece se a cotação na tela for a mesma do pedido.
-  const detalhe = pedido ? (cotacao && cotacao.totalCents === pedido.totalCents && cotacao.plan.name === pedidoPlano ? cotacao : null) : cotacao;
+  const detalhe = avulso ? null : pedido ? (cotacao && cotacao.totalCents === pedido.totalCents && cotacao.plan.name === pedidoPlano ? cotacao : null) : cotacao;
+  const cicloDoResumo: Ciclo = detalhe?.ciclo ?? (detalhe?.plan.interval === "yearly" ? "yearly" : "monthly");
 
   const alerta = erro && <p role="alert" className="ck-erro">{erro}</p>;
   const voltar = (n: number) => (<button type="button" className="sp-btn sp-btn--outline" onClick={() => irPara(n)}><ArrowLeft size={18} aria-hidden="true" /> Voltar</button>);
@@ -259,8 +317,8 @@ export default function Checkout() {
       <main ref={topo}>
         <div className="ck-abertura">
           <div className="sp-wrap">
-            <h1>{obrigado ? (pago ? "Pagamento confirmado!" : "Pedido recebido!") : renovar ? "Renovar a assinatura" : "Coloque o S.P.Y. no seu time"}</h1>
-            <p>{obrigado ? "Veja abaixo o que acontece agora." : "Escolha o plano, informe seus dados e pague por Pix."}</p>
+            <h1>{obrigado ? (pago ? "Pagamento confirmado!" : "Pedido recebido!") : renovar ? "Renovar a assinatura" : avulso ? "Libere mais no seu S.P.Y." : "Coloque o S.P.Y. no seu time"}</h1>
+            <p>{obrigado ? "Veja abaixo o que acontece agora." : avulso ? "Escolha o que falta e pague por Pix." : "Escolha o plano, informe seus dados e pague por Pix."}</p>
             <ol className="ck-passos" aria-label="Etapas">
               {PASSOS.map((nome, i) => {
                 const feito = i < passo || obrigado;
@@ -282,7 +340,12 @@ export default function Checkout() {
           {aberto && obrigado && (
             <section className="ck-obrigado" aria-live="polite">
               <div className="ck-obrigado__selo">{pago ? <Check size={44} aria-hidden="true" /> : <Loader2 className="ck-gira" size={40} aria-hidden="true" />}</div>
-              {info?.kind === "renewal" ? (
+              {info?.kind === "addon" ? (
+                <>
+                  <h2>{pago ? "Adicionais liberados." : "Comprovante recebido."}</h2>
+                  <p>{pago ? "Entre no sistema para usar. A nossa equipe fala com você para configurar o que precisar." : "Assim que a nossa equipe conferir o pagamento, os módulos são liberados. Esta tela atualiza sozinha."}</p>
+                </>
+              ) : info?.kind === "renewal" ? (
                 <>
                   <h2>{pago ? "Sua assinatura está em dia." : "Comprovante recebido."}</h2>
                   <p>{pago ? "É só entrar normalmente." : "Assim que a nossa equipe conferir o pagamento, a renovação é confirmada. Esta tela atualiza sozinha."}</p>
@@ -305,10 +368,10 @@ export default function Checkout() {
                 </>
               )}
               <div className="ck-obrigado__pedido">
-                {pedidoPlano && <span>Plano <strong>{pedidoPlano}</strong></span>}
+                {pedidoPlano && info?.kind !== "addon" && <span>Plano <strong>{pedidoPlano}</strong></span>}
                 <span>Valor do Pix <strong>{brl(pedido!.totalCents)}</strong></span>
               </div>
-              {info?.kind !== "renewal" && <Depois feitos={pago ? 2 : 0} />}
+              {info?.kind === "new" && <Depois feitos={pago ? 2 : 0} />}
               <div className="ck-botoes">
                 {pago ? <Link to="/login" className="sp-btn sp-btn--primary">Ir para o login <ArrowRight size={18} aria-hidden="true" /></Link>
                   : <Link to="/landing" className="sp-btn sp-btn--outline">Conhecer mais a plataforma</Link>}
@@ -320,19 +383,25 @@ export default function Checkout() {
           {aberto && !obrigado && (
             <div className="ck-grade">
               <div className="ck-cartao">
-                {!renovar && !single && passo === 0 && (
+                {!renovar && !avulso && !single && passo === 0 && (
                   <>
                     <h2>1. Quantas pessoas vão usar?</h2>
+                    <div className="ck-ciclo" role="radiogroup" aria-label="Forma de cobrança">
+                      <button type="button" role="radio" aria-checked={ciclo === "monthly"} onClick={() => setCiclo("monthly")}>Mensal</button>
+                      <button type="button" role="radio" aria-checked={ciclo === "yearly"} onClick={() => setCiclo("yearly")}>Anual <em>{DESCONTO_ANUAL}% de desconto</em></button>
+                    </div>
                     <div className="ck-planos" role="radiogroup" aria-label="Plano">
                       {planos!.map((p) => (
                         <button key={p.plan.code} type="button" role="radio" aria-checked={planoCode === p.plan.code} onClick={() => setPlanoCode(p.plan.code)} className="ck-plano">
                           <span className="ck-plano__nome">{p.plan.name}{p.badge && <em><Star size={12} aria-hidden="true" /> {p.badge}</em>}</span>
                           <span className="ck-plano__preco">
-                            {p.discountCents > 0 ? <><s>{brl(p.priceCents + p.setupCents)}</s> <strong>{brl(p.totalCents)}</strong></> : <><strong>{brl(p.priceCents)}</strong>{periodo(p)}</>}
-                            {p.discountCents === 0 && p.setupCents > 0 && <small>+ {brl(p.setupCents)} de implantação</small>}
+                            {ciclo === "yearly"
+                              ? <><s>{brl(p.priceCents * 12)}</s> <strong>{brl(precoDoCiclo(p.priceCents, "yearly"))}</strong>/ano<small>equivale a {brl(Math.round(precoDoCiclo(p.priceCents, "yearly") / 12))} por mês</small></>
+                              : p.discountCents > 0 ? <><s>{brl(p.priceCents + p.setupCents)}</s> <strong>{brl(p.totalCents)}</strong></> : <><strong>{brl(p.priceCents)}</strong>/mês</>}
+                            {(ciclo === "yearly" || p.discountCents === 0) && p.setupCents > 0 && <small>+ {brl(p.setupCents)} de implantação</small>}
                           </span>
                           {p.plan.tagline && <span className="ck-plano__texto">{p.plan.tagline}</span>}
-                          {p.promo && <span className="ck-promo"><Tag size={12} aria-hidden="true" /> {p.promo.label}</span>}
+                          {p.promo && ciclo === "monthly" && <span className="ck-promo"><Tag size={12} aria-hidden="true" /> {p.promo.label}</span>}
                         </button>
                       ))}
                       {planos!.length === 0 && <p>Nenhum plano disponível no momento.</p>}
@@ -343,9 +412,38 @@ export default function Checkout() {
                   </>
                 )}
 
-                {!renovar && passo === passoDados && !pedido && (
+                {!renovar && !avulso && !single && temAdicionais && passo === 1 && (
+                  <>
+                    <h2>2. Quer somar alguma coisa?</h2>
+                    <p className="ck-texto">Opcional. Você também pode incluir depois, de dentro do sistema.</p>
+                    <Adicionais itens={catalogo} escolhidos={escolhidos} ciclo={ciclo} marcar={marcar} />
+                    {alerta}
+                    <div className="ck-botoes">
+                      {voltar(0)}
+                      <button type="button" className="sp-btn sp-btn--primary" disabled={!cotacaoPronta} onClick={() => irPara(passoDados)}>{pedidoItens.length ? "Continuar" : "Continuar sem adicionais"} <ArrowRight size={18} aria-hidden="true" /></button>
+                    </div>
+                  </>
+                )}
+
+                {avulso && !pedido && (
+                  semSessao ? (
+                    <div className="ck-centro"><p>Entre na sua conta do S.P.Y. como administrador para contratar adicionais.</p><Link to="/login" className="sp-btn sp-btn--primary ck-largo">Entrar</Link></div>
+                  ) : erroExtra ? <div className="ck-centro"><p className="ck-erro">{erroExtra}</p><Link to="/contato" className="sp-link">Falar com a gente</Link></div>
+                  : !extra ? <p className="ck-aviso"><Loader2 className="ck-gira" size={20} aria-hidden="true" /> Carregando os adicionais…</p> : (
+                    <>
+                      <h2>O que você quer liberar?</h2>
+                      <Adicionais itens={extra.catalogo} escolhidos={escolhidos} ciclo={extra.ciclo} marcar={marcar} ativos={extra.ativos} />
+                      {alerta}
+                      <button type="button" className="sp-btn sp-btn--primary ck-largo" disabled={ocupado || !extra.itens.length} onClick={() => void gerarPixAdicionais()}>
+                        {ocupado ? <Loader2 className="ck-gira" size={18} aria-hidden="true" /> : <QrCode size={18} aria-hidden="true" />} Gerar Pix
+                      </button>
+                    </>
+                  )
+                )}
+
+                {!renovar && !avulso && passo === passoDados && !pedido && (
                   <form noValidate onSubmit={(e) => { e.preventDefault(); if (!dadosOk) setErro("Confira os campos: todos são obrigatórios, o CPF/CNPJ precisa estar completo e você precisa aceitar o uso dos dados."); else if (!ocupado && (single || cotacaoPronta)) void gerarPix(); }}>
-                    <h2>{single ? "1" : "2"}. Seus dados</h2>
+                    <h2>{passoDados + 1}. Seus dados</h2>
                     <div className="ck-campos">
                       <label className="ck-inteiro">Nome completo<input id="ck-nome" autoComplete="name" value={dados.nome} onChange={set("nome")} /></label>
                       <label>Telefone (WhatsApp)<input id="ck-fone" inputMode="tel" autoComplete="tel" placeholder="(11) 99999-9999" value={dados.telefone} onChange={set("telefone")} /></label>
@@ -359,7 +457,7 @@ export default function Checkout() {
                     </label>
                     {alerta}
                     <div className="ck-botoes">
-                      {!single && voltar(0)}
+                      {!single && voltar(passoDados - 1)}
                       <button type="submit" className="sp-btn sp-btn--primary" disabled={ocupado || (!single && !cotacaoPronta)}>
                         {ocupado ? <Loader2 className="ck-gira" size={18} aria-hidden="true" /> : <QrCode size={18} aria-hidden="true" />} Gerar Pix
                       </button>
@@ -414,34 +512,45 @@ export default function Checkout() {
               <aside className="ck-cartao ck-resumo" aria-label="Seu pedido">
                 <div className="ck-resumo__topo">
                   <span className="ck-selo"><img src="/spy-icon.png" alt="" width={56} height={56} /></span>
-                  <div><span>Seu pedido</span><h2>{(pedido ? pedidoPlano : cotacao?.plan.name) || "S.P.Y."}</h2></div>
+                  <div><span>Seu pedido</span><h2>{(pedido ? pedidoPlano : avulso ? "Adicionais" : cotacao?.plan.name) || "S.P.Y."}</h2></div>
                 </div>
                 {detalhe?.plan.features.length ? (
                   <ul className="ck-itens">{detalhe.plan.features.map((f) => (<li key={f}><Check size={16} aria-hidden="true" /> {f}</li>))}</ul>
                 ) : null}
-                {!pedido && !single && !renovar && (
+                {!pedido && !single && !renovar && !avulso && (
                   <div className="ck-cupom">
                     <input id="ck-cupom" aria-label="Cupom" value={cupom} onChange={(e) => setCupom(e.target.value)} placeholder="Tem um cupom?" />
-                    <button type="button" className="sp-btn sp-btn--outline" onClick={() => void cotar(planoCode, cupom)}>Aplicar</button>
+                    <button type="button" className="sp-btn sp-btn--outline" onClick={() => void cotar(planoCode, cupom, ciclo, pedidoItens)}>Aplicar</button>
                   </div>
                 )}
                 <dl className="ck-contas">
                   {detalhe && (
                     <>
-                      <div><dt>Mensalidade</dt><dd>{brl(detalhe.priceCents)}</dd></div>
+                      <div><dt>{cicloDoResumo === "yearly" ? "Plano (1 ano)" : "Mensalidade"}</dt><dd>{brl(detalhe.priceCents)}</dd></div>
+                      {(detalhe.itens || []).map((i) => (<div key={i.sku}><dt>{i.qtd > 1 ? `${i.qtd}× ` : ""}{i.nome}</dt><dd>{brl(i.valorCents)}</dd></div>))}
                       {detalhe.setupCents > 0 && <div><dt>Implantação (uma vez)</dt><dd>{brl(detalhe.setupCents)}</dd></div>}
                       {detalhe.discountCents > 0 && <div className="ck-desconto"><dt>{detalhe.promo?.label || "Desconto"}</dt><dd>− {brl(detalhe.discountCents)}</dd></div>}
                     </>
                   )}
-                  {(pedido || detalhe) && <div className="ck-total"><dt>Total hoje</dt><dd>{brl(pedido ? pedido.totalCents : detalhe!.totalCents)}</dd></div>}
+                  {avulso && extra && !pedido && (
+                    <>
+                      {extra.itens.length === 0 && <div><dt>Nada escolhido ainda</dt><dd>{brl(0)}</dd></div>}
+                      {extra.itens.map((i) => (<div key={i.sku}><dt>{i.qtd > 1 ? `${i.qtd}× ` : ""}{i.nome}</dt><dd>{brl(i.valorCents)}</dd></div>))}
+                      {extra.setupCents > 0 && <div><dt>Implantação (uma vez)</dt><dd>{brl(extra.setupCents)}</dd></div>}
+                    </>
+                  )}
+                  {(pedido || detalhe || (avulso && extra)) && <div className="ck-total"><dt>Total hoje</dt><dd>{brl(pedido ? pedido.totalCents : avulso ? extra!.totalCents : detalhe!.totalCents)}</dd></div>}
                 </dl>
-                {detalhe && !single && detalhe.setupCents > 0 && <p className="ck-nota">Nos próximos meses, só a mensalidade: {brl(detalhe.priceCents)}{periodo(detalhe)}.</p>}
+                {detalhe && !single && <p className="ck-nota">Nas próximas cobranças: {brl(detalhe.priceCents + (detalhe.itensCents ?? 0))}{porCiclo(cicloDoResumo)}.</p>}
+                {avulso && extra && !pedido && extra.itens.length > 0 && (
+                  <p className="ck-nota">{extra.proporcional ? "Hoje você paga só os dias que faltam do período atual; na renovação entra o valor cheio." : `Hoje você paga o primeiro ${extra.ciclo === "yearly" ? "ano" : "mês"}.`}</p>
+                )}
                 <p className="ck-nota"><ShieldCheck size={14} aria-hidden="true" /> Seus dados são usados só para o cadastro e a cobrança (LGPD).</p>
               </aside>
             </div>
           )}
 
-          {aberto && !obrigado && !renovar && (
+          {aberto && !obrigado && !renovar && !avulso && (
             <>
               <h2 className="sp-h2 ck-titulo">Depois do pagamento.</h2>
               <Depois />
@@ -449,7 +558,7 @@ export default function Checkout() {
           )}
         </div>
 
-        {aberto && !obrigado && !renovar && <Perguntas itens={PERGUNTAS} />}
+        {aberto && !obrigado && !renovar && !avulso && <Perguntas itens={PERGUNTAS} />}
       </main>
 
       <footer className="sv-rodape">

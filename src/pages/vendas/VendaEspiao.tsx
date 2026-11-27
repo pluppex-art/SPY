@@ -83,7 +83,7 @@ export default function VendaEspiao() {
       </section>
 
       <PlanosDeVenda titulo="Quantas pessoas entram na operação?" texto="Cada pessoa recebe o Agente Secreto de Vendas e a Aurora, com o CRM junto." botao={(n) => `Recrutar para ${n}`} />
-      <Perguntas itens={[...PERGUNTAS.slice(3), ...PERGUNTAS.slice(0, 3)]} />
+      <Perguntas itens={[...PERGUNTAS.slice(-1), ...PERGUNTAS.slice(0, -1)]} />
       <Chamada titulo="A próxima conversa já pode ser anotada." texto="Escolha o tamanho do time e faça o pedido pelo checkout." botao={BOTAO} />
     </PaginaDeVenda>
   );

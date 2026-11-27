@@ -2,6 +2,8 @@ import { rv } from "../reveal";
 import { Link } from "react-router-dom";
 import { Check, Star, ArrowRight } from "lucide-react";
 import { CREDITS_COPY } from "../plansData";
+import { DESCONTO_ANUAL } from "../../../lib/catalogoSpy";
+import { anualDoPlano } from "../anual";
 import { usePublicPlans } from "../../../lib/usePublicPlans";
 
 export function PlansSection() {
@@ -33,6 +35,11 @@ export function PlansSection() {
                 {p.setupPrice && (
                   <small>
                     Implantação: <b>{p.setupPrice}</b>
+                  </small>
+                )}
+                {anualDoPlano(p.monthlyPrice) && (
+                  <small>
+                    No anual: <b>{anualDoPlano(p.monthlyPrice)}</b> por ano ({DESCONTO_ANUAL}% a menos)
                   </small>
                 )}
               </div>

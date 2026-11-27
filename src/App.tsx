@@ -5,6 +5,7 @@ import { requestNotificationPermission } from "./lib/notifications";
 import { ensurePushSubscription } from "./lib/push";
 import { LpRedirect } from "./pages/landing/LpRedirect";
 const LandingPage = lazy(() => import("./pages/landing/LandingPage"));
+const ModulosDaEmpresa = lazy(() => import("./pages/settings/ModulosDaEmpresa"));
 const VendaEspiao = lazy(() => import("./pages/vendas/VendaEspiao"));
 const VendaRecuperacao = lazy(() => import("./pages/vendas/VendaRecuperacao"));
 const VendaVideo = lazy(() => import("./pages/vendas/VendaVideo"));
@@ -295,6 +296,7 @@ function AppContent() {
         }>
           <Route index element={<Navigate to="/app/dashboard" />} />
           <Route path="dashboard" element={<Dashboard />} />
+          <Route path="modulos" element={<ModulosDaEmpresa />} />
           <Route path="leads" element={<Navigate to="/app/crm/pipeline" replace />} />
           <Route path="pipeline" element={<Navigate to="/app/crm/pipeline" replace />} />
           <Route path="clientes" element={<Navigate to="/app/crm/clientes" replace />} />

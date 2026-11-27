@@ -32,6 +32,7 @@ import { riscoDe } from "../../lib/radarRetrato";
 import { RadarBoasPainel } from "./components/Radar/RadarBoas";
 import { RadarPesquisa } from "./components/Radar/RadarPesquisa";
 import { RadarGrupos } from "./components/Radar/RadarGrupos";
+import { ModuloBloqueado } from "../../components/ModuloBloqueado";
 type Risk = "critico" | "alto" | "atencao";
 const RISK_META: Record<Risk, { label: string; variant: "destructive" | "warning" | "info"; color: string }> = {
   critico: { label: "Crítico", variant: "destructive", color: "var(--color-danger)" },
@@ -69,7 +70,10 @@ function initials(name?: string | null): string {
 
 export default function Radar() {
   const { leads, funis, addTask, sellerRestricted } = useData();
-  const { activeTenantId } = useAuth();
+  const { activeTenantId, activeTenantName, user, isModuleEnabled, getTenantModules } = useAuth();
+  // Pesquisa e grupos são o Radar contratado à parte; esfriando e esquentando fazem parte do CRM.
+  // Enquanto os módulos não carregam, não mostra cadeado.
+  const radarContratado = !!user?.isMaster || !!user?.partnerId || !Object.keys(getTenantModules(activeTenantName || user?.tenantName || "")).length || isModuleEnabled("radar");
   const { formatCurrency } = useLocalization();
   const navigate = useNavigate();
 
@@ -312,7 +316,9 @@ export default function Radar() {
         })}
       </nav>
 
-      {lado === "grupos" ? (
+      {(lado === "grupos" || lado === "pesquisa") && !radarContratado ? (
+        <ModuloBloqueado modulo="radar" />
+      ) : lado === "grupos" ? (
         <RadarGrupos />
       ) : lado === "pesquisa" ? (
         <RadarPesquisa />

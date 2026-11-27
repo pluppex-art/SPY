@@ -5,6 +5,8 @@ import { Navigate, useLocation } from "react-router-dom";
 import { useAuth } from "../contexts/AuthContext";
 import { useData } from "../contexts/DataContext";
 import { modulosDoCargo } from "../lib/cargosUsuario";
+import { skuDoModulo } from "../lib/catalogoSpy";
+import { ModuloBloqueado } from "./ModuloBloqueado";
 
 // Mesmos aliases do Sidebar/MobileNav para chaves de módulo equivalentes.
 const MODULE_ALIASES: Record<string, string[]> = {
@@ -104,7 +106,8 @@ export function ProtectedRoute({
     if (key) {
       const mods = allTenantModules[key] || {};
       const aliases = MODULE_ALIASES[requireModule] || [requireModule];
-      if (!aliases.some((a) => !!mods[a])) return <ModuleDisabledRedirect />;
+      // Módulo que se pode contratar mostra o cadeado com o preço; o resto continua voltando para o início.
+      if (!aliases.some((a) => !!mods[a])) return skuDoModulo(requireModule) ? <ModuloBloqueado modulo={requireModule} /> : <ModuleDisabledRedirect />;
     }
   }
 

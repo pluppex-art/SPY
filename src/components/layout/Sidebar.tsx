@@ -11,6 +11,7 @@ import { useUsaOsImplementacao } from "../../pages/os/hooks/useUsaOsImplementaca
 import { Logo } from "../ui/Logo";
 import { ITENS_RESUMO_FINANCEIRO, ITEM_AVANCADO_FINANCEIRO, ITEM_CONFIG_FINANCEIRO, useModoMenuFinanceiro } from "../../pages/finance/financeiroMenu";
 import { cargoPermiteModulo, modulosDoCargo } from "../../lib/accessControl";
+import { secoesExtras } from "./menuBloqueado";
 
 interface SidebarProps {
   isSidebarCollapsed: boolean;
@@ -210,7 +211,12 @@ export function Sidebar({
 
               return { ...section, items: visibleItems };
             })
-            .filter(Boolean);
+            .filter(Boolean)
+            .concat(secoesExtras({
+              // Só o administrador da empresa vê o que dá para contratar; espera os módulos carregarem.
+              admin: !!user?.isTenantAdmin && !user?.isMaster && !user?.partnerId && Object.keys(modulosEmpresa).length > 0,
+              ligado: checkModule,
+            }));
           const renderSection = (section: any, idx: number) => {
               const isOpen = isSidebarCollapsed || section.semTitulo || !!openSections[section.title];
 

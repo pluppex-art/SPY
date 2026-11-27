@@ -11,7 +11,7 @@ import { brl } from "../../../lib/saasApi";
 import { HelpTip } from "../../../components/ui/help-tip";
 type Config = { active: boolean; pix_key: string; receiver_name: string; receiver_city: string; notify_email: string; single_plan_code: string | null; list_price_cents: number; offer_cents: number | null; list_setup_cents?: number | null; list_monthly_cents?: number | null };
 type Promo = { id: string; code: string | null; label: string; plan_code: string | null; percent_off: number; amount_off_cents: number; setup_waived: boolean; valid_until: string | null; max_uses: number | null; uses: number; active: boolean };
-type Order = { id: string; status: string; plan_name: string; nome: string; empresa: string; email: string; telefone: string; documento: string; total_cents: number; promo_code: string | null; created_at: string; informed_paid_at: string | null; paid_at: string | null; error: string | null; comprovante_path: string | null; kind?: string; fulfilled_at?: string | null; agentes_ok?: boolean | null; agentes_erro?: string | null; acesso_email_ok?: boolean | null };
+type Order = { id: string; status: string; plan_name: string; nome: string; empresa: string; email: string; telefone: string; documento: string; total_cents: number; promo_code: string | null; created_at: string; informed_paid_at: string | null; paid_at: string | null; error: string | null; comprovante_path: string | null; kind?: string; fulfilled_at?: string | null; agentes_ok?: boolean | null; agentes_erro?: string | null; acesso_email_ok?: boolean | null; ciclo?: string; itens?: { sku: string; nome: string; qtd: number }[] };
 
 const STATUS: Record<string, { label: string; cls: string }> = {
   pending: { label: "Aguardando Pix", cls: "text-[var(--color-text-muted)]" },
@@ -76,7 +76,9 @@ export function AdminCheckoutTab() {
   const confirmar = async (o: Order) => {
     const ok = await confirmDialog({
       title: "Confirmar pagamento?",
-      description: o.kind === "renewal"
+      description: o.kind === "addon"
+        ? `Confirme que o Pix de ${brl(o.total_cents)} de ${o.nome} (${o.empresa}) caiu na conta. Isso libera os adicionais comprados na empresa dele.`
+        : o.kind === "renewal"
         ? `Confirme que o Pix de ${brl(o.total_cents)} de ${o.nome} (${o.empresa}) caiu na conta. Isso renova/reativa a assinatura da empresa que já existe.`
         : `Confirme que o Pix de ${brl(o.total_cents)} de ${o.nome} (${o.empresa}) caiu na conta. Isso cria a empresa, libera o acesso e envia o e-mail de senha ao cliente.`,
       confirmText: "Confirmar e liberar",
@@ -85,7 +87,7 @@ export function AdminCheckoutTab() {
     await run(async () => {
       const r = await call<{ emailEnviado?: boolean; checks?: Record<string, boolean> }>("POST", `/api/checkout/admin/orders/${o.id}/confirm`);
       const falhou = Object.entries(r.checks || {}).filter(([, v]) => !v).map(([k]) => k);
-      if (falhou.length) toast.warning(`Empresa criada, mas confira: ${falhou.join(", ")}.`);
+      if (falhou.length) toast.warning(`Liberado, mas confira: ${falhou.join(", ")}.`);
       else if (r.emailEnviado === false) toast.warning("Acesso criado, mas o e-mail não saiu. Use \"Esqueci a senha\" com o e-mail do cliente.");
     }, "Pagamento confirmado e acesso liberado.");
   };
@@ -186,10 +188,11 @@ export function AdminCheckoutTab() {
                     <tr key={o.id} className={row}>
                       <td className="py-2"><span className="font-semibold">{o.nome}</span><span className="block text-xs text-[var(--color-text-muted)]">{o.empresa} · {o.telefone} · {o.email}</span>{o.error && <span className="block text-xs text-rose-500">{o.error}</span>}
                         {o.kind === "renewal" && <span className="block text-xs text-[var(--color-text-muted)]">Renovação / reativação</span>}
+                        {o.kind === "addon" && <span className="block text-xs text-[var(--color-text-muted)]">Só adicionais</span>}
                         {o.status === "paid" && o.acesso_email_ok === false && <span className="block text-xs text-amber-500">E-mail de acesso não saiu: peça para usar “Esqueci a senha”.</span>}
                         {o.status === "paid" && o.agentes_ok === false && <span className="block text-xs text-amber-500">Agentes n8n não acionados{o.agentes_erro ? `: ${o.agentes_erro}` : ""}.</span>}
                         {o.status === "paid" && o.fulfilled_at === null && <span className="block text-xs text-rose-500">Pago, mas a liberação não terminou: clique em “Retomar”.</span>}</td>
-                      <td className="text-xs">{o.plan_name}{o.promo_code ? <Badge className="ml-1">{o.promo_code}</Badge> : null}</td>
+                      <td className="text-xs">{o.plan_name}{o.ciclo === "yearly" ? " (anual)" : ""}{o.promo_code ? <Badge className="ml-1">{o.promo_code}</Badge> : null}{(o.itens || []).map((i) => <span key={i.sku} className="block text-[var(--color-text-muted)]">+ {i.qtd > 1 ? `${i.qtd}× ` : ""}{i.nome}</span>)}</td>
                       <td className="font-semibold">{brl(o.total_cents)}</td>
                       <td className={`text-xs font-semibold ${s.cls}`}>{s.label}</td>
                       <td className="text-xs">{new Date(o.created_at).toLocaleString("pt-BR")}</td>

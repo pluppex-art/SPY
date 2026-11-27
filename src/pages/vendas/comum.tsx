@@ -6,6 +6,8 @@ import { useRef, useState, type ReactNode } from "react";
 import { Link } from "react-router-dom";
 import { ArrowRight, Check, ChevronDown, Star } from "lucide-react";
 import { usePublicPlans } from "../../lib/usePublicPlans";
+import { DESCONTO_ANUAL } from "../../lib/catalogoSpy";
+import { anualDoPlano } from "../landing/anual";
 import { useDocumentMeta } from "../landing/useDocumentMeta";
 import { useRevealOnScroll } from "../landing/useRevealOnScroll";
 import { rv } from "../landing/reveal";
@@ -66,6 +68,7 @@ export function PlanosDeVenda({ titulo, texto, botao }: { titulo: string; texto:
                 <div className="sp-price">
                   <span>R$ </span><strong>{p.monthlyPrice}</strong><span> /mês</span>
                   {p.setupPrice && <small>Implantação, paga uma vez: <b>{p.setupPrice}</b></small>}
+                  {anualDoPlano(p.monthlyPrice) && <small>No anual: <b>{anualDoPlano(p.monthlyPrice)}</b> por ano ({DESCONTO_ANUAL}% a menos)</small>}
                 </div>
                 <ul>
                   {p.features.map((f) => (<li key={f}><Check size={16} strokeWidth={2} aria-hidden="true" />{f}</li>))}
@@ -88,6 +91,7 @@ export type Pergunta = [pergunta: string, resposta: string];
 export const PERGUNTAS: Pergunta[] = [
   ["O que vem em cada usuário?", "O Agente Secreto de Vendas e a Aurora, com CRM, agenda, tarefas, catálogo, propostas e contratos."],
   ["Como funciona o pagamento?", "Por Pix, no checkout. A primeira cobrança soma a mensalidade e a implantação, que é paga uma vez. O acesso é liberado depois da confirmação do pagamento."],
+  ["Existe plano anual?", `Sim. Pago de uma vez, o ano tem ${DESCONTO_ANUAL}% de desconto na mensalidade e nos adicionais. A implantação não muda.`],
   ["O que está na implantação?", "Configuração do ambiente e do funil, integrações, importação de dados, ajuste da Aurora e dos agentes, conexão do WhatsApp de cada usuário, treinamento e acompanhamento por 30 dias."],
   ["O que o Agente Secreto consegue ler?", "As conversas dos números de WhatsApp que a empresa conecta. A empresa deve avisar a equipe e tratar os dados conforme a LGPD."],
 ];

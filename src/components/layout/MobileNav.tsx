@@ -14,6 +14,7 @@ import {
   AlertCircle,
 } from "lucide-react";
 import { navSections, conditionCheckers, type NavReqCondition } from "./navData";
+import { secoesExtras } from "./menuBloqueado";
 import { useUsaOsImplementacao } from "../../pages/os/hooks/useUsaOsImplementacao";
 import { cargoPermiteModulo, modulosDoCargo } from "../../lib/accessControl";
 
@@ -153,6 +154,11 @@ export function MobileNav({ isMobileMoreOpen, setIsMobileMoreOpen, setIsSDRWebho
                   return { ...section, items: visibleItems };
                 })
                 .filter(Boolean)
+                .concat(secoesExtras({
+                  // Só o administrador da empresa vê o que dá para contratar; espera os módulos carregarem.
+                  admin: !!user?.isTenantAdmin && !user?.isMaster && !user?.partnerId && Object.keys(modulosEmpresa).length > 0,
+                  ligado: checkModule,
+                }))
                 .map((section: any, idx) => (
                 <div key={idx} className="space-y-2.5 border-t border-[var(--color-border-subtle)] pt-4 first:border-none first:pt-0">
                   {!section.semTitulo && <div className="text-[10px] font-black text-[var(--color-text-faint)] uppercase tracking-widest">{section.title}</div>}

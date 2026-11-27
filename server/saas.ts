@@ -17,6 +17,7 @@ import { bloqueiaAcesso, type Situacao } from "../src/lib/situacaoEmpresa.js";
 import axios from "axios";
 import rateLimit from "express-rate-limit";
 import { modulosDeAgenteNovos } from "../src/lib/modulosDeAgente.js";
+import { cicloValido, itensGravados, precoDoCiclo, somaItens } from "../src/lib/catalogoSpy.js";
 
 // ── Contexto de IA por requisição (quem está gastando) ──────────────────────
 export const aiContext = new AsyncLocalStorage<{ tenantId: string }>();
@@ -459,12 +460,14 @@ export function createSaas(deps: Deps) {
     const { data: sub } = await req.supabase.from("tenant_subscriptions").select("*, plan:subscription_plans(*)").eq("tenant_id", tenantId).maybeSingle();
     if (!sub) return res.status(404).json({ error: "Tenant sem assinatura. Defina o plano primeiro." });
     const base = sub.current_period_end && new Date(sub.current_period_end) > new Date() ? new Date(sub.current_period_end) : new Date();
-    const end = addPeriod(base, sub.plan?.billing_interval ?? "monthly").toISOString();
+    const ciclo = cicloValido(sub.ciclo);
+    const end = addPeriod(base, ciclo === "yearly" ? "yearly" : sub.plan?.billing_interval ?? "monthly").toISOString();
+    const valor = sub.plan?.price_cents != null ? precoDoCiclo(sub.plan.price_cents, ciclo) + somaItens(itensGravados(sub.itens), ciclo).recorrente : null;
     const { data, error } = await req.supabase.from("tenant_subscriptions")
       .update({ status: "active", last_payment_at: new Date().toISOString(), current_period_end: end, suspended_at: null, updated_at: new Date().toISOString() })
       .eq("tenant_id", tenantId).select().single();
     if (error) return res.status(400).json({ error: "Erro ao registrar pagamento." });
-    await logEvent(tenantId, "payment_confirmed", { from_status: sub.status, to_status: "active", amount_cents: sub.plan?.price_cents ?? null, payload: { by: req.user.id, source: "manual" } });
+    await logEvent(tenantId, "payment_confirmed", { from_status: sub.status, to_status: "active", amount_cents: valor, payload: { by: req.user.id, source: "manual" } });
     invalidate(tenantId);
     res.json(data);
   });
@@ -548,7 +551,7 @@ export function createSaas(deps: Deps) {
       if (evt === "PAYMENT_CONFIRMED" || evt === "PAYMENT_RECEIVED") {
         to = "active";
         const base = sub.current_period_end && new Date(sub.current_period_end) > new Date() ? new Date(sub.current_period_end) : new Date();
-        Object.assign(patch, { status: "active", last_payment_at: new Date().toISOString(), current_period_end: addPeriod(base, sub.plan?.billing_interval ?? "monthly").toISOString(), suspended_at: null });
+        Object.assign(patch, { status: "active", last_payment_at: new Date().toISOString(), current_period_end: addPeriod(base, sub.ciclo === "yearly" ? "yearly" : sub.plan?.billing_interval ?? "monthly").toISOString(), suspended_at: null });
       } else if (evt === "PAYMENT_OVERDUE") {
         to = sub.status === "suspended" ? "suspended" : "past_due";
         patch.status = to;

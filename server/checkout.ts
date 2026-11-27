@@ -21,6 +21,7 @@ import { upsertLead, atualizarLeadPorId } from "./leadUpsert.js";
 import { notificationEmail, type NotificationKind } from "./emailTemplates.js";
 import { whatsappUrl, formatPhoneBR } from "./emailNotify.js";
 import { modulosDeAgenteNovos } from "../src/lib/modulosDeAgente.js";
+import { DESCONTO_ANUAL, ITENS_SPY, cicloValido, escolherItens, itensGravados, jaAtivo, modulosDosItens, precoDoCiclo, proporcional, reprecificar, somaItens, unirItens, type Ciclo, type ItemPedido, type ItemVenda } from "../src/lib/catalogoSpy.js";
 
 type Deps = {
   requireUser: (req: any, res: Response, next: NextFunction) => any;
@@ -123,9 +124,26 @@ export function createCheckoutRouter({ requireUser, requireMaster, supabaseServi
   const pub = rateLimit({ windowMs: 60_000, limit: 40, standardHeaders: true, legacyHeaders: false });
   const pubWrite = rateLimit({ windowMs: 60_000, limit: 8, standardHeaders: true, legacyHeaders: false });
 
-  type Quote = { plan: any; promo: any | null; priceCents: number; setupCents: number; discountCents: number; totalCents: number; listCents: number; listSetupCents?: number; listMonthlyCents?: number };
+  /** priceCents = plano no ciclo; itensCents = adicionais no ciclo; setupCents = implantação do plano + dos adicionais. */
+  type Quote = { plan: any; promo: any | null; priceCents: number; setupCents: number; discountCents: number; totalCents: number; listCents: number; listSetupCents?: number; listMonthlyCents?: number; ciclo?: Ciclo; itens?: ItemPedido[]; itensCents?: number };
 
-  async function quoteFor(planCode: string, promoCode?: string): Promise<Quote> {
+  /** Adicionais à venda: produtos ativos, com SKU conhecido, na mesma empresa que é dona dos produtos dos planos. */
+  async function catalogo(): Promise<ItemVenda[]> {
+    const { data: planos } = await db!.from("subscription_plans").select("product_id").eq("active", true);
+    const ids = (planos || []).map((p: any) => p.product_id).filter(Boolean);
+    if (!ids.length) return [];
+    const { data: donos } = await db!.from("products").select("tenant_id").in("id", ids);
+    const tenants = [...new Set((donos || []).map((d: any) => d.tenant_id).filter(Boolean))];
+    if (!tenants.length) return [];
+    const { data, error } = await db!.from("products").select("sku,name,description,price,implementation_fee,deleted_at").in("tenant_id", tenants).in("sku", Object.keys(ITENS_SPY)).eq("active", true);
+    if (error) { console.error("[checkout] catálogo:", error.message); return []; }
+    const ordem = Object.keys(ITENS_SPY);
+    return (data || []).filter((p: any) => !p.deleted_at && Number(p.price) > 0)
+      .map((p: any) => ({ sku: String(p.sku), nome: String(p.name).replace(/^S\.P\.Y\. \| /, ""), descricao: String(p.description || ""), mensalCents: Math.round(Number(p.price) * 100), implCents: Math.max(0, Math.round(Number(p.implementation_fee || 0) * 100)) }))
+      .sort((a: ItemVenda, b: ItemVenda) => ordem.indexOf(a.sku) - ordem.indexOf(b.sku));
+  }
+
+  async function quoteFor(planCode: string, promoCode?: string, ciclo: Ciclo = "monthly"): Promise<Quote> {
     if (!db) throw new Error("Indisponível.");
     const { data: plan } = await db.from("subscription_plans").select("*").eq("code", String(planCode || "").toLowerCase()).eq("active", true).maybeSingle();
     if (!plan) throw new Error("Plano não encontrado.");
@@ -135,7 +153,8 @@ export function createCheckoutRouter({ requireUser, requireMaster, supabaseServi
       (!p.valid_until || new Date(p.valid_until).getTime() > now) &&
       (p.max_uses == null || p.uses < p.max_uses) &&
       (!p.plan_code || p.plan_code === plan.code);
-    const base = Math.max(0, Number(plan.price_cents) || 0);
+    const anual = ciclo === "yearly" && plan.billing_interval !== "yearly";
+    const base = precoDoCiclo(Math.max(0, Number(plan.price_cents) || 0), anual ? "yearly" : "monthly");
     const setup = Math.max(0, Number(plan.setup_price_cents) || 0);
     const desconto = (p: any) => Math.min(base + setup,
       Math.round(base * (p.percent_off / 100)) + Number(p.amount_off_cents || 0) + (p.setup_waived ? setup : 0));
@@ -149,11 +168,11 @@ export function createCheckoutRouter({ requireUser, requireMaster, supabaseServi
       promo = (promos || []).filter((p: any) => !p.code && vale(p)).sort((a: any, b: any) => desconto(b) - desconto(a))[0] || null;
     }
     const discountCents = promo ? desconto(promo) : 0;
-    return { plan, promo, priceCents: base, setupCents: setup, discountCents, totalCents: base + setup - discountCents, listCents: base + setup };
+    return { plan: anual ? { ...plan, billing_interval: "yearly" } : plan, ciclo: anual || plan.billing_interval === "yearly" ? "yearly" : "monthly", promo, priceCents: base, setupCents: setup, discountCents, totalCents: base + setup - discountCents, listCents: base + setup };
   }
 
   /** Produto unico: o valor promocional do checkout (sem implantacao) substitui a tabela do plano; o "de" riscado vem da config. */
-  async function finalQuote(planCode: string, promoCode?: string): Promise<Quote> {
+  async function finalQuote(planCode: string, promoCode?: string, ciclo: Ciclo = "monthly", pedidoItens?: unknown): Promise<Quote> {
     const cfg = await config();
     if (cfg?.single_plan_code && cfg.offer_cents && String(planCode).toLowerCase() === cfg.single_plan_code.toLowerCase()) {
       const q = await quoteFor(cfg.single_plan_code);
@@ -161,14 +180,28 @@ export function createCheckoutRouter({ requireUser, requireMaster, supabaseServi
       const lista = Math.max(detalhado ? (cfg.list_setup_cents as number) + (cfg.list_monthly_cents as number) : cfg.list_price_cents || 0, cfg.offer_cents);
       return { ...q, promo: { label: "Oferta de lançamento", code: null }, priceCents: lista, setupCents: 0, discountCents: lista - cfg.offer_cents, totalCents: cfg.offer_cents, listCents: lista, ...(detalhado ? { listSetupCents: cfg.list_setup_cents as number, listMonthlyCents: cfg.list_monthly_cents as number } : {}) };
     }
-    return quoteFor(planCode, promoCode);
+    const q = await quoteFor(planCode, promoCode, ciclo);
+    const itens = Array.isArray(pedidoItens) && pedidoItens.length ? escolherItens(pedidoItens, await catalogo()) : [];
+    const soma = somaItens(itens, q.ciclo!);
+    const extra = soma.recorrente + soma.implantacao;
+    return { ...q, itens, itensCents: soma.recorrente, setupCents: q.setupCents + soma.implantacao, totalCents: q.totalCents + extra, listCents: q.listCents + extra };
   }
 
   const quoteJson = (q: Quote) => ({
     plan: { code: q.plan.code, name: q.plan.name, tagline: q.plan.tagline ?? "", interval: q.plan.billing_interval, features: Array.isArray(q.plan.features) ? q.plan.features : [] },
     priceCents: q.priceCents, setupCents: q.setupCents, discountCents: q.discountCents, totalCents: q.totalCents, listCents: q.listCents, listSetupCents: q.listSetupCents ?? null, listMonthlyCents: q.listMonthlyCents ?? null,
     promo: q.promo ? { label: q.promo.label || q.promo.code || "Promoção", code: q.promo.code ?? null, auto: !q.promo.code } : null,
+    ciclo: q.ciclo ?? "monthly", itensCents: q.itensCents ?? 0,
+    itens: (q.itens ?? []).map((i) => ({ ...i, valorCents: precoDoCiclo(i.mensalCents, q.ciclo ?? "monthly") * i.qtd })),
   });
+
+  /** Nome do que foi comprado, para avisos e e-mails: plano, ciclo e adicionais. */
+  const resumoDoPedido = (o: any) => {
+    const itens = itensGravados(o.itens);
+    const extras = itens.map((i) => `${i.qtd > 1 ? `${i.qtd}× ` : ""}${i.nome}`).join(", ");
+    if (o.kind === "addon") return `Adicionais: ${extras}`;
+    return `${o.plan_name}${o.ciclo === "yearly" ? " (anual)" : ""}${extras ? ` + ${extras}` : ""}`;
+  };
 
   async function config() {
     const { data } = await db!.from("checkout_config").select("*").eq("id", "main").maybeSingle();
@@ -221,7 +254,8 @@ export function createCheckoutRouter({ requireUser, requireMaster, supabaseServi
    * o que ja foi criado. Se este passe criou algo e falhar antes de concluir, desfaz TUDO que ele criou (sem orfaos).
    * `by` = quem confirmou (null = venda automatica pelo comprovante, so com CHECKOUT_AUTO_FULFILL=true).
    */
-  async function fulfill(o: any, by: string | null, res: any, opts: { recover?: boolean } = {}) {
+  async function fulfill(o: any, by: string | null, res: any, opts: { recover?: boolean } = {}): Promise<any> {
+    if (o.kind === "addon") return liberarAdicionais(o, by, res, opts);
     const agora = new Date().toISOString();
     // Reserva o pedido (evita confirmar em duplicidade com dois cliques ao mesmo tempo).
     const base = db!.from("checkout_orders").update({ status: "paid", paid_at: agora, confirmed_by: by, error: null }).eq("id", o.id);
@@ -272,7 +306,7 @@ export function createCheckoutRouter({ requireUser, requireMaster, supabaseServi
           if (usuarioInativo(existente)) {
             await avisarEquipe("checkout_atencao", "warning", `Atenção no checkout: acesso desativado (${o.empresa})`,
               `${o.nome} (${o.empresa}) pagou, mas o e-mail ${o.email} pertence a um usuário desativado/excluído. A reativação deve ser feita por um administrador; o pedido segue pendente de liberação.`,
-              [{ label: "Cliente", value: o.nome }, { label: "E-mail", value: o.email }, { label: "Plano / valor", value: `${o.plan_name} · ${brl(o.total_cents)}` }], o.telefone);
+              [{ label: "Cliente", value: o.nome }, { label: "E-mail", value: o.email }, { label: "Plano / valor", value: `${resumoDoPedido(o)} · ${brl(o.total_cents)}` }], o.telefone);
             throw new FulfillError("Este e-mail tem um acesso desativado. A reativação deve ser feita por um administrador; a equipe foi avisada.", 409);
           }
           if (existente.is_master || !existente.tenant_id) throw new FulfillError("Este e-mail pertence a um administrador do sistema. Use outro e-mail ou crie o acesso manualmente.", 409);
@@ -315,24 +349,25 @@ export function createCheckoutRouter({ requireUser, requireMaster, supabaseServi
 
       // 2) Assinatura: plano (so quando preciso) + periodo pago. O periodo so e estendido uma vez por pedido.
       if (o.plan_id) {
-        const { data: sub } = await db!.from("tenant_subscriptions").select("status,plan_id,current_period_end").eq("tenant_id", tenantId).maybeSingle();
+        const { data: sub } = await db!.from("tenant_subscriptions").select("status,plan_id,current_period_end,itens").eq("tenant_id", tenantId).maybeSingle();
+        const comprados = itensGravados(o.itens);
         const precisaPlano = !reuse || !sub || sub.plan_id !== o.plan_id || ["canceled", "suspended"].includes(sub.status);
-        if (precisaPlano) {
-          // Cliente que já existia: se o plano ligar um módulo novo, cria o agente dele (a empresa nova é tratada adiante).
-          const modulos = async () => (await db!.from("tenants").select("modules").eq("id", tenantId!).maybeSingle()).data?.modules;
-          const antes = reuse && acionarModulosNovos ? await modulos() : null;
-          await provisionPlan(tenantId, o.plan_id, by || undefined);
-          if (reuse && acionarModulosNovos && modulosDeAgenteNovos(antes, await modulos()).length) {
-            const r = await acionarModulosNovos(tenantId);
-            console.log("[checkout] agentes dos módulos novos:", JSON.stringify(r));
-          }
+        // Cliente que já existia: se o plano ou um adicional ligar um módulo novo, cria o agente dele (a empresa nova é tratada adiante).
+        const modulos = async () => (await db!.from("tenants").select("modules").eq("id", tenantId!).maybeSingle()).data?.modules;
+        const antes = reuse && acionarModulosNovos && (precisaPlano || comprados.length) ? await modulos() : null;
+        if (precisaPlano) await provisionPlan(tenantId, o.plan_id, by || undefined);
+        if (comprados.length) await ligarModulos(tenantId, comprados);
+        if (reuse && acionarModulosNovos && (precisaPlano || comprados.length) && modulosDeAgenteNovos(antes, await modulos()).length) {
+          const r = await acionarModulosNovos(tenantId);
+          console.log("[checkout] agentes dos módulos novos:", JSON.stringify(r));
         }
         const { data: jaAplicado } = await db!.from("billing_events").select("id").eq("tenant_id", tenantId).eq("type", "payment_confirmed").contains("payload", { order: o.id }).limit(1).maybeSingle();
         if (!jaAplicado) {
           const { data: plan } = await db!.from("subscription_plans").select("billing_interval").eq("id", o.plan_id).maybeSingle();
           const atualFim = reuse && sub?.current_period_end && new Date(sub.current_period_end) > new Date() ? new Date(sub.current_period_end) : new Date();
           const { error: sErr } = await db!.from("tenant_subscriptions").update({
-            status: "active", trial_ends_at: null, last_payment_at: agora, current_period_end: addPeriod(atualFim, plan?.billing_interval).toISOString(), suspended_at: null, updated_at: agora,
+            status: "active", trial_ends_at: null, last_payment_at: agora, current_period_end: addPeriod(atualFim, o.ciclo === "yearly" ? "yearly" : plan?.billing_interval).toISOString(), suspended_at: null, updated_at: agora,
+            ciclo: cicloValido(o.ciclo), itens: unirItens(itensGravados(sub?.itens), comprados, "substituir"), // nada que já era pago some da cobrança
           }).eq("tenant_id", tenantId);
           if (sErr) throw new FulfillError("Erro ao ativar a assinatura.");
           await db!.from("billing_events").insert({ tenant_id: tenantId, type: "payment_confirmed", to_status: "active", amount_cents: o.total_cents, payload: { by, source: "checkout_pix", order: o.id } });
@@ -391,7 +426,7 @@ export function createCheckoutRouter({ requireUser, requireMaster, supabaseServi
       const problemas: string[] = [];
       if (!emailEnviado) problemas.push(`O e-mail de acesso para ${o.email} NÃO foi enviado. Oriente o cliente a abrir a tela de login e usar “Esqueci a senha”.`);
       if (!agentes.ok) problemas.push(`Os agentes de implantação (n8n) não foram acionados: ${agentes.erro}. Acione manualmente.`);
-      const info = [{ label: "Cliente", value: o.nome }, { label: "Empresa", value: o.empresa }, { label: "Plano / valor", value: `${o.plan_name} · ${brl(o.total_cents)}` }, { label: "E-mail", value: o.email }];
+      const info = [{ label: "Cliente", value: o.nome }, { label: "Empresa", value: o.empresa }, { label: "Plano / valor", value: `${resumoDoPedido(o)} · ${brl(o.total_cents)}` }, { label: "E-mail", value: o.email }];
       if (problemas.length) {
         await avisarEquipe("checkout_atencao", "warning", `Atenção no checkout: ${o.empresa}`, `Venda confirmada, mas ${problemas.join(" ")}`, info, o.telefone);
       } else if (by === null) {
@@ -415,12 +450,73 @@ export function createCheckoutRouter({ requireUser, requireMaster, supabaseServi
     }
   }
 
+  /** Liga na empresa os módulos dos itens comprados, sem desligar nenhum. */
+  async function ligarModulos(tenantId: string, itens: ItemPedido[]) {
+    const { data: t } = await db!.from("tenants").select("modules,name").eq("id", tenantId).maybeSingle();
+    if (!t) throw new FulfillError("Empresa não encontrada para este pedido.");
+    const { error } = await db!.from("tenants").update({ modules: { ...((t as any).modules || {}), ...modulosDosItens(itens) } }).eq("id", tenantId);
+    if (error) throw new FulfillError("Erro ao liberar os módulos.");
+    if (itens.some((i) => i.sku === "SPY-ADD-RADAR")) provisionarRadarDaEmpresa(db, tenantId, (t as any).name).catch(() => {});
+  }
+
+  /** Pedido de adicionais: liga os módulos e soma os itens à assinatura. Não mexe no plano nem no vencimento. */
+  async function liberarAdicionais(o: any, by: string | null, res: any, opts: { recover?: boolean } = {}): Promise<any> {
+    const agora = new Date().toISOString();
+    const base = db!.from("checkout_orders").update({ status: "paid", paid_at: agora, confirmed_by: by, error: null }).eq("id", o.id);
+    const { data: lock } = await (opts.recover
+      ? base.eq("status", "paid").is("fulfilled_at", null).lt("paid_at", new Date(Date.now() - 3 * 60_000).toISOString())
+      : base.neq("status", "paid")).select("id").maybeSingle();
+    if (!lock) return opts.recover
+      ? res.status(409).json({ error: "Este pedido ainda está sendo processado. Aguarde 3 minutos e tente de novo." })
+      : res.json({ ok: true, jaConfirmado: true });
+    try {
+      const itens = itensGravados(o.itens);
+      if (!o.tenant_id || !itens.length) throw new FulfillError("Pedido de adicionais sem empresa ou sem itens.", 422);
+      const modulos = async () => (await db!.from("tenants").select("modules").eq("id", o.tenant_id).maybeSingle()).data?.modules;
+      const antes = acionarModulosNovos ? await modulos() : null;
+      await ligarModulos(o.tenant_id, itens);
+
+      const { data: sub } = await db!.from("tenant_subscriptions").select("itens").eq("tenant_id", o.tenant_id).maybeSingle();
+      const { data: jaAplicado } = await db!.from("billing_events").select("id").eq("tenant_id", o.tenant_id).eq("type", "payment_confirmed").contains("payload", { order: o.id }).limit(1).maybeSingle();
+      if (!jaAplicado) { // soma uma única vez por pedido, mesmo numa retentativa
+        if (sub) {
+          const { error } = await db!.from("tenant_subscriptions").update({ itens: unirItens(itensGravados((sub as any).itens), itens, "somar"), updated_at: agora }).eq("tenant_id", o.tenant_id);
+          if (error) throw new FulfillError("Erro ao incluir os adicionais na assinatura.");
+        }
+        await db!.from("billing_events").insert({ tenant_id: o.tenant_id, type: "payment_confirmed", amount_cents: o.total_cents, payload: { by, source: "checkout_pix", order: o.id, adicionais: itens.map((i) => ({ sku: i.sku, qtd: i.qtd })) } });
+      }
+      await db!.from("checkout_orders").update({ fulfilled_at: new Date().toISOString() }).eq("id", o.id);
+
+      if (acionarModulosNovos && modulosDeAgenteNovos(antes, await modulos()).length) await acionarModulosNovos(o.tenant_id).catch((e: any) => console.error("[checkout] agentes dos adicionais:", e?.message));
+      let emailEnviado = false;
+      try {
+        await sendPlatformEmail({ to: o.email, ...notificationEmail({
+          kind: "success", copyKey: "checkout_renovacao", title: "Pagamento confirmado — adicionais liberados",
+          description: `Recebemos o pagamento de ${brl(o.total_cents)}.`,
+          details: [{ label: "Empresa", value: o.empresa }, { label: "Itens", value: resumoDoPedido(o) }, { label: "Valor", value: brl(o.total_cents) }],
+          primaryButton: { label: "Entrar no S.P.Y.", url: `${publicAppUrl}/login` }, name: o.nome,
+        }) });
+        emailEnviado = true;
+      } catch (e: any) { console.error("[checkout] e-mail dos adicionais:", e?.message); }
+      await db!.from("checkout_orders").update({ acesso_email_ok: emailEnviado }).eq("id", o.id);
+      await avisarEquipe("checkout_venda", sub ? "success" : "warning", `Adicionais liberados: ${o.empresa} — ${brl(o.total_cents)}`,
+        `${o.nome} (${o.empresa}) contratou ${resumoDoPedido(o)}. Faça a configuração desses itens.${sub ? "" : " ATENÇÃO: esta empresa não tem assinatura cadastrada; a mensalidade dos adicionais precisa ser cobrada à parte."}`,
+        [{ label: "Empresa", value: o.empresa }, { label: "Itens / valor", value: `${resumoDoPedido(o)} · ${brl(o.total_cents)}` }, { label: "E-mail", value: o.email }], o.telefone);
+      res.json({ ok: true, tenantId: o.tenant_id, emailEnviado, renovacao: true, checks: { modulos: true, assinatura: !!sub, email: emailEnviado } });
+    } catch (e: any) {
+      const msg = e instanceof FulfillError ? e.message : "Erro inesperado ao confirmar. Tente de novo.";
+      console.error("[checkout] adicionais:", e?.message);
+      await db!.from("checkout_orders").update({ status: o.status, paid_at: opts.recover ? o.paid_at : null, confirmed_by: null, error: msg }).eq("id", o.id);
+      res.status(e instanceof FulfillError ? e.code : 500).json({ error: msg });
+    }
+  }
+
   /**
    * Abre (ou reaproveita) um pedido Pix. Cuida de: expirar vencidos, nao duplicar pedido aberto do mesmo e-mail,
    * limites anti-spam e limite de usos do cupom. `antes` roda so quando um pedido novo vai mesmo ser criado (ex.: lead no CRM).
    */
   type NovoPedido = {
-    kind: "new" | "renewal"; tenantId: string | null; plan: any; planId: string; nome: string; telefone: string; email: string; documento: string; empresa: string;
+    kind: "new" | "renewal" | "addon"; tenantId: string | null; plan: any; planId: string | null; ciclo: Ciclo; itens: ItemPedido[]; nome: string; telefone: string; email: string; documento: string; empresa: string;
     priceCents: number; setupCents: number; discountCents: number; totalCents: number; promo: any | null; ip: string | null;
     consent?: { version: string }; antes?: () => Promise<string | null>;
   };
@@ -444,7 +540,8 @@ export function createCheckoutRouter({ requireUser, requireMaster, supabaseServi
       .order("created_at", { ascending: false }).limit(1).maybeSingle();
     if (aberto) {
       if (aberto.documento !== n.documento) return neutro; // nunca cancela/substitui o pedido de outro solicitante
-      if (aberto.plan_code === n.plan.code && aberto.total_cents === n.totalCents) return { ok: true, pedido: dtoPedido(aberto), novo: false };
+      const assinatura = (l: unknown) => itensGravados(l).map((i) => `${i.sku}x${i.qtd}`).sort().join(",");
+      if (aberto.plan_code === n.plan.code && aberto.total_cents === n.totalCents && (aberto.ciclo ?? "monthly") === n.ciclo && assinatura(aberto.itens) === assinatura(n.itens)) return { ok: true, pedido: dtoPedido(aberto), novo: false };
       await db!.from("checkout_orders").update({ status: "canceled" }).eq("id", aberto.id).eq("status", "pending"); // mesmo solicitante mudou de plano/valor
     }
 
@@ -471,7 +568,7 @@ export function createCheckoutRouter({ requireUser, requireMaster, supabaseServi
       token, kind: n.kind, tenant_id: n.tenantId, plan_id: n.planId, plan_code: n.plan.code, plan_name: n.plan.name, nome: n.nome, telefone: n.telefone, email: n.email, documento: n.documento, empresa: n.empresa,
       price_cents: n.priceCents, setup_cents: n.setupCents, discount_cents: n.discountCents, total_cents: n.totalCents,
       promo_id: n.promo?.id ?? null, promo_code: n.promo?.code ?? null, txid, pix_payload: pixPayload, lead_id: leadId, expires_at: expiresAt,
-      consent_at: n.consent ? agora : null, consent_ip: n.ip, consent_version: n.consent?.version ?? null,
+      consent_at: n.consent ? agora : null, consent_ip: n.ip, consent_version: n.consent?.version ?? null, ciclo: n.ciclo, itens: n.itens,
     });
     if (error) {
       if (error.code === "23505") { // corrida: outro clique criou o pedido aberto neste instante
@@ -512,17 +609,17 @@ export function createCheckoutRouter({ requireUser, requireMaster, supabaseServi
       .eq("active", true).eq("show_on_site", true).order("sort_order").order("price_cents");
     const enabled = !!(cfg?.active && cfg.pix_key);
     if (cfg?.single_plan_code) {
-      try { return res.json({ enabled, single: quoteJson(await finalQuote(cfg.single_plan_code)), plans: [] }); } catch { /* cai na lista */ }
+      try { return res.json({ enabled, single: quoteJson(await finalQuote(cfg.single_plan_code)), plans: [], itens: [], descontoAnual: DESCONTO_ANUAL }); } catch { /* cai na lista */ }
     }
     const plans = [];
     for (const p of data || []) {
       try { plans.push({ ...quoteJson(await quoteFor((p as any).code)), badge: (p as any).badge ?? null, highlight: !!(p as any).highlight }); } catch { /* plano sem cotação */ }
     }
-    res.json({ enabled, single: null, plans });
+    res.json({ enabled, single: null, plans, itens: await catalogo(), descontoAnual: DESCONTO_ANUAL });
   });
 
   router.post("/quote", pub, async (req, res) => {
-    try { res.json(quoteJson(await finalQuote(req.body?.planCode, req.body?.promoCode))); }
+    try { res.json(quoteJson(await finalQuote(req.body?.planCode, req.body?.promoCode, cicloValido(req.body?.ciclo), req.body?.itens))); }
     catch (e: any) { res.status(400).json({ error: e?.message || "Não foi possível calcular." }); }
   });
 
@@ -545,7 +642,7 @@ export function createCheckoutRouter({ requireUser, requireMaster, supabaseServi
     if (!cfg?.active || !cfg.pix_key) return res.status(503).json({ error: "O pagamento ainda não está disponível. Fale com a gente pelo WhatsApp." });
 
     let q: Quote;
-    try { q = await finalQuote(b.planCode, b.promoCode); } catch (e: any) { return res.status(400).json({ error: e?.message || "Plano inválido." }); }
+    try { q = await finalQuote(b.planCode, b.promoCode, cicloValido(b.ciclo), b.itens); } catch (e: any) { return res.status(400).json({ error: e?.message || "Plano inválido." }); }
     if (q.totalCents < 100) return res.status(400).json({ error: "Valor inválido para pagamento via Pix." });
 
     // E-mail que ja tem acesso (cliente cancelado/suspenso voltando, ou segunda compra): o pedido e de RENOVACAO da empresa
@@ -563,7 +660,7 @@ export function createCheckoutRouter({ requireUser, requireMaster, supabaseServi
     const sellerTenant = process.env.SPY_FORM_TENANT_ID || process.env.AXIS_FORM_TENANT_ID;
     const r = await abrirPedido({
       kind, tenantId: existente?.tenant_id ?? null, plan: q.plan, planId: q.plan.id, nome, telefone, email, documento, empresa,
-      priceCents: q.priceCents, setupCents: q.setupCents, discountCents: q.discountCents, totalCents: q.totalCents, promo: q.promo, ip: clientIp(req),
+      priceCents: q.priceCents + (q.itensCents ?? 0), setupCents: q.setupCents, discountCents: q.discountCents, totalCents: q.totalCents, promo: q.promo, ip: clientIp(req), ciclo: q.ciclo ?? "monthly", itens: q.itens ?? [],
       consent: { version: String(b.politicaVersao || process.env.CHECKOUT_POLICY_VERSION || "2026-11").slice(0, 40) },
       // Lead no CRM de quem vende, ja na hora do cadastro (quem desistiu do Pix tambem vira lead para follow-up).
       antes: async () => {
@@ -573,7 +670,7 @@ export function createCheckoutRouter({ requireUser, requireMaster, supabaseServi
           return (await upsertLead(db, sellerTenant, {
             name: nome, email, phone: telefone, company: empresa, cnpj: documento, source: "Checkout S.P.Y.", priority: "Alta", scoreIA: 80,
             value: q.totalCents / 100, papel: "proposta",
-            nota: `Checkout: plano ${q.plan.name}, total ${brl(q.totalCents)}${q.promo ? `, promoção ${q.promo.label || q.promo.code}` : ""}. Gerou o Pix mas ainda não enviou o comprovante: fazer follow-up.`,
+            nota: `Checkout: plano ${resumoDoPedido({ plan_name: q.plan.name, ciclo: q.ciclo, itens: q.itens })}, total ${brl(q.totalCents)}${q.promo ? `, promoção ${q.promo.label || q.promo.code}` : ""}. Gerou o Pix mas ainda não enviou o comprovante: fazer follow-up.`,
           })).id;
         } catch (e: any) { console.error("[checkout] lead:", e?.message); return null; }
       },
@@ -581,7 +678,7 @@ export function createCheckoutRouter({ requireUser, requireMaster, supabaseServi
     if ("error" in r) return res.status(r.status).json({ error: r.error });
     if (r.novo) {
       await avisarEquipe("novo_lead", "info", `Novo lead no checkout: ${nome}`, `${nome} (${empresa}) gerou o Pix de ${brl(q.totalCents)} no checkout${existente ? " (e-mail que já tem acesso: renovação/reativação)" : ""}.`,
-        [{ label: "Nome do lead", value: nome }, { label: "Empresa", value: empresa }, { label: "Plano / valor", value: `${q.plan.name} · ${brl(q.totalCents)}` }], telefone,
+        [{ label: "Nome do lead", value: nome }, { label: "Empresa", value: empresa }, { label: "Plano / valor", value: `${resumoDoPedido({ plan_name: q.plan.name, ciclo: q.ciclo, itens: q.itens })} · ${brl(q.totalCents)}` }], telefone,
         `${publicAppUrl}/app/admin?tab=plans&sub=checkout`);
     }
     res.json(r.pedido);
@@ -596,7 +693,7 @@ export function createCheckoutRouter({ requireUser, requireMaster, supabaseServi
     const cfg = await config();
     if (!cfg?.active || !cfg.pix_key) return res.status(503).json({ error: "O pagamento ainda não está disponível. Fale com a gente pelo WhatsApp." });
     const [{ data: sub }, { data: tenant }, { data: emp }] = await Promise.all([
-      db.from("tenant_subscriptions").select("gateway,plan:subscription_plans(*)").eq("tenant_id", me.tenant_id).maybeSingle(),
+      db.from("tenant_subscriptions").select("gateway,ciclo,itens,plan:subscription_plans(*)").eq("tenant_id", me.tenant_id).maybeSingle(),
       db.from("tenants").select("name").eq("id", me.tenant_id).maybeSingle(),
       db.from("app_settings").select("value").eq("tenant_id", me.tenant_id).eq("key", "empresa_dados").maybeSingle(),
     ]);
@@ -604,25 +701,85 @@ export function createCheckoutRouter({ requireUser, requireMaster, supabaseServi
     if (gw && gw !== "manual") return res.status(409).json({ error: "Sua assinatura é cobrada automaticamente. Não é necessário pagar por aqui; para alterar a cobrança, fale com a gente pelo WhatsApp." });
     const plan: any = Array.isArray((sub as any)?.plan) ? (sub as any).plan[0] : (sub as any)?.plan;
     if (!plan) return res.status(400).json({ error: "Sua empresa ainda não tem um plano para renovar. Fale com a gente pelo WhatsApp." });
-    const total = Math.max(0, Number(plan.price_cents) || 0);
+    const ciclo = cicloValido((sub as any)?.ciclo);
+    const itens = reprecificar(itensGravados((sub as any)?.itens), await catalogo());
+    const total = precoDoCiclo(Math.max(0, Number(plan.price_cents) || 0), ciclo) + somaItens(itens, ciclo).recorrente;
     if (total < 100) return res.status(400).json({ error: "O plano da sua empresa não é cobrado por Pix. Fale com a gente pelo WhatsApp." });
     const dados: any = emp?.value || {};
     const r = await abrirPedido({
       kind: "renewal", tenantId: me.tenant_id, plan, planId: plan.id, nome: String(me.name || "Cliente").slice(0, 120), telefone: String(dados.telefone || "").slice(0, 30),
       email: String(me.email).toLowerCase(), documento: String(dados.cnpj || "").replace(/\D/g, ""), empresa: String(tenant?.name || dados.nome || "Empresa").slice(0, 160),
-      priceCents: total, setupCents: 0, discountCents: 0, totalCents: total, promo: null, ip: clientIp(req),
+      priceCents: total, setupCents: 0, discountCents: 0, totalCents: total, promo: null, ip: clientIp(req), ciclo, itens,
     }, cfg);
     if ("error" in r) return res.status(r.status).json({ error: r.error });
-    res.json({ ...r.pedido, planName: plan.name, empresa: tenant?.name ?? null });
+    res.json({ ...r.pedido, planName: plan.name, empresa: tenant?.name ?? null, ciclo, itens });
+  });
+
+  /** Compra de adicionais por uma empresa que já usa o S.P.Y.: só o administrador, com o preço calculado aqui. */
+  async function cotarAdicionais(userId: string, pedidoItens: unknown) {
+    const falha = (status: number, error: string) => ({ erro: { status, error } });
+    const { data: me } = await db!.from("users").select("name,email,tenant_id,is_master,is_tenant_admin,active").eq("id", userId).maybeSingle();
+    if (!me?.tenant_id || !EMAIL_RE.test(String(me.email || ""))) return falha(403, "Seu usuário não está ligado a uma empresa.");
+    if (me.active === false || (!me.is_master && !me.is_tenant_admin)) return falha(403, "Somente o administrador da empresa pode contratar adicionais.");
+    const [{ data: sub }, { data: tenant }] = await Promise.all([
+      db!.from("tenant_subscriptions").select("status,gateway,ciclo,current_period_end,plan_id,plan:subscription_plans(*)").eq("tenant_id", me.tenant_id).maybeSingle(),
+      db!.from("tenants").select("name,modules").eq("id", me.tenant_id).maybeSingle(),
+    ]);
+    const s: any = sub;
+    const gw = String(s?.gateway || "").toLowerCase();
+    if (gw && gw !== "manual") return falha(409, "Sua assinatura é cobrada automaticamente. Para incluir adicionais, fale com a gente pelo WhatsApp.");
+    if (s && (["suspended", "canceled"].includes(s.status) || (s.current_period_end && new Date(s.current_period_end).getTime() < Date.now()))) {
+      return falha(409, "Sua assinatura está vencida ou suspensa. Renove primeiro e depois inclua os adicionais.");
+    }
+    const lista = await catalogo();
+    const itens = escolherItens(pedidoItens, lista).filter((i) => !jaAtivo(i.sku, (tenant as any)?.modules));
+    const ciclo = cicloValido(s?.ciclo);
+    const fim: string | null = s?.current_period_end ?? null;
+    const linhas = itens.map((i) => ({ ...i, valorCents: proporcional(precoDoCiclo(i.mensalCents, ciclo) * i.qtd, fim, ciclo) }));
+    const recorrenteCents = linhas.reduce((t, i) => t + i.valorCents, 0);
+    const setupCents = somaItens(itens, ciclo).implantacao;
+    const plan: any = Array.isArray(s?.plan) ? s.plan[0] : s?.plan;
+    return {
+      me, tenant: tenant as any, plan, planId: s?.plan_id ?? null, itens,
+      cotacao: { ciclo, fim, temAssinatura: !!s, proporcional: !!fim, itens: linhas, recorrenteCents, setupCents, totalCents: recorrenteCents + setupCents,
+        catalogo: lista, ativos: lista.filter((c) => jaAtivo(c.sku, (tenant as any)?.modules)).map((c) => c.sku), empresa: (tenant as any)?.name ?? "" },
+    };
+  }
+
+  router.post("/addon-quote", pub, requireUser, async (req: any, res) => {
+    if (!db) return res.status(503).json({ error: "Indisponível." });
+    const r = await cotarAdicionais(req.user.id, req.body?.itens);
+    if ("erro" in r) return res.status(r.erro!.status).json({ error: r.erro!.error });
+    res.json(r.cotacao);
+  });
+
+  router.post("/addon-order", pubWrite, requireUser, async (req: any, res) => {
+    if (!db) return res.status(503).json({ error: "Indisponível." });
+    const cfg = await config();
+    if (!cfg?.active || !cfg.pix_key) return res.status(503).json({ error: "O pagamento ainda não está disponível. Fale com a gente pelo WhatsApp." });
+    const r = await cotarAdicionais(req.user.id, req.body?.itens);
+    if ("erro" in r) return res.status(r.erro!.status).json({ error: r.erro!.error });
+    const { me, tenant, plan, planId, itens, cotacao } = r as Extract<typeof r, { me: any }>;
+    if (!itens.length) return res.status(400).json({ error: "Escolha pelo menos um adicional que a empresa ainda não tenha." });
+    if (cotacao.totalCents < 100) return res.status(400).json({ error: "Valor baixo demais para o Pix. Fale com a gente pelo WhatsApp." });
+    const { data: emp } = await db.from("app_settings").select("value").eq("tenant_id", me.tenant_id).eq("key", "empresa_dados").maybeSingle();
+    const dados: any = (emp as any)?.value || {};
+    const p = await abrirPedido({
+      kind: "addon", tenantId: me.tenant_id, plan: { code: plan?.code ?? "adicional", name: plan?.name ?? "Adicionais" }, planId, nome: String(me.name || "Cliente").slice(0, 120),
+      telefone: String(dados.telefone || "").slice(0, 30), email: String(me.email).toLowerCase(), documento: String(dados.cnpj || "").replace(/\D/g, ""), empresa: String(tenant?.name || dados.nome || "Empresa").slice(0, 160),
+      priceCents: cotacao.recorrenteCents, setupCents: cotacao.setupCents, discountCents: 0, totalCents: cotacao.totalCents, promo: null, ip: clientIp(req), ciclo: cotacao.ciclo, itens,
+    }, cfg);
+    if ("error" in p) return res.status(p.status).json({ error: p.error });
+    res.json({ ...p.pedido, planName: "Adicionais", empresa: tenant?.name ?? null, ciclo: cotacao.ciclo, itens });
   });
 
   router.get("/order/:token", pub, async (req, res) => {
     if (!db) return res.status(503).json({ error: "Indisponível." });
-    const { data } = await db.from("checkout_orders").select("status,total_cents,plan_name,pix_payload,expires_at,nome,email,kind,acesso_email_ok,empresa").eq("token", String(req.params.token).slice(0, 80)).maybeSingle();
+    const { data } = await db.from("checkout_orders").select("status,total_cents,plan_name,pix_payload,expires_at,nome,email,kind,acesso_email_ok,empresa,ciclo,itens").eq("token", String(req.params.token).slice(0, 80)).maybeSingle();
     if (!data) return res.status(404).json({ error: "Pedido não encontrado." });
     // Só 'pending' expira sozinho; 'awaiting_confirmation' espera a conferência da equipe.
     const expirado = data.status === "pending" && new Date(data.expires_at).getTime() < Date.now();
-    res.json({ status: expirado ? "expired" : data.status, totalCents: data.total_cents, planName: data.plan_name, pixPayload: data.pix_payload, nome: data.nome, email: data.email, kind: data.kind, emailEnviado: data.acesso_email_ok ?? null, empresa: data.empresa });
+    res.json({ status: expirado ? "expired" : data.status, totalCents: data.total_cents, planName: data.plan_name, pixPayload: data.pix_payload, nome: data.nome, email: data.email, kind: data.kind, emailEnviado: data.acesso_email_ok ?? null, empresa: data.empresa, ciclo: data.ciclo ?? "monthly", itens: itensGravados(data.itens) });
   });
 
   // "Já paguei": guarda o comprovante, move o pedido para 'awaiting_confirmation' e avisa a equipe para conferir o Pix e confirmar.
@@ -657,7 +814,7 @@ export function createCheckoutRouter({ requireUser, requireMaster, supabaseServi
       .eq("id", o.id).eq("status", "pending").select("id").maybeSingle();
     if (!movido) return res.json({ status: "awaiting_confirmation" }); // outro envio ganhou a corrida
 
-    const resumo = [{ label: "Cliente", value: o.nome }, { label: "Empresa", value: o.empresa }, { label: "Plano / valor", value: `${o.plan_name} · ${brl(o.total_cents)}` }, { label: "E-mail", value: o.email }];
+    const resumo = [{ label: "Cliente", value: o.nome }, { label: "Empresa", value: o.empresa }, { label: "Plano / valor", value: `${resumoDoPedido(o)} · ${brl(o.total_cents)}` }, { label: "E-mail", value: o.email }];
     if (!AUTO_FULFILL()) {
       await avisarEquipe("checkout_comprovante", "warning", `Comprovante recebido — confira o Pix: ${o.empresa}`,
         `Comprovante recebido — confira o Pix de ${brl(o.total_cents)} de ${o.nome} (${o.empresa}) e confirme no painel (Planos › Checkout). O acesso só é liberado depois da sua confirmação.`, resumo, o.telefone);
@@ -694,7 +851,7 @@ export function createCheckoutRouter({ requireUser, requireMaster, supabaseServi
     const de = new Date(now - 10 * DAY).toISOString();
     const ate = new Date(now + 5 * DAY).toISOString();
     const subs: any[] = [];
-    const campos = "tenant_id,status,gateway,current_period_end,trial_ends_at,plan:subscription_plans(name,price_cents)";
+    const campos = "tenant_id,status,gateway,current_period_end,trial_ends_at,ciclo,itens,plan:subscription_plans(name,price_cents)";
     for (const [col, status] of [["current_period_end", ["active", "past_due"]], ["trial_ends_at", ["trial"]]] as const) {
       for (let from = 0; from < 5000; from += 1000) {
         const { data, error } = await db!.from("tenant_subscriptions").select(campos).in("status", status as unknown as string[]).gte(col, de).lte(col, ate).order("tenant_id").range(from, from + 999);
@@ -737,7 +894,7 @@ export function createCheckoutRouter({ requireUser, requireMaster, supabaseServi
         try {
           const mail = notificationEmail({
             kind: c.kind === "d+3" ? "warning" : "info", copyKey: copy, title: titulo, description: titulo,
-            details: [...(plano?.name ? [{ label: "Plano", value: plano.name }] : []), ...(plano?.price_cents ? [{ label: "Valor", value: brl(plano.price_cents) }] : []), { label: "Vencimento", value: venc }],
+            details: [...(plano?.name ? [{ label: "Plano", value: plano.name }] : []), ...(plano?.price_cents ? [{ label: "Valor", value: brl(precoDoCiclo(plano.price_cents, cicloValido(c.s.ciclo)) + somaItens(itensGravados(c.s.itens), cicloValido(c.s.ciclo)).recorrente) }] : []), { label: "Vencimento", value: venc }],
             primaryButton: { label: "Renovar / pagar", url: `${publicAppUrl}/checkout?renovar=1` }, name: dest.name,
           });
           await sendPlatformEmail({ to: dest.email, ...mail });
@@ -773,7 +930,7 @@ export function createCheckoutRouter({ requireUser, requireMaster, supabaseServi
     const [cfg, promos, orders] = await Promise.all([
       config(),
       db.from("checkout_promos").select("*").order("created_at", { ascending: false }),
-      db.from("checkout_orders").select("id,status,plan_name,nome,empresa,email,telefone,documento,total_cents,discount_cents,promo_code,created_at,informed_paid_at,paid_at,error,tenant_id,comprovante_path,kind,fulfilled_at,agentes_ok,agentes_erro,acesso_email_ok")
+      db.from("checkout_orders").select("id,status,plan_name,nome,empresa,email,telefone,documento,total_cents,discount_cents,promo_code,created_at,informed_paid_at,paid_at,error,tenant_id,comprovante_path,kind,fulfilled_at,agentes_ok,agentes_erro,acesso_email_ok,ciclo,itens")
         .order("created_at", { ascending: false }).limit(100),
     ]);
     res.json({ config: cfg, promos: promos.data || [], orders: orders.data || [] });

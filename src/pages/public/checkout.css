@@ -115,3 +115,34 @@
 .ck-obrigado__pedido { display: flex; flex-wrap: wrap; justify-content: center; gap: 8px 32px; margin-top: 24px; color: var(--sp-muted); }
 .ck-obrigado__pedido strong { color: var(--sp-text); }
 .ck .sv-rodape { margin-top: 24px; }
+
+/* mensal / anual */
+.ck-ciclo { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; padding: 6px; margin-bottom: 16px; border: 1px solid var(--sp-line-strong); border-radius: 14px; }
+.ck-ciclo button { display: flex; flex-wrap: wrap; justify-content: center; align-items: center; gap: 4px 8px; min-height: 44px; border: 0; border-radius: 10px; background: transparent; color: var(--sp-muted); font: 700 15px/1.2 "Instrument Sans", system-ui, sans-serif; cursor: pointer; }
+.ck-ciclo button[aria-checked="true"] { background: var(--sp-brand); color: #0b1120; }
+.ck-ciclo em { font-style: normal; font-size: 12px; font-weight: 700; padding: 3px 8px; border-radius: 999px; background: rgba(74,222,128,.18); color: #4ade80; }
+.ck-ciclo button[aria-checked="true"] em { background: #0b1120; }
+.ck-texto { color: var(--sp-muted); font-size: 14px; margin: -8px 0 16px; }
+
+/* adicionais */
+.ck-grupo { font: 700 13px/1 "Instrument Sans", sans-serif; text-transform: uppercase; letter-spacing: .08em; color: var(--sp-brand-text); margin: 20px 0 10px; }
+.ck-adicionais { display: grid; gap: 10px; }
+.ck-item { display: flex; align-items: center; justify-content: space-between; gap: 14px; padding: 14px 16px; border: 1px solid var(--sp-line-strong); border-radius: 14px; }
+.ck-item[data-marcado="true"] { border-color: var(--sp-brand); background: var(--sp-brand-tint); }
+.ck-item > div:first-child { min-width: 0; }
+.ck-item strong { display: block; font-size: 15px; }
+.ck-item p { color: var(--sp-muted); font-size: 13px; line-height: 1.45; }
+.ck-item small { display: block; margin-top: 4px; color: var(--sp-body); font-size: 13px; font-variant-numeric: tabular-nums; }
+.ck-item .ck-ativo { flex: none; font-size: 13px; font-weight: 700; color: #4ade80; }
+.ck-item .sp-btn { flex: none; min-height: 40px; padding: 0 14px; font-size: 14px; }
+.ck-qtd { display: flex; align-items: center; gap: 8px; flex: none; }
+.ck-qtd button { width: 36px; height: 36px; border-radius: 10px; border: 1px solid var(--sp-line-strong); background: transparent; color: var(--sp-text); font-size: 18px; font-weight: 700; cursor: pointer; }
+.ck-qtd button:disabled { opacity: .35; cursor: default; }
+.ck-qtd b { min-width: 24px; text-align: center; }
+
+
+/* no celular o preço desce para baixo do nome, em vez de espremer o texto */
+@media (max-width: 560px) {
+  .ck-plano { grid-template-columns: minmax(0, 1fr); }
+  .ck-plano__preco { grid-row: auto; text-align: left; }
+}
