@@ -20,6 +20,7 @@ export function PuxarDoRadar({ api, jaNaLista, onAdicionar }: {
   const [aberto, setAberto] = useState(false);
   const [aba, setAba] = useState<"buscar" | "salvas">("buscar");
   const [restante, setRestante] = useState<number | null>(null);
+  const [mais, setMais] = useState<FiltroRadar | null>(null);
   const [itens, setItens] = useState<Item[]>([]);
   const [carregando, setCarregando] = useState(false);
   const [aviso, setAviso] = useState<string | null>(null);
@@ -31,26 +32,28 @@ export function PuxarDoRadar({ api, jaNaLista, onAdicionar }: {
     if (!r.ok) throw new Error(j?.error || "Falha na consulta.");
     return j;
   };
-  const comecar = () => { const n = ++pedido.current; setCarregando(true); setAviso(null); setItens([]); setFora(new Set()); return n; };
+  /** `somar`: pedindo as próximas empresas, as que já apareceram continuam na lista. */
+  const comecar = (somar = false) => { const n = ++pedido.current; setCarregando(true); setAviso(null); setMais(null); if (!somar) { setItens([]); setFora(new Set()); } return n; };
 
-  const buscar = async (filtro: FiltroRadar) => {
-    const n = comecar();
+  const buscar = async (filtro: FiltroRadar, somar = false) => {
+    const antes = somar ? itens : [];
+    const n = comecar(somar);
     try {
       const busca = await pesquisarNoRadar(api, filtro);
       if (busca.restante !== null) setRestante(busca.restante);
       if (n !== pedido.current) return;
-      setAviso(busca.aviso);
+      setAviso(busca.aviso); setMais(busca.mais);
       const achados = busca.empresas;
       if (!achados.length) { setAviso("Nenhuma empresa encontrada. Tente outro tipo de empresa ou outra cidade."); return; }
       const lista: Item[] = achados.map((e) => ({ empresa: e.empresa, detalhe: e.endereco, email: e.email || "", procurando: !e.email && temSite(e.site) }));
-      setItens(lista); setCarregando(false);
+      setItens([...antes, ...lista]); setCarregando(false);
       const sites = achados.filter((e, i) => lista[i].procurando).map((e) => e.site);
       if (!sites.length) return;
       let emails: Record<string, string> = {};
       try { for (let i = 0; i < sites.length && n === pedido.current; i += 20) Object.assign(emails, (await ler("/api/radar/emails", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ sites: sites.slice(i, i + 20) }) })).emails ?? {}); }
       catch (e: any) { if (n === pedido.current) setAviso(`Não consegui ler os sites: ${e.message}`); }
       if (n !== pedido.current) return;
-      setItens(lista.map((item, i) => (item.procurando ? { ...item, email: emails[String(achados[i].site).trim().slice(0, 300)] || "", procurando: false } : item)));
+      setItens([...antes, ...lista.map((item, i) => (item.procurando ? { ...item, email: emails[String(achados[i].site).trim().slice(0, 300)] || "", procurando: false } : item))]);
     } catch (e: any) { if (typeof e.restante === "number") setRestante(e.restante); if (n === pedido.current) setAviso(e.message); }
     finally { if (n === pedido.current) setCarregando(false); }
   };
@@ -66,7 +69,7 @@ export function PuxarDoRadar({ api, jaNaLista, onAdicionar }: {
     } catch (e: any) { if (n === pedido.current) setAviso(e.message); }
     finally { if (n === pedido.current) setCarregando(false); }
   };
-  const abrirBusca = () => { setAba("buscar"); pedido.current++; setItens([]); setAviso(null); setCarregando(false); };
+  const abrirBusca = () => { setAba("buscar"); pedido.current++; setItens([]); setAviso(null); setCarregando(false); setMais(null); };
 
   const naLista = new Set(jaNaLista.map((e) => e.toLowerCase()));
   const disponiveis = itens.filter((i) => i.email && !naLista.has(i.email.toLowerCase()));
@@ -116,6 +119,7 @@ export function PuxarDoRadar({ api, jaNaLista, onAdicionar }: {
               );
             })}
           </ul>
+          {mais && <Button type="button" variant="outline" onClick={() => void buscar(mais, true)} disabled={carregando} className="h-9 px-3 text-xs font-bold mr-2">Trazer as próximas empresas</Button>}
           <Button type="button" onClick={adicionar} disabled={!escolhidos.length} className="h-9 px-4 text-xs font-bold">Adicionar {escolhidos.length || ""} à campanha</Button>
         </>
       )}

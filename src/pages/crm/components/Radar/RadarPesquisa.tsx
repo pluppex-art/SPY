@@ -9,20 +9,21 @@ import { apiFetch } from "../../../../lib/apiClient";
 import { getStageId } from "../../../../lib/funilStages";
 import { FUNIS_DEFAULT } from "../../../settings/sections/crm/funisTypes";
 import { FiltroDoRadar } from "../../../../components/radar/FiltroDoRadar";
-import { descreverBusca, pesquisarNoRadar, type EmpresaDoRadar, type FiltroRadar } from "../../../../lib/buscaRadar";
+import { chaveDaEmpresa, descreverBusca, pesquisarNoRadar, type EmpresaDoRadar, type FiltroRadar } from "../../../../lib/buscaRadar";
 
 type Resultado = EmpresaDoRadar;
 
 const soDigitos = (v: string) => String(v || "").replace(/\D/g, "");
 
 /**
- * Pesquisa do Radar por tipo de empresa e cidades: o servidor pede ao Radar (n8n) empresas reais no Google Maps,
- * dentro do limite diário, e cada resultado pode virar lead com um clique.
+ * Pesquisa do Radar por CNAE (base da Receita) ou por tipo de empresa (Google Maps), em cidades escolhidas, dentro do
+ * limite diário. Cada resultado pode virar lead com um clique.
  */
 export function RadarPesquisa() {
   const { addLead, funis } = useData();
   const { user, activeTenantId } = useAuth();
   const [restante, setRestante] = useState<number | null>(null);
+  const [mais, setMais] = useState<FiltroRadar | null>(null);
   const [buscando, setBuscando] = useState(false);
   const [erro, setErro] = useState<string | null>(null);
   const [feita, setFeita] = useState<string | null>(null);
@@ -36,21 +37,24 @@ export function RadarPesquisa() {
 
   const api = (path: string, init?: RequestInit) => apiFetch(activeTenantId ? `${path}${path.includes("?") ? "&" : "?"}tenantId=${encodeURIComponent(activeTenantId)}` : path, init);
 
-  async function pesquisar(filtro: FiltroRadar) {
+  async function pesquisar(filtro: FiltroRadar, somar = false) {
     setBuscando(true); setErro(null);
     try {
       const r = await pesquisarNoRadar(api, filtro);
-      setResultados(r.empresas); setFeita(descreverBusca(filtro)); setCriados(new Set()); setErro(r.aviso);
+      setResultados((antes) => (somar ? [...new Map([...antes, ...r.empresas].map((e) => [chaveDaEmpresa(e), e])).values()] : r.empresas));
+      setMais(r.mais); setErro(r.aviso);
+      if (!somar) { setFeita(descreverBusca(filtro)); setCriados(new Set()); }
       if (r.restante !== null) setRestante(r.restante);
     } catch (e: any) {
-      setErro(e instanceof TypeError ? "Não foi possível pesquisar agora. Tente de novo." : e.message); setResultados([]);
+      setErro(e instanceof TypeError ? "Não foi possível pesquisar agora. Tente de novo." : e.message);
+      if (!somar) { setResultados([]); setMais(null); }
       if (typeof e.restante === "number") setRestante(e.restante);
     } finally { setBuscando(false); }
   }
 
   async function virarLead(e: Resultado) {
     const ok = await addLead({
-      name: e.empresa, company: e.empresa, email: e.email || "", phone: e.contato || e.whatsapp || "",
+      name: e.empresa, company: e.razaoSocial || e.empresa, cnpj: e.cnpj, email: e.email || "", phone: e.contato || e.whatsapp || "",
       status: "Novo", value: "R$ 0", date: new Date().toISOString().slice(0, 10),
       source: "Radar (pesquisa)", seller: user?.name || "Não Atribuído", title: "Novo Negócio", priority: "Média",
       pipelineId: "comercial", stageId: primeiraEtapa,
@@ -66,7 +70,7 @@ export function RadarPesquisa() {
       <Card className="p-4 sm:p-5">
         <div className="flex flex-col gap-3">
           <FiltroDoRadar key={activeTenantId ?? ""} api={api} ocupado={buscando} restante={restante} onSaldo={setRestante} onBuscar={(f) => void pesquisar(f)} />
-          <p className="text-[11px] text-[var(--color-text-faint)]">A busca usa o Google Maps e traz empresas reais com telefone e endereço. Escolhendo cidades, só aparecem empresas delas.</p>
+          <p className="text-[11px] text-[var(--color-text-faint)]">Por CNAE vêm empresas ativas da Receita Federal, com telefone e e-mail quando cadastrados. Pelo Google Maps vêm telefone, endereço e site.</p>
         </div>
       </Card>
 
@@ -83,7 +87,7 @@ export function RadarPesquisa() {
         </Card>
       )}
 
-      {!buscando && resultados.length > 0 && (
+      {resultados.length > 0 && (
         <div className="space-y-2">
           <p className="text-xs text-[var(--color-text-muted)]">{resultados.length} empresa(s) para <strong className="text-[var(--color-text-primary)]">{feita}</strong></p>
           <div className="grid gap-3 lg:grid-cols-2">
@@ -100,6 +104,7 @@ export function RadarPesquisa() {
                     {e.avaliacao && <span className="inline-flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-full bg-amber-500/10 text-amber-600 shrink-0"><Star className="w-3 h-3 fill-current" /> {e.avaliacao.split(" ")[0]}</span>}
                   </div>
                   <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-[11px] text-[var(--color-text-muted)]">
+                    {e.cnpj && <span>CNPJ {e.cnpj}</span>}
                     {e.contato ? <span className="inline-flex items-center gap-1"><Phone className="w-3 h-3" /> {e.contato}</span> : <span className="text-[var(--color-text-faint)]">Sem telefone</span>}
                     {e.email && <span className="inline-flex items-center gap-1 break-all"><Mail className="w-3 h-3" /> {e.email}</span>}
                     {e.site && e.site !== "nao encontrado" && <a href={/^https?:/.test(e.site) ? e.site : `https://${e.site}`} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1 text-[var(--color-primary-blue)] no-underline truncate max-w-[220px]"><Globe className="w-3 h-3" /> {e.site.replace(/^https?:\/\//, "")}</a>}
@@ -118,6 +123,7 @@ export function RadarPesquisa() {
               );
             })}
           </div>
+          {mais && <div className="flex justify-center pt-1"><Button variant="outline" disabled={buscando} onClick={() => void pesquisar(mais, true)} className="h-9 px-4 text-xs font-bold">Trazer as próximas empresas</Button></div>}
         </div>
       )}
     </div>

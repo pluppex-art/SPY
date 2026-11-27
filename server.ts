@@ -47,6 +47,7 @@ import { readTenantSnapshot } from "./server/implementationSync.js";
 import { registerTableComparisonRoutes } from "./server/tableComparison.js";
 import { registerProspeccaoCnaeRoutes } from "./server/prospeccaoCnae.js";
 import { registerRadarEmailRoutes, lerResultadosDoRadar } from "./server/radarEmails.js";
+import { registerRadarCnaeRoutes } from "./server/radarCnae.js";
 import { LIMITE_POR_DIA, naCidade, reservar, devolver, restanteHoje } from "./server/radarCota.js";
 import { registerApisBrasilRoutes } from "./server/apisBrasil.js";
 import { registerEmissaoJaRoutes } from "./server/emissaoja.js";
@@ -4550,6 +4551,7 @@ app.get("/api/radar/limite", requireUser, async (req: any, res: any) => {
 
 // E-mails das empresas do Radar, para entrar nas campanhas.
 registerRadarEmailRoutes(app, { requireUser, resolveRequestedTenantId, limiter: aiLimiter, supabaseService });
+registerRadarCnaeRoutes(app, { requireUser, resolveRequestedTenantId, limiter: aiLimiter, supabaseService });
 
 // Cria o Radar (webhook de busca) de uma empresa que já existe (equipe interna). Idempotente.
 app.post("/api/radar/provisionar", requireUser, requireMaster, async (req: any, res: any) => {

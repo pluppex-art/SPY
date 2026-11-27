@@ -51,7 +51,7 @@ export function normalizarEmpresa(r: any): EmpresaProspeccao {
   };
 }
 
-const MENSAGENS: Record<number, string> = {
+export const MENSAGENS_APIPJ: Record<number, string> = {
   400: "Filtro inválido. Confira o CNAE e a cidade.",
   401: "A chave da apipj foi recusada. Avise o administrador.",
   429: "Limite da apipj atingido (por minuto ou do mês). Tente de novo em instantes.",
@@ -99,7 +99,7 @@ export function registerProspeccaoCnaeRoutes(app: express.Express, { requireUser
       if (!r.ok) {
         console.error("[prospeccao/cnae] apipj", r.status);
         return res.status(r.status === 400 || r.status === 401 || r.status === 429 || r.status === 503 ? r.status : 502)
-          .json({ error: MENSAGENS[r.status] ?? "A apipj não respondeu como esperado." });
+          .json({ error: MENSAGENS_APIPJ[r.status] ?? "A apipj não respondeu como esperado." });
       }
       const j: any = await r.json();
       return res.json({

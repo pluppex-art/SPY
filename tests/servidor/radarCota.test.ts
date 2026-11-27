@@ -45,8 +45,8 @@ test("busca por várias cidades: junta sem repetir e guarda o que veio quando o 
     if (b.cidade === "Gurupi") return new Response(JSON.stringify({ error: "acabou", restante: 0 }), { status: 429 });
     return new Response(JSON.stringify({ resultados: [{ empresa: "A", endereco: "x" }, { empresa: "A", endereco: "x" }], restante: 1 }));
   };
-  const r = await pesquisarNoRadar(api, { tipo: "academias", cidades: [{ cidade: "Palmas", uf: "TO" }, { cidade: "Gurupi", uf: "TO" }], quantidade: 10 });
+  const r = await pesquisarNoRadar(api, { modo: "mapa", tipo: "academias", cidades: [{ cidade: "Palmas", uf: "TO" }, { cidade: "Gurupi", uf: "TO" }], quantidade: 10 });
   assert.deepEqual([r.empresas.length, r.restante, r.aviso], [1, 0, "acabou"]);
   assert.equal(pedidos[0].criterio, "academias em Palmas/TO");
-  await assert.rejects(() => pesquisarNoRadar(api, { tipo: "", cidades: [], quantidade: 10 }));
+  await assert.rejects(() => pesquisarNoRadar(api, { modo: "mapa", tipo: "", cidades: [], quantidade: 10 }));
 });
