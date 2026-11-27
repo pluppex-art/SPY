@@ -8,7 +8,8 @@ import { Card } from "../../components/ui/card";
 import { Modal } from "../../components/ui/modal";
 import { SequenciasEmail } from "./SequenciasEmail";
 import { csvEngajamento } from "../../lib/csvEngajamento";
-import { comoHtml, ehHtml, MAX_HTML, MAX_TEXTO } from "../../lib/emailHtml";
+import { comoHtml, comOpcaoDeLogo, ehHtml, lerOpcaoDeLogo, MAX_HTML, MAX_TEXTO } from "../../lib/emailHtml";
+import { enviarImagemDeEmail } from "../../lib/imagemEmail";
 import { EditorConteudoEmail, type FormatoEmail } from "./components/EditorConteudoEmail";
 import { PreviaEmail } from "./components/PreviaEmail";
 import { FiltrosDoPublico } from "./components/FiltrosDoPublico";
@@ -63,16 +64,16 @@ export default function MarketingEmail() {
       const a = document.createElement("a"); a.href = url; a.download = `${c.name.replace(/[^\w\-]+/g, "_").slice(0, 50) || "campanha"}.csv`; a.click(); URL.revokeObjectURL(url);
     } catch (e: any) { toast.error(e.message); }
   };
-  const [reenvio, setReenvio] = useState<{ c: Campaign; grupo: "nao-abriram" | "clicaram"; assunto: string; texto: string } | null>(null);
+  const [reenvio, setReenvio] = useState<{ c: Campaign; grupo: "nao-abriram" | "clicaram"; assunto: string; texto: string; logo: boolean } | null>(null);
   const [criandoReenvio, setCriandoReenvio] = useState(false);
   const reenviar = async (c: Campaign, grupo: "nao-abriram" | "clicaram" = "nao-abriram") => {
-    try { const o = await apiFetchTenant(`/api/email-campaigns/${c.id}`).then(json); setReenvio({ c, grupo, assunto: o.subject, texto: o.body }); }
+    try { const o = await apiFetchTenant(`/api/email-campaigns/${c.id}`).then(json); const { conteudo, mostrar } = lerOpcaoDeLogo(o.body); setReenvio({ c, grupo, assunto: o.subject, texto: conteudo, logo: mostrar }); }
     catch (e: any) { toast.error(e.message); }
   };
   const criarReenvio = async () => {
     if (!reenvio) return; setCriandoReenvio(true);
     try {
-      const r = await apiFetchTenant(`/api/email-campaigns/${reenvio.c.id}/reenviar-${reenvio.grupo}`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ subject: reenvio.assunto, body: reenvio.texto }) }).then(json);
+      const r = await apiFetchTenant(`/api/email-campaigns/${reenvio.c.id}/reenviar-${reenvio.grupo}`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ subject: reenvio.assunto, body: comOpcaoDeLogo(reenvio.texto, reenvio.logo) }) }).then(json);
       toast.success(`Campanha criada com ${r.total} pessoa(s). Envie um teste e dispare.`); setReenvio(null); await load();
     } catch (e: any) { toast.error(e.message); } finally { setCriandoReenvio(false); }
   };
@@ -106,11 +107,15 @@ export default function MarketingEmail() {
   const [body, setBody] = useState("");
   const [bodyHtml, setBodyHtml] = useState("");
   const [formato, setFormato] = useState<FormatoEmail>("texto");
+  // A logo aparece por padrão no texto; no HTML do cliente, só quando pedida.
+  const [logoNo, setLogoNo] = useState({ texto: true, html: false });
   /** O que realmente vai no e-mail, conforme o formato escolhido. */
-  const corpo = formato === "html" ? comoHtml(bodyHtml.trim()) : body;
+  const corpo = comOpcaoDeLogo(formato === "html" ? comoHtml(bodyHtml.trim()) : body, logoNo[formato]);
   const abrirCorpo = (v: string) => {
-    const html = ehHtml(v);
-    setFormato(html ? "html" : "texto"); setBody(html ? "" : v); setBodyHtml(html ? v : "");
+    const { conteudo, mostrar } = lerOpcaoDeLogo(v);
+    const html = ehHtml(conteudo);
+    setFormato(html ? "html" : "texto"); setBody(html ? "" : conteudo); setBodyHtml(html ? conteudo : "");
+    setLogoNo((p) => ({ ...p, [html ? "html" : "texto"]: mostrar }));
   };
   const corDaTela = () => getComputedStyle(document.documentElement).getPropertyValue("--color-primary-blue").trim();
   const marca = { nome: activeTenantName || "Sua empresa", cor: corDaTela(), logo: appSettings?.empresa_dados?.logoUrl ?? null };
@@ -166,7 +171,7 @@ export default function MarketingEmail() {
     setExcluir([]); setManual([]); setManualText(""); setFileName(""); setSources([]); setStatuses([]); setCanais([]); setCampanhas([]);
     setOpen(false);
     // O que estava sendo escrito é de uma empresa: não passa para outra.
-    setName(""); setSubject(""); setSubjectB(""); setBody(""); setBodyHtml(""); setFormato("texto"); setModeloId(""); setAgendarPara("");
+    setName(""); setSubject(""); setSubjectB(""); setBody(""); setBodyHtml(""); setFormato("texto"); setModeloId(""); setAgendarPara(""); setLogoNo({ texto: true, html: false });
     if (activeTenantId) void load();
   }, [activeTenantId]); // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -189,7 +194,7 @@ export default function MarketingEmail() {
       const r = await apiFetchTenant("/api/email-campaigns", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ name, subject, body: corpo, audience, ...(subjectB.trim() ? { subjectB: subjectB.trim() } : {}), ...(agendarPara ? { agendarPara } : {}) }) }).then(json);
       toast.success(agendarPara ? `Campanha agendada para ${agendarPara.split("-").reverse().join("/")} (${r.total} destinatário(s)). Envie um teste para você antes.` : `Campanha criada com ${r.total} destinatário(s). Envie um teste para você antes de disparar.`);
       setAgendarPara("");
-      setOpen(false); setName(""); setSubject(""); setSubjectB(""); setBody(""); setBodyHtml(""); setFormato("texto"); setModeloId(""); setSources([]); setStatuses([]); setManual([]); setManualText(""); setFileName(""); setExcluir([]); setShowList(false); setInclLeads(true); setInclClientes(false); setInclContatos(false); setInclEquipe(false);
+      setOpen(false); setName(""); setSubject(""); setSubjectB(""); setBody(""); setBodyHtml(""); setFormato("texto"); setLogoNo({ texto: true, html: false }); setModeloId(""); setSources([]); setStatuses([]); setManual([]); setManualText(""); setFileName(""); setExcluir([]); setShowList(false); setInclLeads(true); setInclClientes(false); setInclContatos(false); setInclEquipe(false);
       await load();
     } catch (e: any) { toast.error(e.message); } finally { setCreating(false); }
   };
@@ -452,7 +457,8 @@ export default function MarketingEmail() {
               <Button type="button" variant="outline" onClick={() => void salvarModelo()} disabled={!subject.trim() || !corpo.trim()} title="Guarda o assunto e o conteúdo para reaproveitar. Usa o nome da campanha como nome do modelo." className="h-8 px-3 text-xs">Salvar como modelo</Button>
               {modeloId && <Button type="button" variant="ghost" onClick={() => void excluirModelo()} className="h-8 px-2 text-xs text-[var(--color-danger)]">Excluir</Button>}
             </div>
-            <EditorConteudoEmail key={activeTenantId ?? ""} formato={formato} onFormato={setFormato} texto={body} onTexto={setBody} html={bodyHtml} onHtml={setBodyHtml} assunto={subject} marca={marca} />
+            <EditorConteudoEmail key={activeTenantId ?? ""} formato={formato} onFormato={setFormato} texto={body} onTexto={setBody} html={bodyHtml} onHtml={setBodyHtml} assunto={subject} marca={marca}
+              mostrarLogo={logoNo[formato]} onMostrarLogo={(v) => setLogoNo((p) => ({ ...p, [formato]: v }))} enviarImagem={(arquivo) => enviarImagemDeEmail(activeTenantId || "", arquivo)} />
           </Etapa>
 
           <Etapa numero={3} titulo="Quem recebe" ajuda="Pode ser gente que está no sistema ou não: marque as fontes e/ou use uma lista própria.">

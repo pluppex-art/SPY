@@ -1,6 +1,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { ehHtml, comoHtml, conferirCorpo, sanitizarHtml, trocarLinks, htmlParaTexto, avisosDoHtml, modeloExemploHtml, MAX_HTML } from "../../src/lib/emailHtml.js";
+import { ehHtml, comoHtml, conferirCorpo, sanitizarHtml, trocarLinks, htmlParaTexto, avisosDoHtml, modeloExemploHtml, comOpcaoDeLogo, lerOpcaoDeLogo, imagemEmHtml, imagemEmTexto, inserirNoHtml, MAX_HTML } from "../../src/lib/emailHtml.js";
+import { avisosDoEmail } from "../../src/lib/avisosEmail.js";
 import { buildMail } from "../../server/emailCampaigns.js";
 import { parsePassos } from "../../server/emailSequences.js";
 
@@ -76,4 +77,42 @@ test("avisos do HTML e modelo de exemplo prontos para enviar", () => {
 test("mensagem de texto continua como antes", () => {
   const m = buildMail({ ...base, body: "Olá {{nome}}\n\n**oferta** <b>não é html</b>" });
   assert.match(m.html, /<strong>oferta<\/strong> &lt;b&gt;não é html&lt;\/b&gt;/);
+});
+
+test("logo: aparece no texto por padrão e some quando desligada; no HTML só entra quando pedida", () => {
+  const com = { ...base, track: undefined, tenantLogo: "https://cdn.x.com/logo.png" };
+  assert.match(buildMail({ ...com, body: "Olá" }).html, /logo\.png/);
+  const sem = comOpcaoDeLogo("Olá {{nome}}", false);
+  assert.deepEqual(lerOpcaoDeLogo(sem), { conteudo: "Olá {{nome}}", mostrar: false });
+  const m = buildMail({ ...com, body: sem });
+  assert.doesNotMatch(m.html + m.text, /logo\.png|sem_logo/);
+  const html = "<!doctype html><html><body style=\"margin:0\"><p>Oi</p></body></html>";
+  assert.doesNotMatch(buildMail({ ...com, body: html }).html, /logo\.png/);
+  const pedida = comOpcaoDeLogo(html, true);
+  assert.equal(ehHtml(pedida), true);
+  assert.deepEqual(lerOpcaoDeLogo(pedida), { conteudo: html, mostrar: true });
+  assert.equal(comOpcaoDeLogo(pedida, true), pedida);
+  assert.match(buildMail({ ...com, body: pedida }).html, /<body style="margin:0"><div[^>]*><p[^>]*><img src="https:\/\/cdn\.x\.com\/logo\.png"/);
+  assert.doesNotMatch(buildMail({ ...com, tenantLogo: null, body: pedida }).html, /<img src="https:\/\/cdn/);
+  assert.equal(comOpcaoDeLogo("  ", false), "");
+});
+
+test("imagem no texto: aparece, o clique é contado no link e o endereço da foto não é rastreado", () => {
+  const url = "https://abc.supabase.co/storage/v1/object/public/products/t1/email/a.jpg";
+  const m = buildMail({ ...base, body: `Veja\n\n${imagemEmTexto(url, "Tênis [novo]", "https://loja.com/t?a=1&b=2")}\n\n${imagemEmTexto(url, "Só foto")}` });
+  assert.equal(m.html.split(`<img src="${url}"`).length - 1, 2);
+  assert.match(m.html, /<a href="https:\/\/s\.com\/api\/email\/c\/[^"]+"><img src="[^"]+" alt="Tênis {2}novo"/);
+  assert.match(m.text, /Tênis {2}novo: https:\/\/loja\.com\/t\?a=1&b=2/);
+  assert.doesNotMatch(m.text, /supabase/);
+  assert.equal(avisosDoEmail("Oi", imagemEmTexto(url, "x")).some((a) => /muitos links/.test(a.texto)), false);
+});
+
+test("imagem no HTML: entra no cursor sem partir marcação, ou antes do fim", () => {
+  const trecho = imagemEmHtml("https://a.com/i.png", "A \"B\"", "https://a.com/?x=1&y=2");
+  assert.match(trecho, /alt="A &quot;B&quot;"/); assert.match(trecho, /href="https:\/\/a\.com\/\?x=1&amp;y=2"/);
+  const doc = "<html><body><p>um</p></body></html>";
+  assert.match(inserirNoHtml(doc, "[X]"), /<\/p>\n\[X\]\n<\/body>/);
+  assert.match(inserirNoHtml(doc, "[X]", doc.indexOf("um")), /<p>\n\[X\]\num<\/p>/);
+  assert.match(inserirNoHtml(doc, "[X]", doc.indexOf("<p>") + 2), /<p>\n\[X\]\num<\/p>/);
+  assert.equal(inserirNoHtml("", "[X]"), "<div>[X]</div>");
 });

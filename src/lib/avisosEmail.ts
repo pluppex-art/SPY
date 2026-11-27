@@ -5,7 +5,8 @@ const PALAVRAS_SPAM = ["grátis", "gratis", "100% garantido", "ganhe dinheiro", 
 
 export function avisosDoEmail(assunto: string, corpo: string): AvisoEmail[] {
   const out: AvisoEmail[] = [];
-  const a = assunto.trim(), c = corpo.trim();
+  // O endereço de uma imagem não conta como link da mensagem.
+  const a = assunto.trim(), c = corpo.replace(/!\[[^\]]*\]\([^)\s]*\)/g, " ").trim();
   if (a) {
     if (a.length > 70) out.push({ nivel: "dica", texto: `Assunto com ${a.length} letras: acima de ~70 ele é cortado no celular.` });
     const letras = a.replace(/[^A-Za-zÀ-ÿ]/g, "");

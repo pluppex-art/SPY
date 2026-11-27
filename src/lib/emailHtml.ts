@@ -142,3 +142,45 @@ export function modeloExemploHtml(marca: { nome: string; cor?: string | null; lo
 </html>
 `;
 }
+
+// ── Logo da empresa: escolhida em cada e-mail e guardada no próprio corpo ──
+const SEM_LOGO = /^\s*\{\{\s*sem_logo\s*\}\}[ \t]*\r?\n?/i;
+export const LOGO_NO_TOPO = "<!--spy:logo-no-topo-->";
+
+/** Padrão: no texto a logo aparece (como sempre foi); no HTML do cliente só entra se ele pedir. */
+export function comOpcaoDeLogo(corpo: string, mostrar: boolean): string {
+  if (!corpo.trim()) return "";
+  const { conteudo } = lerOpcaoDeLogo(corpo);
+  if (ehHtml(conteudo)) return mostrar ? `${LOGO_NO_TOPO}\n${conteudo}` : conteudo;
+  return mostrar ? conteudo : `{{sem_logo}}\n${conteudo}`;
+}
+
+export function lerOpcaoDeLogo(corpo: string): { conteudo: string; mostrar: boolean } {
+  const c = String(corpo ?? "");
+  if (ehHtml(c)) return { conteudo: c.split(LOGO_NO_TOPO).join("").replace(/^\s+/, ""), mostrar: c.includes(LOGO_NO_TOPO) };
+  return { conteudo: c.replace(SEM_LOGO, ""), mostrar: !SEM_LOGO.test(c) };
+}
+
+// ── Imagens ──
+/** Bloco de uma imagem no HTML, com link opcional. */
+export function imagemEmHtml(url: string, descricao: string, link?: string): string {
+  const img = `<img src="${esc(url)}" alt="${esc(descricao)}" width="560" style="display:block;width:100%;max-width:560px;height:auto;margin:0 auto;border:0">`;
+  return `<div style="margin:16px 0;text-align:center">${link ? `<a href="${esc(link)}">${img}</a>` : img}</div>`;
+}
+
+/** A mesma imagem na marcação do texto simples. */
+export function imagemEmTexto(url: string, descricao: string, link?: string): string {
+  const img = `![${descricao.replace(/[[\]\r\n]/g, " ").trim()}](${url})`;
+  return link ? `[${img}](${link})` : img;
+}
+
+/** Coloca o trecho no ponto do cursor; sem cursor, antes do fim do documento. */
+export function inserirNoHtml(html: string, trecho: string, posicao?: number | null): string {
+  if (!html.trim()) return `<div>${trecho}</div>`;
+  const i = typeof posicao === "number" && posicao > 0 && posicao <= html.length ? posicao : html.toLowerCase().lastIndexOf("</body>");
+  if (i < 0) return `${html}\n${trecho}`;
+  // Não parte uma marcação ao meio.
+  const aberta = html.lastIndexOf("<", i - 1) > html.lastIndexOf(">", i - 1);
+  const onde = aberta ? html.indexOf(">", i) + 1 || html.length : i;
+  return `${html.slice(0, onde)}\n${trecho}\n${html.slice(onde)}`;
+}

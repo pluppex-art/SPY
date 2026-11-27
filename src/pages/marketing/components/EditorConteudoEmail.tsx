@@ -5,7 +5,8 @@ import { toast } from "sonner";
 import { Button } from "../../../components/ui/button";
 import { confirmDialog } from "../../../components/ui/confirm-dialog";
 import { avisosDoEmail } from "../../../lib/avisosEmail";
-import { avisosDoHtml, comoHtml, htmlParaTexto, modeloExemploHtml, MAX_HTML, MAX_TEXTO } from "../../../lib/emailHtml";
+import { avisosDoHtml, comoHtml, htmlParaTexto, imagemEmHtml, imagemEmTexto, inserirNoHtml, modeloExemploHtml, MAX_HTML, MAX_TEXTO } from "../../../lib/emailHtml";
+import { ImagensDoEmail } from "./ImagensDoEmail";
 import { cn } from "../../../lib/utils";
 
 export type FormatoEmail = "texto" | "html";
@@ -22,17 +23,40 @@ async function lerHtml(arquivo: File): Promise<string> {
   catch { return new TextDecoder("utf-8").decode(bytes); }
 }
 
-export function EditorConteudoEmail({ formato, onFormato, texto, onTexto, html, onHtml, assunto, marca }: {
+export function EditorConteudoEmail({ formato, onFormato, texto, onTexto, html, onHtml, assunto, marca, mostrarLogo, onMostrarLogo, enviarImagem }: {
   formato: FormatoEmail; onFormato: (f: FormatoEmail) => void;
   texto: string; onTexto: (v: string) => void;
   html: string; onHtml: (v: string) => void;
   assunto: string;
   marca: { nome: string; cor?: string | null; logo?: string | null };
+  mostrarLogo: boolean; onMostrarLogo: (v: boolean) => void;
+  enviarImagem: (arquivo: File) => Promise<string>;
 }) {
   const [arquivo, setArquivo] = useState("");
   const [verCodigo, setVerCodigo] = useState(false);
   const [arrastando, setArrastando] = useState(false);
   const entrada = useRef<HTMLInputElement>(null);
+  const caixaTexto = useRef<HTMLTextAreaElement>(null);
+  // Onde estava o cursor da última vez que a pessoa escreveu: é ali que a imagem entra.
+  const cursor = useRef<{ texto: number | null; html: number | null }>({ texto: null, html: null });
+  const marcarCursor = (campoDe: "texto" | "html") => (e: { currentTarget: HTMLTextAreaElement }) => { cursor.current[campoDe] = e.currentTarget.selectionStart; };
+
+  const inserirImagem = ({ url, descricao, link }: { url: string; descricao: string; link?: string }) => {
+    if (formato === "texto") {
+      const i = cursor.current.texto ?? texto.length;
+      const antes = texto.slice(0, i).replace(/\s+$/, ""), depois = texto.slice(i).replace(/^\s+/, "");
+      const novo = [antes, imagemEmTexto(url, descricao, link), depois].filter(Boolean).join("\n\n");
+      if (novo.length > MAX_TEXTO) { toast.error("A mensagem chegou ao limite de tamanho."); return; }
+      onTexto(novo); cursor.current.texto = null;
+      toast.success("Imagem colocada na mensagem.");
+      return;
+    }
+    const posicao = verCodigo ? cursor.current.html : null;
+    const novo = inserirNoHtml(html, imagemEmHtml(url, descricao, link), posicao);
+    if (novo.length > MAX_HTML) { toast.error("O HTML chegou ao limite de tamanho."); return; }
+    onHtml(novo); setVerCodigo(true); cursor.current.html = null;
+    toast.success(posicao ? "Imagem colocada onde estava o cursor." : "Imagem colocada no fim do e-mail. Mova o trecho no código se quiser em outro lugar.");
+  };
 
   const usar = async (f?: File | null) => {
     if (!f) return;
@@ -74,7 +98,7 @@ export function EditorConteudoEmail({ formato, onFormato, texto, onTexto, html, 
 
       {formato === "texto" ? (
         <>
-          <textarea aria-label="Mensagem" value={texto} onChange={(e) => onTexto(e.target.value)} rows={10} maxLength={MAX_TEXTO}
+          <textarea ref={caixaTexto} aria-label="Mensagem" value={texto} onChange={(e) => { marcarCursor("texto")(e); onTexto(e.target.value); }} onSelect={marcarCursor("texto")} rows={10} maxLength={MAX_TEXTO}
             placeholder={"Olá {{primeiro_nome}},\n\nO Treinão acontece neste sábado, dia 14, às 9h...\n\nTe esperamos!"} className={`${campo} w-full resize-y`} />
           <p className="text-[11px] text-[var(--color-text-muted)]">Formatação: <code>{"**negrito**"}</code> · <code>{"[texto do link](https://...)"}</code> · botão: <code>{"[[Quero saber mais|https://...]]"}</code>. O link para sair da lista entra sozinho no rodapé.</p>
         </>
@@ -113,7 +137,7 @@ export function EditorConteudoEmail({ formato, onFormato, texto, onTexto, html, 
             )}
           </div>
           {verCodigo && (
-            <textarea aria-label="Código HTML" value={html} onChange={(e) => onHtml(e.target.value)} onBlur={() => onHtml(comoHtml(html))} rows={12} maxLength={MAX_HTML} spellCheck={false}
+            <textarea aria-label="Código HTML" value={html} onSelect={marcarCursor("html")} onChange={(e) => { marcarCursor("html")(e); onHtml(e.target.value); }} onBlur={() => onHtml(comoHtml(html))} rows={12} maxLength={MAX_HTML} spellCheck={false}
               placeholder={"<!doctype html>\n<html>\n  <body>\n    <h1>Olá, {{primeiro_nome}}!</h1>\n  </body>\n</html>"} className={`${campo} w-full resize-y font-mono !text-[11px] leading-relaxed`} />
           )}
           <div className="flex flex-wrap items-center gap-2">
@@ -124,6 +148,8 @@ export function EditorConteudoEmail({ formato, onFormato, texto, onTexto, html, 
           <p className="text-[11px] text-[var(--color-text-muted)]">Use imagens com endereço completo (https://…). Para escolher onde fica o link de sair da lista, ponha <code>{"{{descadastro}}"}</code> no endereço de um link.</p>
         </>
       )}
+
+      <ImagensDoEmail logo={/^https:\/\//i.test(marca.logo || "") ? marca.logo! : null} mostrarLogo={mostrarLogo} onMostrarLogo={onMostrarLogo} enviar={enviarImagem} onInserir={inserirImagem} />
 
       <div className="flex flex-wrap items-center gap-1.5">
         <span className="text-[11px] font-bold text-[var(--color-text-muted)]">Personalizar:</span>

@@ -1,7 +1,7 @@
 import { modulosDoCargo } from "../src/lib/cargosUsuario.js";
 import crypto from "node:crypto";
 import { canalDoLead } from "../src/lib/canalAquisicao.js";
-import { conferirCorpo, ehHtml, htmlParaTexto, sanitizarHtml, trocarLinks, MARCA_DESCADASTRO } from "../src/lib/emailHtml.js";
+import { conferirCorpo, ehHtml, htmlParaTexto, lerOpcaoDeLogo, sanitizarHtml, trocarLinks, MARCA_DESCADASTRO } from "../src/lib/emailHtml.js";
 import type { Express } from "express";
 import { sendTenantEmail, checkTenantSender } from "./mailer.js";
 import { registrarSequencias, processarSequencias, inscreverAutomaticos } from "./emailSequences.js";
@@ -96,7 +96,11 @@ export function textToHtml(text: string, color = DEFAULT_LINK_COLOR, rastrear?: 
       const guardados: string[] = [];
       const guardar = (html: string) => `\u0000${guardados.push(html) - 1}\u0000`;
       // Formatação simples: [[Texto do botão|https://...]] vira botão e [texto](https://...) vira link com o texto escolhido.
+      // Imagem: ![descrição](https://…); com link ao clicar: [![descrição](https://…)](https://…).
+      const imagem = (alt: string, src: string) => `<img src="${src}" alt="${alt}" style="display:block;max-width:100%;height:auto;margin:0 auto;border:0;border-radius:8px">`;
       let t = p
+        .replace(/\[!\[([^\]]{0,120})\]\((https?:\/\/[^\s)<]+)\)\]\((https?:\/\/[^\s)<]+)\)/g, (_m, alt, src, u) => guardar(`<a href="${href(u)}">${imagem(alt, src)}</a>`))
+        .replace(/!\[([^\]]{0,120})\]\((https?:\/\/[^\s)<]+)\)/g, (_m, alt, src) => guardar(imagem(alt, src)))
         .replace(/\[\[([^\]|]{1,80})\|(https?:\/\/[^\s\]<]+)\]\]/g, (_m, l, u) => guardar(`<a href="${href(u)}" style="display:inline-block;background:${color};color:#ffffff;padding:12px 22px;border-radius:8px;text-decoration:none;font-weight:700">${l}</a>`))
         .replace(/\[([^\]]{1,120})\]\((https?:\/\/[^\s)<]+)\)/g, (_m, l, u) => guardar(`<a href="${href(u)}" style="color:${color}">${l}</a>`));
       t = t.replace(/(https?:\/\/[^\s<\u0000]+)/g, (m) => guardar(`<a href="${href(m)}" style="color:${color}">${m}</a>`));
@@ -110,6 +114,8 @@ export function textToHtml(text: string, color = DEFAULT_LINK_COLOR, rastrear?: 
 /** Versão em texto puro do e-mail: tira a marcação de botão, link e negrito (mostra o endereço ao lado do texto). */
 export function textoSimples(text: string): string {
   return text
+    .replace(/\[!\[([^\]]{0,120})\]\(https?:\/\/[^\s)]+\)\]\((https?:\/\/[^\s)]+)\)/g, (_m, alt, u) => `${alt || "Imagem"}: ${u}`)
+    .replace(/!\[([^\]]{0,120})\]\(https?:\/\/[^\s)]+\)/g, "$1")
     .replace(/\[\[([^\]|]{1,80})\|(https?:\/\/[^\s\]]+)\]\]/g, "$1: $2")
     .replace(/\[([^\]]{1,120})\]\((https?:\/\/[^\s)]+)\)/g, "$1 ($2)")
     .replace(/\*\*([^*\n]{1,200})\*\*/g, "$1");
@@ -137,11 +143,13 @@ const logoHtml = (logo: string | null | undefined, nome: string) => { const u = 
 
 export function buildMail(opts: { subject: string; body: string; name?: string | null; company?: string | null; tenantName: string; tenantColor?: string | null; tenantLogo?: string | null; utmCampanha?: string; unsubUrl: string; track?: { base: string; rid: string } }) {
   const subject = renderVars(opts.subject, opts).replace(/[\r\n]+/g, " ").trim().slice(0, 200);
-  if (ehHtml(opts.body)) return { subject, ...montarHtmlProprio(opts) };
-  const text = renderVars(opts.body, opts);
+  const { conteudo, mostrar } = lerOpcaoDeLogo(opts.body);
+  const logo = mostrar ? opts.tenantLogo : null;
+  if (ehHtml(conteudo)) return { subject, ...montarHtmlProprio({ ...opts, body: conteudo, tenantLogo: logo }) };
+  const text = renderVars(conteudo, opts);
   const footerTxt = `\n\n—\nVocê recebeu este e-mail de ${opts.tenantName}. Para não receber mais, acesse: ${opts.unsubUrl}`;
   const html = `<!doctype html><html><body style="margin:0;padding:24px;background:#f5f5f7;font-family:Arial,Helvetica,sans-serif;color:#1f2937">
-<div style="max-width:600px;margin:0 auto;background:#fff;border-radius:12px;padding:28px;font-size:15px">${logoHtml(opts.tenantLogo, opts.tenantName)}${textToHtml(text, safeColor(opts.tenantColor), opts.track ? (u) => urlClique(opts.track!.base, opts.track!.rid, u) : undefined, opts.utmCampanha)}</div>
+<div style="max-width:600px;margin:0 auto;background:#fff;border-radius:12px;padding:28px;font-size:15px">${logoHtml(logo, opts.tenantName)}${textToHtml(text, safeColor(opts.tenantColor), opts.track ? (u) => urlClique(opts.track!.base, opts.track!.rid, u) : undefined, opts.utmCampanha)}</div>
 <p style="max-width:600px;margin:14px auto 0;font-size:11px;color:#6b7280;text-align:center">Você recebeu este e-mail de ${escapeHtml(opts.tenantName)}.<br><a href="${opts.unsubUrl}" style="color:#6b7280">Não quero mais receber</a></p>
 ${opts.track ? `<img src="${urlAbertura(opts.track.base, opts.track.rid)}" width="1" height="1" alt="" style="display:none;border:0">` : ""}</body></html>`;
   return { subject, text: textoSimples(text) + footerTxt, html };
@@ -166,6 +174,8 @@ function montarHtmlProprio(opts: Parameters<typeof buildMail>[0]) {
   const fim = `${rodape}${pixel}`;
   if (!/<(?:!doctype|html|body)(?=[\s/>])/i.test(html)) html = `<!doctype html><html><head><meta charset="utf-8"></head><body style="margin:0;padding:0">${html}${fim}</body></html>`;
   else { const i = html.toLowerCase().lastIndexOf("</body>"); html = i >= 0 ? html.slice(0, i) + fim + html.slice(i) : html + fim; }
+  const topo = logoHtml(opts.tenantLogo, opts.tenantName); // só chega aqui com logo quando a pessoa pediu
+  if (topo) html = html.replace(/<body(?=[\s/>])(?:"[^"]*"|'[^']*'|[^'">])*>/i, (tag) => `${tag}<div style="padding:16px 12px 0;text-align:center;background:#ffffff">${topo.replace('style="margin:0 0 18px"', 'style="margin:0 0 16px"')}</div>`);
   return { text, html };
 }
 
