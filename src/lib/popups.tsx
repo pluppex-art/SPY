@@ -1,7 +1,7 @@
 import { toast } from "sonner";
 import { formatBRL } from "./dinheiro";
 import { useNavigate } from "react-router-dom";
-import { CheckCircle2, Info, AlertTriangle, XCircle, CircleDollarSign, X } from "lucide-react";
+import { CheckCircle2, Info, AlertTriangle, XCircle, CircleDollarSign, Hand, X } from "lucide-react";
 import { useEffect, useState, type ReactNode } from "react";
 import { corDaEmpresaAtual, gerarIconeMarca } from "./theme";
 import { isSaleSoundEnabled, playSaleSound } from "./notifications";
@@ -35,9 +35,12 @@ interface CardProps {
   highlight?: string;
   linkUrl?: string | null;
   celebratory?: boolean;
+  /** Conversa no WhatsApp, montada pelo app a partir do telefone do lead (nunca vem do texto do aviso). */
+  whatsapp?: string | null;
+  onOpen?: () => void;
 }
 
-function PopupCard({ toastId, badge, color, title, description, meta, highlight, linkUrl, celebratory }: CardProps) {
+function PopupCard({ toastId, badge, color, title, description, meta, highlight, linkUrl, celebratory, whatsapp, onOpen }: CardProps) {
   const navigate = useNavigate();
   // Logo na cor da empresa (a mesma dos botões e do favicon); até gerar, ou sem canvas, fica o ícone padrão.
   const [iconeMarca, setIconeMarca] = useState("/pwa-192.png");
@@ -50,7 +53,12 @@ function PopupCard({ toastId, badge, color, title, description, meta, highlight,
   }, []);
   // Só segue links internos do app (nunca um endereço externo vindo de uma notificação).
   const internalLink = linkUrl && linkUrl.startsWith("/") && !linkUrl.startsWith("//") ? linkUrl : null;
-  const open = () => { if (internalLink) navigate(internalLink); toast.dismiss(toastId); };
+  const open = () => {
+    if (whatsapp?.startsWith("https://wa.me/")) window.open(whatsapp, "_blank", "noopener,noreferrer");
+    else if (internalLink) navigate(internalLink);
+    onOpen?.();
+    toast.dismiss(toastId);
+  };
 
   return (
     <div className="relative w-[calc(100vw-1.5rem)] sm:w-[380px]">
@@ -182,6 +190,41 @@ export function showSalePopup(sale: { leadId: string; name: string; company?: st
   );
   void celebrate();
   if (isSaleSoundEnabled()) playSaleSound();
+}
+
+export interface ChamadoPopup { leadId: string; nome: string; motivo: string; whatsapp: string | null; onOpen?: () => void }
+
+function showChamadoPopup(c: ChamadoPopup) {
+  toast.custom(
+    (id) => (
+      <PopupCard
+        toastId={id}
+        badge={<Hand className="w-3 h-3" strokeWidth={3} />}
+        color="var(--color-warning)"
+        title={`Aurora levantou a mão: ${c.nome}`}
+        description={c.motivo}
+        meta={c.whatsapp ? "Toque para chamar no WhatsApp" : "Toque para abrir o lead"}
+        whatsapp={c.whatsapp}
+        linkUrl={`/app/crm/pipeline?leadId=${encodeURIComponent(c.leadId)}`}
+        onOpen={c.onOpen}
+      />
+    ),
+    { duration: 20000 },
+  );
+}
+
+// Vários chamados de repescagem juntos viram um aviso só, como as outras notificações.
+let chamadoBatch: ChamadoPopup[] | null = null;
+export function queueChamadoPopup(c: ChamadoPopup) {
+  if (popupsSuppressed()) return;
+  if (chamadoBatch) { chamadoBatch.push(c); return; }
+  chamadoBatch = [c];
+  setTimeout(() => {
+    const itens = chamadoBatch ?? [];
+    chamadoBatch = null;
+    if (itens.length > 3) showNotificationPopup({ title: `Aurora levantou a mão: ${itens.length} leads para chamar`, description: itens.slice(0, 3).map((i) => i.nome).join(", ") + "…", type: "warning", link_url: "/app/crm/pipeline" });
+    else itens.forEach(showChamadoPopup);
+  }, NOTIF_BATCH_MS);
 }
 
 // Notificações em tempo real nunca viram metralhadora: as que chegam em até 3 s saem juntas num único aviso.

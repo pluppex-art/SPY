@@ -1,10 +1,10 @@
 import { interceptar } from "../lib/metodo/interceptador";
-import { ehChamado } from "../lib/metodo/regras";
+import { ehChamado, linkDoWhatsApp, saudacao } from "../lib/metodo/regras";
 import { setUnidadeMax, type UnidadeMax } from "../lib/unidadeMaxdata";
 import React, { useState, useEffect, useMemo } from 'react';
 import { findDuplicateLead, fillEmptyLeadFields } from "../lib/leadDedupe";
 import { toast } from 'sonner';
-import { queueNotificationPopup, showPendingSummaryPopup, showSalePopup, showNewLeadPopup } from '../lib/popups';
+import { queueNotificationPopup, queueChamadoPopup, showPendingSummaryPopup, showSalePopup, showNewLeadPopup } from '../lib/popups';
 import { shouldPopupNewLead, shouldPopupNotification, isRuidoDeAutomacao } from '../lib/notificationRules';
 import { sendPushNotification } from "../lib/notifications";
 import { supabase, fetchTenantPrimaryColor, updateTenantTheme } from '../lib/supabase';
@@ -1166,8 +1166,12 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
         .on('postgres_changes', { event: '*', schema: 'public', table: 'notifications' }, (payload) => {
           if (payload.eventType === 'INSERT' && payload.new && (payload.new as any).tenant_id === tenantId) {
             const n = payload.new as any;
-            // Chamado de repescagem tem o pop-up próprio (a Aurora levanta a mão).
-            if (shouldPopupNotification(userRef.current as any, n) && !isRuidoDeAutomacao(n) && !ehChamado(n)) queueNotificationPopup({ title: n.title, description: n.description || 'Nova notificação', type: n.type, link_url: n.link_url });
+            const paraMim = shouldPopupNotification(userRef.current as any, n) && !isRuidoDeAutomacao(n);
+            if (paraMim && ehChamado(n) && n.lead_id) {
+              // Repescagem: a mesma notificação em pop-up, e o toque abre a conversa no WhatsApp (o agente acompanha dali).
+              const lead = (leadsRef.current as any[]).find((l) => l.id === n.lead_id);
+              queueChamadoPopup({ leadId: n.lead_id, nome: lead?.name || n.description || 'lead', motivo: n.title, whatsapp: linkDoWhatsApp(lead?.phone, saudacao(lead?.name)), onOpen: () => markNotificationAsRead(n.id) });
+            } else if (paraMim) queueNotificationPopup({ title: n.title, description: n.description || 'Nova notificação', type: n.type, link_url: n.link_url });
           }
           applyRealtimeUpsert(setNotifications, payload, (r) => r as Notification, tenantId);
         })

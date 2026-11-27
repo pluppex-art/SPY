@@ -4,7 +4,7 @@
 
 ## O que a pessoa vê
 
-O Agente Secreto é quem move. Quando um lead precisa de repescagem, a **Aurora levanta a mão** num pop-up com o motivo, a última nota e o botão **Chamar no WhatsApp**. A pessoa manda a mensagem; o agente acompanha a conversa. No detalhe do lead não há painel nem ações do método; no cartão ficam só os selos de situação.
+O Agente Secreto é quem move. Quando um lead precisa de repescagem, a **Aurora levanta a mão** no pop-up de notificação do sistema, e o toque abre a conversa no WhatsApp. A pessoa manda a mensagem; o agente acompanha a conversa. No detalhe do lead não há painel nem ações do método; no cartão ficam só os selos de situação.
 
 ## Colunas confirmadas
 

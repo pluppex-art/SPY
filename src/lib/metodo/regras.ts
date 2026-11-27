@@ -131,26 +131,6 @@ export function minhasDeHoje<T extends { assigned_to?: string | null; status: st
 /** Avisos que pedem para a pessoa chamar o cliente (repescagem, retorno combinado, fim da pausa). */
 export const ehChamado = (aviso: { dedupe_key?: string | null } | null | undefined): boolean => /^(repescagem|retorno|retomar):/.test(aviso?.dedupe_key ?? "");
 
-export interface Chamado { aviso: any; lead: any; ids: string[] }
-
-/** Um chamado por lead (o aviso mais novo), só da pessoa, e só enquanto ainda fizer sentido. */
-export function chamadosDaAurora(avisos: any[] | null | undefined, usuarioId: string | undefined, leads: any[], funis: any[]): Chamado[] {
-  const porLead = new Map<string, Chamado>();
-  const novosPrimeiro = (avisos ?? []).filter((a) => !a.is_read && ehChamado(a) && (!a.user_id || a.user_id === usuarioId))
-    .sort((a, b) => String(b.created_at).localeCompare(String(a.created_at)));
-  for (const aviso of novosPrimeiro) {
-    const leadId = String(aviso.lead_id ?? String(aviso.dedupe_key).split(":")[1] ?? "");
-    const lead = leads.find((l) => l.id === leadId);
-    if (!lead) continue;
-    // O lead já saiu da Repescagem (o cliente respondeu ou o negócio encerrou): o chamado perdeu o sentido.
-    const onde = posicaoNoMetodo(lead.stageId, funis);
-    if (String(aviso.dedupe_key).startsWith("repescagem:") && onde && onde.tipo !== "repescagem") continue;
-    const ja = porLead.get(leadId);
-    if (ja) ja.ids.push(aviso.id); else porLead.set(leadId, { aviso, lead, ids: [aviso.id] });
-  }
-  return [...porLead.values()];
-}
-
 /** Começo de mensagem para o vendedor completar; nome que é só número ou genérico fica de fora. */
 export function saudacao(nome: unknown): string {
   const primeiro = String(nome ?? "").trim().split(/\s+/)[0] ?? "";
