@@ -1,30 +1,45 @@
-/** Pesquisa do Radar por CNAE (Receita) ou por tipo de empresa (Google Maps): uma consulta por cidade, juntando o que vier. */
-export interface CidadeEscolhida { cidade: string; uf: string; /** código IBGE, exigido na busca por CNAE */ id?: string; /** continuação da busca por CNAE */ cursor?: string }
-export interface FiltroRadar { modo: "cnae" | "mapa"; cnae?: string; tipo: string; cidades: CidadeEscolhida[]; /** por cidade */ quantidade: number }
+/** Pesquisa do Radar por CNAE (Receita) ou por tipo de empresa (Google Maps): uma consulta por atividade e cidade, juntando o que vier. */
+export interface CidadeEscolhida { cidade: string; uf: string; /** código IBGE, exigido na busca por CNAE */ id?: string }
+/** Uma consulta por CNAE que ainda tem mais empresas. */
+export interface Continuacao { cnae: string; municipio: string; cursor: string }
+export interface FiltroRadar { modo: "cnae" | "mapa"; cnaes?: string[]; tipo: string; cidades: CidadeEscolhida[]; /** por atividade em cada cidade */ quantidade: number; continuar?: Continuacao[] }
 export interface EmpresaDoRadar { empresa: string; endereco: string; avaliacao: string; contato: string; site: string; whatsapp: string; email?: string; cnpj?: string; razaoSocial?: string }
 export interface ResultadoDaBusca { empresas: EmpresaDoRadar[]; restante: number | null; aviso: string | null; /** a mesma busca, para trazer as próximas empresas (só CNAE) */ mais: FiltroRadar | null }
 
 type Api = (path: string, init?: RequestInit) => Promise<Response>;
 
+/** Atividades mais procuradas; qualquer outra entra digitando o código. */
+export const ATIVIDADES: [string, string][] = [
+  ["5611201", "Restaurantes"], ["9313100", "Academias"], ["8630504", "Clínicas odontológicas"], ["8630503", "Consultórios médicos"],
+  ["6920601", "Escritórios de contabilidade"], ["4744099", "Materiais de construção"], ["6821801", "Imobiliárias (compra e venda)"],
+  ["4520001", "Oficinas mecânicas"], ["4789004", "Pet shops"], ["9602501", "Salões de beleza"], ["4781400", "Lojas de roupas"],
+  ["4771701", "Farmácias"], ["4712100", "Mercados e mercearias"],
+];
+export const MAX_ATIVIDADES = 5;
+/** 5611201 → 56.11-2-01, também enquanto digita. */
+export const mascaraCnae = (v: string) => { const d = v.replace(/\D/g, "").slice(0, 7); return [d.slice(0, 2), d.length > 2 ? `.${d.slice(2, 4)}` : "", d.length > 4 ? `-${d.slice(4, 5)}` : "", d.length > 5 ? `-${d.slice(5)}` : ""].join(""); };
+export const nomeDaAtividade = (cnae: string) => ATIVIDADES.find(([c]) => c === cnae)?.[1] ?? `CNAE ${mascaraCnae(cnae)}`;
+
 export const chaveDaEmpresa = (e: EmpresaDoRadar) => e.cnpj || `${e.empresa}|${e.endereco}`;
 
 export const descreverBusca = (f: FiltroRadar) => {
   const onde = f.cidades.length ? ` em ${f.cidades.map((c) => `${c.cidade}/${c.uf}`).join(", ")}` : "";
-  return `${f.modo === "cnae" ? `CNAE ${f.cnae}` : f.tipo.trim() || "empresas"}${onde}`;
+  return `${f.modo === "cnae" ? (f.cnaes ?? []).map(nomeDaAtividade).join(", ") : f.tipo.trim() || "empresas"}${onde}`;
 };
 
 export async function pesquisarNoRadar(api: Api, filtro: FiltroRadar): Promise<ResultadoDaBusca> {
   const tipo = filtro.tipo.trim();
   const porCnae = filtro.modo === "cnae";
-  const cnae = String(filtro.cnae ?? "").replace(/\D/g, "");
-  if (porCnae && cnae.length !== 7) throw new Error("Escolha a atividade ou digite o CNAE com 7 dígitos.");
+  const cnaes = [...new Set((filtro.cnaes ?? []).map((c) => c.replace(/\D/g, "")))];
+  if (porCnae && (!cnaes.length || cnaes.some((c) => c.length !== 7))) throw new Error("Escolha pelo menos uma atividade (o CNAE tem 7 dígitos).");
   if (porCnae && !filtro.cidades.length) throw new Error("Escolha pelo menos uma cidade.");
   if (!porCnae && !filtro.cidades.length && tipo.length < 3) throw new Error("Diga o tipo de empresa ou escolha uma cidade.");
-  const consultas: { corpo: object; cidade?: CidadeEscolhida }[] = porCnae
-    ? filtro.cidades.map((c) => ({ cidade: c, corpo: { cnae, municipio: c.id, ...(c.cursor ? { cursor: c.cursor } : {}) } }))
+  // Por CNAE: cada atividade em cada cidade (ou só as que ainda têm continuação).
+  const consultas: { corpo: object; cnae?: string; municipio?: string }[] = porCnae
+    ? (filtro.continuar ?? cnaes.flatMap((cnae) => filtro.cidades.map((c) => ({ cnae, municipio: c.id!, cursor: "" })))).map((q) => ({ cnae: q.cnae, municipio: q.municipio, corpo: { cnae: q.cnae, municipio: q.municipio, ...(q.cursor ? { cursor: q.cursor } : {}) } }))
     : filtro.cidades.length ? filtro.cidades.map((c) => ({ corpo: { criterio: `${tipo || "empresas"} em ${c.cidade}/${c.uf}`, cidade: c.cidade, uf: c.uf } })) : [{ corpo: { criterio: tipo } }];
   const juntas = new Map<string, EmpresaDoRadar>();
-  const continuar: CidadeEscolhida[] = [];
+  const continuar: Continuacao[] = [];
   let restante: number | null = null;
   let aviso: string | null = null;
   for (const consulta of consultas) {
@@ -34,10 +49,10 @@ export async function pesquisarNoRadar(api: Api, filtro: FiltroRadar): Promise<R
     if (!r.ok) {
       aviso = j.error || "Não foi possível pesquisar agora.";
       if (!juntas.size) throw Object.assign(new Error(aviso!), { restante });
-      break; // o que já veio das cidades anteriores não se perde
+      break; // o que já veio das consultas anteriores não se perde
     }
     for (const e of (j.resultados ?? []) as EmpresaDoRadar[]) juntas.set(chaveDaEmpresa(e), e);
-    if (consulta.cidade && j.proximoCursor) continuar.push({ ...consulta.cidade, cursor: j.proximoCursor });
+    if (consulta.cnae && j.proximoCursor) continuar.push({ cnae: consulta.cnae, municipio: consulta.municipio!, cursor: j.proximoCursor });
   }
-  return { empresas: [...juntas.values()], restante, aviso, mais: continuar.length && restante !== 0 ? { ...filtro, cidades: continuar } : null };
+  return { empresas: [...juntas.values()], restante, aviso, mais: continuar.length && restante !== 0 ? { ...filtro, continuar } : null };
 }

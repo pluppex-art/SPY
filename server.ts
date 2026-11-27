@@ -4551,7 +4551,8 @@ app.get("/api/radar/limite", requireUser, async (req: any, res: any) => {
 
 // E-mails das empresas do Radar, para entrar nas campanhas.
 registerRadarEmailRoutes(app, { requireUser, resolveRequestedTenantId, limiter: aiLimiter, supabaseService });
-registerRadarCnaeRoutes(app, { requireUser, resolveRequestedTenantId, limiter: aiLimiter, supabaseService });
+// Várias atividades em várias cidades viram uma consulta cada: limite próprio, maior que o das rotas de IA.
+registerRadarCnaeRoutes(app, { requireUser, resolveRequestedTenantId, limiter: rateLimit({ windowMs: 60_000, limit: 60, standardHeaders: true, legacyHeaders: false }), supabaseService });
 
 // Cria o Radar (webhook de busca) de uma empresa que já existe (equipe interna). Idempotente.
 app.post("/api/radar/provisionar", requireUser, requireMaster, async (req: any, res: any) => {

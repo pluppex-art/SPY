@@ -40,12 +40,14 @@ test("CNAE: erro da consulta não gasta a cota; sem módulo Radar não consulta"
   assert.equal((await montar().pedir({ cnae: "93", municipio: "1721000" })).status, 400);
 }));
 
-test("busca por CNAE na tela: uma consulta por cidade e continuação com o cursor", async () => {
+test("busca por CNAE na tela: várias atividades e continuação com o cursor", async () => {
   const corpos: any[] = [];
   const api = async (p: string, init?: RequestInit) => { corpos.push([p, JSON.parse(String(init!.body))]); return new Response(JSON.stringify({ resultados: [{ empresa: "A", endereco: "x", cnpj: "1" }], restante: 40, proximoCursor: "c1" })); };
-  const r = await pesquisarNoRadar(api, { modo: "cnae", cnae: "93.13-1-00", tipo: "", cidades: [{ id: "1721000", cidade: "Palmas", uf: "TO" }], quantidade: 5 });
+  const r = await pesquisarNoRadar(api, { modo: "cnae", cnaes: ["93.13-1-00", "5611201"], tipo: "", cidades: [{ id: "1721000", cidade: "Palmas", uf: "TO" }], quantidade: 5 });
   assert.deepEqual(corpos[0], ["/api/radar/cnae", { cnae: "9313100", municipio: "1721000", quantidade: 5 }]);
+  assert.equal(corpos[1][1].cnae, "5611201"); // uma consulta por atividade em cada cidade
   await pesquisarNoRadar(api, r.mais!);
-  assert.equal(corpos[1][1].cursor, "c1");
-  await assert.rejects(() => pesquisarNoRadar(api, { modo: "cnae", cnae: "9313100", tipo: "", cidades: [], quantidade: 5 }), /cidade/);
+  assert.deepEqual(corpos.slice(2).map((c) => [c[1].cnae, c[1].cursor]), [["9313100", "c1"], ["5611201", "c1"]]);
+  await assert.rejects(() => pesquisarNoRadar(api, { modo: "cnae", cnaes: ["9313100"], tipo: "", cidades: [], quantidade: 5 }), /cidade/);
+  await assert.rejects(() => pesquisarNoRadar(api, { modo: "cnae", cnaes: [], tipo: "", cidades: [{ id: "1", cidade: "P", uf: "TO" }], quantidade: 5 }), /atividade/);
 });
