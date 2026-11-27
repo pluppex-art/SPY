@@ -47,6 +47,7 @@ import { readTenantSnapshot } from "./server/implementationSync.js";
 import { registerTableComparisonRoutes } from "./server/tableComparison.js";
 import { registerProspeccaoCnaeRoutes } from "./server/prospeccaoCnae.js";
 import { registerRadarEmailRoutes, lerResultadosDoRadar } from "./server/radarEmails.js";
+import { LIMITE_POR_DIA, naCidade, reservar, devolver, restanteHoje } from "./server/radarCota.js";
 import { registerApisBrasilRoutes } from "./server/apisBrasil.js";
 import { registerEmissaoJaRoutes } from "./server/emissaoja.js";
 import { urlWebhookInterno, temWebhookInterno, comWebhookInterno, grupoCadastradoNaEmpresa } from "./server/sessaoAgentes.js";
@@ -4507,18 +4508,44 @@ app.post("/api/radar/pesquisar", requireUser, aiLimiter, async (req: any, res: a
   const wh = await radarWebhookDaEmpresa(supabaseService, tenantId);
   if (!wh.secret) return res.status(503).json({ error: "A pesquisa do Radar não está configurada neste ambiente." });
   const url = wh.url, header = wh.header, secret = wh.secret;
+  const cidade = typeof req.body?.cidade === "string" ? req.body.cidade.trim().slice(0, 80) : "";
+  const uf = typeof req.body?.uf === "string" && /^[A-Za-z]{2}$/.test(req.body.uf) ? req.body.uf.toUpperCase() : "";
+  // Cota do dia: separa antes de pesquisar e devolve o que não vier.
+  let separado = 0;
+  try { separado = await reservar(supabaseService, tenantId, quantidade); }
+  catch (e: any) { console.error("[radar/cota]", e?.message); return res.status(503).json({ error: "Não foi possível conferir o limite do Radar agora. Tente de novo." }); }
+  if (!separado) return res.status(429).json({ error: `O limite de ${LIMITE_POR_DIA} empresas por dia foi atingido. Volta amanhã.`, restante: 0 });
+  const encerrar = async (entregues: number) => {
+    const sobra = separado - entregues; separado = entregues;
+    try { await devolver(supabaseService, tenantId, sobra); return await restanteHoje(supabaseService, tenantId); } catch (e: any) { console.error("[radar/cota]", e?.message); return undefined; }
+  };
   try {
-    const { data } = await axios.post(url, { criterio, quantidade, tenant_id: tenantId }, { headers: { "Content-Type": "application/json", [header]: secret }, timeout: 90_000 });
+    const { data } = await axios.post(url, { criterio, quantidade: separado, tenant_id: tenantId }, { headers: { "Content-Type": "application/json", [header]: secret }, timeout: 90_000 });
     const resposta = typeof data?.resposta === "string" ? data.resposta : typeof data === "string" ? data : "";
     // Sem resposta: o Radar recusa em silêncio quando a empresa não tem o módulo Radar no plano.
-    if (!resposta.trim()) return res.status(403).json({ error: "O módulo Radar não está habilitado no plano desta empresa (ou a busca não devolveu resposta). Fale com o administrador do sistema." });
-    if (/^O modulo Radar/i.test(resposta)) return res.status(403).json({ error: resposta });
-    res.json({ criterio, resposta, resultados: lerResultadosDoRadar(resposta) });
+    if (!resposta.trim() || /^O modulo Radar/i.test(resposta)) {
+      await encerrar(0);
+      return res.status(403).json({ error: resposta.trim() || "O módulo Radar não está habilitado no plano desta empresa (ou a busca não devolveu resposta). Fale com o administrador do sistema." });
+    }
+    const todos = lerResultadosDoRadar(resposta);
+    // Com cidade escolhida, só entra quem é dela mesmo (o Maps às vezes traz vizinhas).
+    const resultados = (cidade && uf ? todos.filter((r) => naCidade(r.endereco, cidade, uf)) : todos).slice(0, separado);
+    const restante = await encerrar(resultados.length);
+    res.json({ criterio, resultados, restante });
   } catch (err: any) {
     console.error("[radar/pesquisar]", err?.response?.status || err?.code || err?.message);
+    const restante = await encerrar(0);
     const status = err?.response?.status;
-    res.status(status === 401 || status === 403 ? 502 : 504).json({ error: status === 401 || status === 403 ? "O Radar recusou o pedido (credencial do webhook)." : "A pesquisa demorou demais ou falhou. Tente de novo em instantes." });
+    res.status(status === 401 || status === 403 ? 502 : 504).json({ error: status === 401 || status === 403 ? "O Radar recusou o pedido (credencial do webhook)." : "A pesquisa demorou demais ou falhou. Tente de novo em instantes.", restante });
   }
+});
+
+// Quantas empresas o Radar ainda pode trazer hoje para a empresa selecionada.
+app.get("/api/radar/limite", requireUser, async (req: any, res: any) => {
+  const tenantId = await resolveRequestedTenantId(req, res);
+  if (!tenantId) return;
+  try { res.json({ porDia: LIMITE_POR_DIA, restante: await restanteHoje(supabaseService, tenantId) }); }
+  catch (e: any) { console.error("[radar/limite]", e?.message); res.status(503).json({ error: "Não foi possível conferir o limite do Radar." }); }
 });
 
 // E-mails das empresas do Radar, para entrar nas campanhas.

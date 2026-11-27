@@ -1,14 +1,15 @@
 /** Puxa empresas do Radar (pesquisa nova ou já salvas) para a lista própria da campanha. */
 import { useRef, useState } from "react";
-import { Loader2, Radar, Search } from "lucide-react";
+import { Loader2, Radar } from "lucide-react";
 import { Button } from "../../../components/ui/button";
 import { cn } from "../../../lib/utils";
+import { FiltroDoRadar } from "../../../components/radar/FiltroDoRadar";
+import { pesquisarNoRadar, type FiltroRadar } from "../../../lib/buscaRadar";
 
 export interface ContatoDoRadar { email: string; name: string; company: string }
 /** `email` vazio com `procurando` = o site ainda está sendo lido. */
 interface Item { empresa: string; detalhe: string; email: string; procurando?: boolean }
 
-const campo = "h-9 px-3 rounded-lg text-xs border border-[var(--color-border-default)] bg-[var(--color-surface)] text-[var(--color-text-primary)]";
 const temSite = (s: unknown): s is string => !!s && !/^n[ãa]o encontrado$/i.test(String(s));
 
 export function PuxarDoRadar({ api, jaNaLista, onAdicionar }: {
@@ -18,8 +19,7 @@ export function PuxarDoRadar({ api, jaNaLista, onAdicionar }: {
 }) {
   const [aberto, setAberto] = useState(false);
   const [aba, setAba] = useState<"buscar" | "salvas">("buscar");
-  const [criterio, setCriterio] = useState("");
-  const [quantidade, setQuantidade] = useState("20");
+  const [restante, setRestante] = useState<number | null>(null);
   const [itens, setItens] = useState<Item[]>([]);
   const [carregando, setCarregando] = useState(false);
   const [aviso, setAviso] = useState<string | null>(null);
@@ -33,24 +33,25 @@ export function PuxarDoRadar({ api, jaNaLista, onAdicionar }: {
   };
   const comecar = () => { const n = ++pedido.current; setCarregando(true); setAviso(null); setItens([]); setFora(new Set()); return n; };
 
-  const buscar = async () => {
-    if (criterio.trim().length < 3) { setAviso("Descreva o que procurar, por exemplo: clínicas odontológicas em Palmas/TO."); return; }
+  const buscar = async (filtro: FiltroRadar) => {
     const n = comecar();
     try {
-      const j = await ler("/api/radar/pesquisar", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ criterio: criterio.trim(), quantidade: Number(quantidade) }) });
+      const busca = await pesquisarNoRadar(api, filtro);
+      if (busca.restante !== null) setRestante(busca.restante);
       if (n !== pedido.current) return;
-      const achados: any[] = j.resultados ?? [];
-      if (!achados.length) { setAviso("Nenhuma empresa encontrada. Inclua a cidade e o estado."); return; }
+      setAviso(busca.aviso);
+      const achados = busca.empresas;
+      if (!achados.length) { setAviso("Nenhuma empresa encontrada. Tente outro tipo de empresa ou outra cidade."); return; }
       const lista: Item[] = achados.map((e) => ({ empresa: e.empresa, detalhe: e.endereco, email: e.email || "", procurando: !e.email && temSite(e.site) }));
       setItens(lista); setCarregando(false);
       const sites = achados.filter((e, i) => lista[i].procurando).map((e) => e.site);
       if (!sites.length) return;
       let emails: Record<string, string> = {};
-      try { emails = (await ler("/api/radar/emails", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ sites }) })).emails ?? {}; }
+      try { for (let i = 0; i < sites.length && n === pedido.current; i += 20) Object.assign(emails, (await ler("/api/radar/emails", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ sites: sites.slice(i, i + 20) }) })).emails ?? {}); }
       catch (e: any) { if (n === pedido.current) setAviso(`Não consegui ler os sites: ${e.message}`); }
       if (n !== pedido.current) return;
       setItens(lista.map((item, i) => (item.procurando ? { ...item, email: emails[String(achados[i].site).trim().slice(0, 300)] || "", procurando: false } : item)));
-    } catch (e: any) { if (n === pedido.current) setAviso(e.message); }
+    } catch (e: any) { if (typeof e.restante === "number") setRestante(e.restante); if (n === pedido.current) setAviso(e.message); }
     finally { if (n === pedido.current) setCarregando(false); }
   };
 
@@ -87,16 +88,7 @@ export function PuxarDoRadar({ api, jaNaLista, onAdicionar }: {
         <button type="button" onClick={() => setAberto(false)} className="bg-transparent border-0 p-0 text-[11px] font-bold text-[var(--color-text-muted)] cursor-pointer">Fechar</button>
       </div>
 
-      {aba === "buscar" && (
-        <div className="flex flex-wrap gap-2">
-          <input value={criterio} onChange={(e) => setCriterio(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); void buscar(); } }} maxLength={200}
-            placeholder="Ex.: clínicas odontológicas em Palmas/TO" aria-label="O que pesquisar no Radar" className={`${campo} flex-1 min-w-[200px]`} />
-          <select value={quantidade} onChange={(e) => setQuantidade(e.target.value)} aria-label="Quantidade de empresas" className={campo}>
-            {["5", "10", "15", "20"].map((q) => <option key={q} value={q}>{q} empresas</option>)}
-          </select>
-          <Button type="button" onClick={() => void buscar()} disabled={carregando || procurando} className="h-9 px-3 text-xs font-bold gap-1.5">{carregando ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Search className="w-3.5 h-3.5" />} Pesquisar</Button>
-        </div>
-      )}
+      {aba === "buscar" && <FiltroDoRadar api={api} ocupado={carregando || itens.some((i) => i.procurando)} restante={restante} onSaldo={setRestante} onBuscar={(f) => void buscar(f)} />}
 
       {carregando && <p className="inline-flex items-center gap-1.5 text-[var(--color-text-muted)]"><Loader2 className="w-3.5 h-3.5 animate-spin" /> Consultando o Radar…</p>}
       {aviso && <p role="status" className="text-[11px] text-amber-700 dark:text-amber-400">{aviso}</p>}

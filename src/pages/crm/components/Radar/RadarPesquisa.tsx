@@ -1,5 +1,5 @@
 import { useMemo, useState } from "react";
-import { Search, Loader2, UserPlus, Check, Phone, Mail, MapPin, Globe, MessageCircle, Star } from "lucide-react";
+import { Loader2, UserPlus, Check, Phone, Mail, MapPin, Globe, MessageCircle, Star } from "lucide-react";
 import { toast } from "sonner";
 import { Card } from "../../../../components/ui/card";
 import { Button } from "../../../../components/ui/button";
@@ -8,22 +8,21 @@ import { useAuth } from "../../../../contexts/AuthContext";
 import { apiFetch } from "../../../../lib/apiClient";
 import { getStageId } from "../../../../lib/funilStages";
 import { FUNIS_DEFAULT } from "../../../settings/sections/crm/funisTypes";
-import { inputCls, selectCls } from "../../../finance/components/ModalKit";
+import { FiltroDoRadar } from "../../../../components/radar/FiltroDoRadar";
+import { descreverBusca, pesquisarNoRadar, type EmpresaDoRadar, type FiltroRadar } from "../../../../lib/buscaRadar";
 
-interface Resultado { empresa: string; endereco: string; avaliacao: string; contato: string; site: string; whatsapp: string; email?: string }
+type Resultado = EmpresaDoRadar;
 
-const EXEMPLOS = ["clínicas odontológicas em Palmas/TO", "academias em Goiânia/GO", "escritórios de contabilidade em Curitiba/PR", "pet shops em São Paulo/SP"];
 const soDigitos = (v: string) => String(v || "").replace(/\D/g, "");
 
 /**
- * Pesquisa do Radar: o servidor pede ao Radar (n8n) empresas reais no Google Maps para o que foi descrito
- * ("segmento em cidade/UF"), e cada resultado pode virar lead com um clique.
+ * Pesquisa do Radar por tipo de empresa e cidades: o servidor pede ao Radar (n8n) empresas reais no Google Maps,
+ * dentro do limite diário, e cada resultado pode virar lead com um clique.
  */
 export function RadarPesquisa() {
   const { addLead, funis } = useData();
   const { user, activeTenantId } = useAuth();
-  const [criterio, setCriterio] = useState("");
-  const [quantidade, setQuantidade] = useState("10");
+  const [restante, setRestante] = useState<number | null>(null);
   const [buscando, setBuscando] = useState(false);
   const [erro, setErro] = useState<string | null>(null);
   const [feita, setFeita] = useState<string | null>(null);
@@ -35,19 +34,18 @@ export function RadarPesquisa() {
     return lista[0] ? getStageId(lista[0].id, 0) : "1";
   }, [funis]);
 
-  async function pesquisar(termo = criterio) {
-    const q = termo.trim();
-    if (q.length < 3) { setErro("Descreva o que procurar, por exemplo: clínicas odontológicas em Palmas/TO."); return; }
+  const api = (path: string, init?: RequestInit) => apiFetch(activeTenantId ? `${path}${path.includes("?") ? "&" : "?"}tenantId=${encodeURIComponent(activeTenantId)}` : path, init);
+
+  async function pesquisar(filtro: FiltroRadar) {
     setBuscando(true); setErro(null);
     try {
-      const r = await apiFetch(`/api/radar/pesquisar${activeTenantId ? `?tenantId=${encodeURIComponent(activeTenantId)}` : ""}`, {
-        method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ criterio: q, quantidade: Number(quantidade) }),
-      });
-      const j = await r.json().catch(() => ({}));
-      if (!r.ok) { setErro(j.error || "Não foi possível pesquisar agora."); setResultados([]); return; }
-      setResultados(j.resultados ?? []); setFeita(q); setCriados(new Set());
-    } catch { setErro("Não foi possível pesquisar agora. Tente de novo."); }
-    finally { setBuscando(false); }
+      const r = await pesquisarNoRadar(api, filtro);
+      setResultados(r.empresas); setFeita(descreverBusca(filtro)); setCriados(new Set()); setErro(r.aviso);
+      if (r.restante !== null) setRestante(r.restante);
+    } catch (e: any) {
+      setErro(e instanceof TypeError ? "Não foi possível pesquisar agora. Tente de novo." : e.message); setResultados([]);
+      if (typeof e.restante === "number") setRestante(e.restante);
+    } finally { setBuscando(false); }
   }
 
   async function virarLead(e: Resultado) {
@@ -66,29 +64,10 @@ export function RadarPesquisa() {
   return (
     <div className="space-y-4">
       <Card className="p-4 sm:p-5">
-        <form onSubmit={(e) => { e.preventDefault(); void pesquisar(); }} className="flex flex-col gap-3">
-          <div className="flex flex-col sm:flex-row gap-3">
-            <div className="relative flex-1">
-              <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-[var(--color-text-faint)] pointer-events-none" />
-              <input className={`${inputCls()} !h-11 pl-9 !text-sm`} value={criterio} onChange={(e) => setCriterio(e.target.value)} maxLength={200}
-                placeholder="O que você procura? Ex.: clínicas odontológicas em Palmas/TO" aria-label="O que pesquisar" />
-            </div>
-            <select className={`${selectCls()} !h-11 sm:w-[140px]`} value={quantidade} onChange={(e) => setQuantidade(e.target.value)} aria-label="Quantidade de resultados">
-              {["5", "10", "15", "20"].map((n) => <option key={n} value={n}>{n} resultados</option>)}
-            </select>
-            <Button type="submit" disabled={buscando} className="h-11 px-6 text-sm font-bold gap-2 shrink-0">
-              {buscando ? <Loader2 className="w-4 h-4 animate-spin" /> : <Search className="w-4 h-4" />}{buscando ? "Pesquisando…" : "Pesquisar"}
-            </Button>
-          </div>
-          <div className="flex flex-wrap items-center gap-1.5 text-[11px]">
-            <span className="text-[var(--color-text-muted)]">Tente:</span>
-            {EXEMPLOS.map((x) => (
-              <button key={x} type="button" disabled={buscando} onClick={() => { setCriterio(x); void pesquisar(x); }}
-                className="px-2.5 py-1 rounded-full bg-[var(--color-surface-sunken)] hover:bg-[var(--color-primary-blue)]/10 text-[var(--color-text-muted)] hover:text-[var(--color-primary-blue)] cursor-pointer border-0">{x}</button>
-            ))}
-          </div>
-          <p className="text-[11px] text-[var(--color-text-faint)]">A busca usa o Google Maps e traz empresas reais com telefone e endereço. Inclua a cidade e o estado (cidade/UF) para um resultado melhor.</p>
-        </form>
+        <div className="flex flex-col gap-3">
+          <FiltroDoRadar key={activeTenantId ?? ""} api={api} ocupado={buscando} restante={restante} onSaldo={setRestante} onBuscar={(f) => void pesquisar(f)} />
+          <p className="text-[11px] text-[var(--color-text-faint)]">A busca usa o Google Maps e traz empresas reais com telefone e endereço. Escolhendo cidades, só aparecem empresas delas.</p>
+        </div>
       </Card>
 
       {erro && <Card className="p-4 text-sm text-[var(--color-danger)]">{erro}</Card>}
@@ -100,7 +79,7 @@ export function RadarPesquisa() {
       {!buscando && feita && !erro && resultados.length === 0 && (
         <Card className="p-8 text-center">
           <p className="text-sm font-bold text-[var(--color-text-primary)]">Nenhuma empresa encontrada para "{feita}"</p>
-          <p className="text-xs text-[var(--color-text-muted)] mt-1">Tente um termo mais específico e inclua a cidade e o estado.</p>
+          <p className="text-xs text-[var(--color-text-muted)] mt-1">Tente outro tipo de empresa ou outra cidade.</p>
         </Card>
       )}
 

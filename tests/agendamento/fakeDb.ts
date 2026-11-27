@@ -118,7 +118,7 @@ export function criarFakeDb(seed: Record<string, Row[]> = {}, opts: { agoraMs?: 
       insert: (v: any) => { op = "insert"; ins = Array.isArray(v) ? v : [v]; return q; },
       upsert: (v: any, o?: any) => { op = "upsert"; ins = Array.isArray(v) ? v : [v]; if (o?.onConflict) onConflict = o.onConflict; return q; },
       update: (p: Row) => { op = "update"; patch = p; return q; },
-      eq: (c: string, v: any) => { filtros.push((r) => r[c] === v); return q; },
+      eq: (c: string, v: any) => { const [a, b] = c.split("->>"); filtros.push((r) => (b ? r[a]?.[b] : r[a]) === v); return q; },
       neq: (c: string, v: any) => { filtros.push((r) => r[c] !== v); return q; },
       is: (c: string, v: any) => { filtros.push((r) => (r[c] ?? null) === v); return q; },
       in: (c: string, v: any[]) => { filtros.push((r) => v.includes(r[c])); return q; },
