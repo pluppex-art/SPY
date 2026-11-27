@@ -1,18 +1,18 @@
 # Método do funil · Entrega 1: fundação do banco
 
-**Situação:** plano e migração prontos para revisão (27/11/2026). **Nada foi aplicado** no banco e o app não mudou.
+**Situação:** **aplicada em 27/11/2026, 16:40 (Brasília)** e conferida: 9 tabelas com RLS, 21 situações, 12 motivos, funil de teste com 6 etapas tipadas e nenhum funil com o método ligado. O app ainda não mudou.
 
 **Pronto quando:** um funil de teste tem as etapas com tipo e as situações padrão estão carregadas.
 
 ## Arquivos
 
-| Arquivo | Para que serve |
+| Arquivo | Situação |
 |---|---|
-| [entrega-1_fundacao.sql](entrega-1_fundacao.sql) | A migração |
-| [entrega-1_funil-de-teste.sql](entrega-1_funil-de-teste.sql) | Cria um funil desativado na SPY \| IA e confere o resultado |
-| [entrega-1_desfazer.sql](entrega-1_desfazer.sql) | Volta ao estado anterior |
-| [opcional_proteger-tabela-de-backup.sql](opcional_proteger-tabela-de-backup.sql) | Correção de segurança, independente do método |
-| [proposta_telefone-reabertura.sql](proposta_telefone-reabertura.sql) | Só para a entrega 5 ou 6. **Não aplicar agora** |
+| [20261231_metodo_funil_fundacao.sql](../../supabase/migrations/20261231_metodo_funil_fundacao.sql) | Aplicada |
+| [20261231_proteger_backup_ai_usage.sql](../../supabase/migrations/20261231_proteger_backup_ai_usage.sql) | Aplicada |
+| [20261231_metodo_funil_telefone_reabertura.sql](../../supabase/migrations/20261231_metodo_funil_telefone_reabertura.sql) | Aplicada antes do previsto; sem efeito por enquanto |
+| [entrega-1_funil-de-teste.sql](entrega-1_funil-de-teste.sql) | Executado |
+| [entrega-1_desfazer.sql](entrega-1_desfazer.sql) | Volta atrás a entrega 1, enquanto o método não estiver em uso |
 
 ## O que a migração cria
 
@@ -47,14 +47,7 @@ São **9 tabelas novas** (o documento previa 8).
 - **Conferido no banco (só leitura):** nomes e tipos das tabelas tocadas, políticas de acesso, gatilhos de funil, exclusão de empresa (pega as tabelas novas sozinha, por terem `tenant_id`) e backup (idem).
 - **Conferido no código:** a tela de funis mantém o tipo ao salvar; a lista de colunas de tarefas ignora as novas.
 - **Reconhecimento de etapas:** as mesmas regras, testadas em consulta, reconhecem 6 de 6 etapas nos funis da Casa São Paulo Sports e da Luminar. Funis do Kommo e funis longos ficam com etapas sem tipo, para escolha manual.
-- **Não executado:** o SQL ainda não rodou em nenhum banco (não há Postgres nesta máquina).
-
-## Como aplicar
-
-1. **Ensaio:** rodar a migração e o funil de teste numa transação que termina em `rollback`. Mostra erro sem deixar nada.
-2. Fazer o backup do banco e aplicar a migração como uma transação, em horário de pouco uso. Ela espera no máximo 5 s por bloqueio e desiste se não conseguir.
-3. Rodar o funil de teste. Esperado: 6 etapas com tipo, 21 situações, 12 motivos, 0 funis com método ligado.
-4. Se algo der errado, rodar o script de desfazer.
+- **Ainda não testado:** as permissões na prática e a proteção do tipo ao renomear etapa na tela.
 
 ## Problemas para as próximas entregas
 
@@ -67,9 +60,8 @@ São **9 tabelas novas** (o documento previa 8).
 | 5 | O aviso do gateway não identifica o lead: definir como casar |
 | 5 e 6 | Só há um lead por telefone em cada empresa (com exceção no Negócio Fora da Curva): ver a proposta de reabertura |
 
-## Decisões para você
+## Pendências
 
-- [ ] Aprovar `lead_estado` no lugar das colunas em `leads`
-- [ ] Onde fica "Não-lead": Desqualificado (como está) ou Venda perdida
-- [ ] Autorizar o ensaio e, depois, a aplicação
-- [ ] Autorizar a proteção da tabela de backup
+- [x] Status em `lead_estado` (aplicado assim)
+- [ ] Confirmar com o Daniel onde fica o "Não-lead": Desqualificado (como está) ou Venda perdida
+- [ ] Antes de arquivar qualquer lead: ajustar a busca por telefone no app e no n8n

@@ -1,5 +1,5 @@
 -- MÉTODO DO FUNIL · ENTREGA 1 — FUNDAÇÃO DO BANCO
--- NÃO APLICADA. Aguardando revisão (ver ENTREGA-1.md). Fica fora de supabase/migrations de propósito.
+-- Aplicada em 27/11/2026, 16:40 (Brasília). Plano: docs/metodo-funil/ENTREGA-1.md
 -- Só ACRESCENTA: tabelas novas, colunas novas com padrão neutro e o catálogo de fábrica. Não altera a tabela leads,
 -- não converte dados e não liga o método em nenhum funil (crm_funis.metodo_ativo nasce false).
 -- Aplicar como UMA transação (o apply_migration já faz isso).
