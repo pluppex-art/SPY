@@ -13,6 +13,7 @@ import { defaultCustomLeadFields, defaultFinanceEntries, defaultGlobalWebhooks, 
 import { DataContext, DataContextType, LeadActivity, Notification, Appointment, GlobalWebhook, FinanceEntry, Reuniao, Indicacao, AuroraAgent, useData } from './DataContextTypes';
 import { apiFetch } from "../lib/apiClient";
 import { snapshotGet, snapshotSet } from "../lib/tableCache";
+import { aplicarEventosDeAtividade, ehHistoricoImportado, normalizarAtividades, paginarPorData, type EventoDeAtividade } from "../lib/atividades";
 import { isDateLocked } from "../pages/finance/lib/financeEngine";
 import { parseCurrencyBR } from "../lib/utils";
 import { useLocalization } from "./LocalizationContext";
@@ -174,7 +175,7 @@ async function fetchAllRowsFull(table: string, tenantId: string, extraFilter?: (
 // cache — se divergir, refaz a carga completa (e re-sincroniza). Sem a coluna updated_at na
 // tabela (migração ainda não aplicada) ou sem IndexedDB, cai direto na carga completa de sempre.
 const DELTA_TABLES = new Set([
-  'leads', 'clientes', 'tasks', 'reunioes', 'finance_entries', 'lead_activities',
+  'leads', 'clientes', 'tasks', 'reunioes', 'finance_entries',
   'contracts', 'appointments', 'proposals', 'proposal_items',
 ]);
 // Ligada: migração perf_updated_at_delta_sync aplicada em 2026-10-03 (trigger mantém updated_at).
@@ -225,6 +226,24 @@ async function fetchAllRowsForTenant(table: string, tenantId: string, extraFilte
 
   await persistSnapshot(tenantId, table, merged);
   return { data: merged, error: null as any };
+}
+
+// Atividades de leads: paginadas pela data (ver lib/atividades.ts). O histórico importado de outro CRM
+// (id "kommo-evt-…", dezenas de milhares de linhas por empresa) fica de fora e entra ao abrir o lead.
+function fetchActivitiesForTenant(tenantId: string) {
+  return paginarPorData(async (ate, pular) => {
+    let res: any;
+    for (let attempt = 0; attempt < 3; attempt++) {
+      res = await dbLimit(() => {
+        let query = supabase!.from('lead_activities').select('*').eq('tenant_id', tenantId).not('id', 'like', 'kommo-evt-*');
+        if (ate) query = query.lte('created_at', ate);
+        return query.order('created_at', { ascending: false }).order('id', { ascending: false }).range(pular, pular + PAGE_STEP - 1);
+      });
+      if (!res.error) break;
+      await new Promise((r) => setTimeout(r, 1000 * (attempt + 1)));
+    }
+    return res;
+  }, PAGE_STEP);
 }
 
 // Aplica um evento realtime (INSERT/UPDATE/DELETE) direto no estado local em
@@ -511,24 +530,13 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
   const [proposalsLoaded, setProposalsLoaded] = useState(false);
 
   const [leadActivities, setLeadActivities] = useState<LeadActivity[]>([]);
-  // O banco guarda `lead_id`; a UI (linha do tempo do lead) lê `leadId`. Sem esse mapeamento nenhuma
-  // atividade carregada do banco aparecia. Mais recentes primeiro, como no histórico da Kommo.
-  const normalizeActivities = (rows: any[]): LeadActivity[] =>
-    rows.map((r) => ({ ...r, leadId: r.leadId ?? r.lead_id }))
-      .sort((a: any, b: any) => String(b.created_at || '').localeCompare(String(a.created_at || ''))) as LeadActivity[];
-
-  // O histórico de mudanças de etapa importado de outro CRM (id "kommo-evt-…") passa de dezenas de milhares
-  // de linhas por empresa: baixar tudo travava o carregamento (500 nas páginas fundas do banco) e inflava as
-  // métricas de atividade. Fica fora da carga geral e é carregado só ao abrir o lead (loadLeadHistory).
-  const isImportedHistory = (a: any) => String(a?.id ?? '').startsWith('kommo-evt-');
-  const withoutImportedHistory = (q: any) => q.not('id', 'like', 'kommo-evt-*');
   const loadLeadHistory = async (leadId: string) => {
     if (!supabase || !tenantId || !leadId) return;
     const { data, error } = await supabase.from('lead_activities').select('*')
       .eq('tenant_id', tenantId).eq('lead_id', leadId).like('id', 'kommo-evt-*')
       .order('created_at', { ascending: false }).limit(500);
     if (error || !data) return;
-    setLeadActivities(prev => normalizeActivities([...prev.filter(a => !(a.leadId === leadId && isImportedHistory(a))), ...data]));
+    setLeadActivities(prev => normalizarAtividades<LeadActivity>([...prev.filter(a => !(a.leadId === leadId && ehHistoricoImportado(a))), ...data]));
   };
 
   const [whatsappWebhookUrl, setWhatsappWebhookUrl] = useState<string>("");
@@ -868,13 +876,6 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
     if (data) setNichos(data);
   };
 
-  const fetchLeadActivities = async () => {
-    if (!supabase || !tenantId) return;
-    const { data } = await fetchAllRowsForTenant('lead_activities', tenantId, withoutImportedHistory);
-    // Mantém o histórico já aberto de um lead (o refetch de realtime não o traz).
-    if (data) setLeadActivities(prev => normalizeActivities([...data, ...prev.filter(isImportedHistory)]));
-  };
-
   // Mesma lógica do carregamento inicial (ver loadAll abaixo) — extraída pra
   // ser reaproveitada pelo refetch de realtime também, sem duplicar o merge
   // global+tenant/derivação de globalWebhooks/customLeadFields/etc em dois
@@ -1051,6 +1052,19 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
       debounceTimers[key] = setTimeout(fn, waitMs);
     };
 
+    // Atividades: junta os avisos de 1,5 s e aplica de uma vez, sem baixar a tabela de novo. É um intervalo
+    // fixo (não um debounce): numa sincronização contínua os avisos não param, e a tela precisa andar mesmo assim.
+    let activityEvents: EventoDeAtividade[] = [];
+    const queueActivity = (event: EventoDeAtividade) => {
+      activityEvents.push(event);
+      if (activityEvents.length > 1 || !tenantId) return;
+      debounceTimers.lead_activities = setTimeout(() => {
+        const batch = activityEvents;
+        activityEvents = [];
+        setLeadActivities(prev => aplicarEventosDeAtividade(prev, batch, tenantId));
+      }, 1500);
+    };
+
     async function setupRealtime() {
       // Sem tenantId ainda (sessão não resolveu) — não assina; o efeito reroda
       // quando tenantId chega (está nas deps abaixo), e as closures capturadas
@@ -1142,7 +1156,7 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
         // registrando uma nota/ligação não aparecia ao vivo), config do tenant
         // (app_settings) e o sino de notificações — achado real: notificação
         // criada por uma automação/outro usuário só aparecia depois de recarregar.
-        .on('postgres_changes', { event: '*', schema: 'public', table: 'lead_activities' }, () => debouncedRefetch('lead_activities', fetchLeadActivities))
+        .on('postgres_changes', { event: '*', schema: 'public', table: 'lead_activities' }, (payload) => queueActivity(payload))
         .on('postgres_changes', { event: '*', schema: 'public', table: 'app_settings' }, () => debouncedRefetch('app_settings', fetchAppSettings))
         .on('postgres_changes', { event: '*', schema: 'public', table: 'notifications' }, (payload) => {
           if (payload.eventType === 'INSERT' && payload.new && (payload.new as any).tenant_id === tenantId) {
@@ -1319,7 +1333,7 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
           // achar "nenhum contrato existente" toda vez e recriar um duplicado
           // + disparar notificação de novo contrato a cada entrada na tela.
           { name: 'contracts', promise: fetchAllRowsForTenant('contracts', tenantId), apply: (res) => { if (res.data) setContracts(res.data.map(rowToContract)); setContractsLoaded(true); } },
-          { name: 'lead_activities', promise: fetchAllRowsForTenant('lead_activities', tenantId, withoutImportedHistory), apply: (res) => { if (res.data) setLeadActivities(normalizeActivities(res.data)); } },
+          { name: 'lead_activities', promise: fetchActivitiesForTenant(tenantId), apply: (res) => { if (res.data) setLeadActivities(normalizarAtividades<LeadActivity>(res.data)); } },
           { name: 'finance_entries', promise: fetchAllRowsForTenant('finance_entries', tenantId), apply: (res) => { if (res.data) setFinanceEntries((res.data as any[]).map(normalizeFinanceEntry)); financeEntriesAuthoritativeLoadedRef.current = true; } },
           { name: 'appointments', promise: fetchAllRowsForTenant('appointments', tenantId), apply: (res) => { if (res.data) setAppointments(res.data.map(mapAppointmentRow)); } },
           { name: 'squads', promise: cachedFetchAllRowsForTenant('squads', tenantId, true), apply: (res) => { if (res.data) setSquads(res.data.map(mapSquadRow)); } },
@@ -1459,7 +1473,7 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
         // (ver comentário no endpoint).
         const genericPreviewTables: [string, (data: any[]) => void][] = [
           ['proposal_items', setProposalItems],
-          ['lead_activities', (d: any[]) => setLeadActivities(normalizeActivities(d.filter((r: any) => !isImportedHistory(r))))],
+          ['lead_activities', (d: any[]) => setLeadActivities(normalizarAtividades<LeadActivity>(d.filter((r: any) => !ehHistoricoImportado(r))))],
           ['colaboradores', setColaboradores],
           ['students', setStudents],
           ['turmas', setTurmas],
