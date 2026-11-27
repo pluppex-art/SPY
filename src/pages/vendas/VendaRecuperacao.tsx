@@ -71,7 +71,7 @@ export default function VendaRecuperacao() {
         </section>
       ))}
 
-      <PlanosDeVenda titulo="Quem vai retomar com você?" texto="Escolha pelo número de pessoas que vendem. Cada uma recebe o Agente Secreto de Vendas e a Aurora." botao={(n) => `Retomar com ${n}`} />
+      <PlanosDeVenda tema="amarelo" titulo="Quem vai retomar com você?" texto="Escolha pelo número de pessoas que vendem. Cada uma recebe o Agente Secreto de Vendas e a Aurora." botao={(n) => `Retomar com ${n}`} />
       <Perguntas />
       <Chamada titulo="O próximo orçamento não precisa sumir." texto="Comece pelo time que você tem hoje." botao={BOTAO} />
     </PaginaDeVenda>

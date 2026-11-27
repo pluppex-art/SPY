@@ -1151,3 +1151,13 @@ html:has(.sp-root) body {
   .sp-hero .sp-emblem { width: 128px; height: 128px; top: -84px; left: calc(50% - 64px); }
 }
 
+/* =====================================================================
+   Simetria: os títulos que abrem cada seção ficam no centro (vale para a landing e as páginas de venda)
+   ===================================================================== */
+.sp-root .sp-wrap > .sp-h2, .sp-root .sp-wrap > .sp-lede { margin-inline: auto; text-align: center; }
+.sp-root .sp-wrap > .sp-h2::before { left: calc(50% - 22px); transform-origin: center; }
+.sp-root .sp-wrap > .sp-faq { margin-inline: auto; }
+.sp-root .sp-wrap > .sp-plans-note { text-align: center; }
+.sp-root .sp-wrap > div > .sp-tabs { width: fit-content; max-width: 100%; margin-inline: auto; justify-content: center; }
+.sp-root .sp-agents > h3, .sp-root .sp-agents > p, .sp-root .sp-example > h3, .sp-root .sp-example > .sp-caption { margin-inline: auto; text-align: center; }
+

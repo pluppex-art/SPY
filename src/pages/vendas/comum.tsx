@@ -47,7 +47,7 @@ export function PaginaDeVenda({ tema, titulo, descricao, cta, children }: { tema
 }
 
 /** Planos vindos do cadastro (os mesmos do checkout); cada botão abre o checkout com o plano marcado. */
-export function PlanosDeVenda({ titulo, texto, botao }: { titulo: string; texto: string; botao: (nome: string) => string }) {
+export function PlanosDeVenda({ titulo, texto, botao, tema }: { titulo: string; texto: string; botao: (nome: string) => string; /** cor que o checkout deve usar */ tema?: "amarelo" }) {
   const { plans } = usePublicPlans();
   return (
     <section id="planos" className="sp-section" aria-labelledby="sv-planos-titulo">
@@ -70,7 +70,7 @@ export function PlanosDeVenda({ titulo, texto, botao }: { titulo: string; texto:
                 <ul>
                   {p.features.map((f) => (<li key={f}><Check size={16} strokeWidth={2} aria-hidden="true" />{f}</li>))}
                 </ul>
-                <Link to={`/checkout?plano=${p.id}`} className={`sp-btn ${p.highlight ? "sp-btn--primary" : "sp-btn--outline"}`}>
+                <Link to={`/checkout?plano=${p.id}${tema ? `&tema=${tema}` : ""}`} className={`sp-btn ${p.highlight ? "sp-btn--primary" : "sp-btn--outline"}`}>
                   {botao(p.name)}<ArrowRight size={18} strokeWidth={1.75} aria-hidden="true" />
                 </Link>
               </article>

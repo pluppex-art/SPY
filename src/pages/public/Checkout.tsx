@@ -5,7 +5,9 @@ import QRCode from "qrcode";
 import { supabase } from "../../lib/supabase";
 import { apiFetch } from "../../lib/apiClient";
 import { SocialProofPopup } from "../../components/SocialProofPopup";
-import { ArrowLeft, ArrowRight, Check, CheckCircle2, Copy, Loader2, Lock, ShieldCheck, Tag } from "lucide-react";
+import { ArrowLeft, ArrowRight, Check, CheckCircle2, Copy, Loader2, Lock, MessageCircle, QrCode, ShieldCheck, Star, Tag, Upload, UserCheck } from "lucide-react";
+import { Perguntas, PERGUNTAS } from "../vendas/comum";
+import "./checkout.css";
 
 type Quote = {
   plan: { code: string; name: string; tagline: string; interval: "monthly" | "yearly"; features: string[] };
@@ -42,12 +44,32 @@ async function api<T>(url: string, body?: unknown): Promise<T> {
   return json as T;
 }
 
-const campo = "w-full rounded-xl border border-[var(--color-border-default)] bg-[var(--color-surface)] px-3.5 py-3 text-sm text-[var(--color-text-primary)] outline-none focus:border-[var(--color-primary-blue)]";
-const rotulo = "block text-xs font-semibold text-[var(--color-text-muted)] mb-1.5";
-const botao = "inline-flex items-center justify-center gap-2 rounded-xl bg-[var(--color-primary-blue)] px-5 py-3 text-sm font-bold text-white disabled:opacity-50 transition-opacity";
-const botaoSec = "inline-flex items-center justify-center gap-2 rounded-xl border border-[var(--color-border-default)] px-4 py-3 text-sm font-semibold text-[var(--color-text-primary)]";
+const periodo = (q: Quote) => (q.plan.interval === "yearly" ? "/ano" : "/mês");
+/** Cores da página de venda de onde a pessoa veio (?tema=). Valor desconhecido = tema roxo do S.P.Y. */
+const TEMAS: Record<string, string> = { amarelo: "ck--amarelo sv-recupera" };
 
-/** Checkout público: cadastro rápido em passos, escolha do plano (com cupom) e pagamento por Pix com QR Code. */
+const DEPOIS: [typeof Check, string, string][] = [
+  [CheckCircle2, "Pagamento conferido", "Você anexa o comprovante e a nossa equipe confirma o Pix."],
+  [UserCheck, "Acesso liberado", "O link para criar a sua senha chega no e-mail informado."],
+  [MessageCircle, "Implantação", "A equipe chama no WhatsApp para configurar, conectar e treinar o time."],
+];
+
+/** O que acontece depois do pagamento. Na tela de obrigado, `feitos` marca as etapas concluídas e a próxima fica em destaque. */
+function Depois({ feitos }: { feitos?: number }) {
+  return (
+    <ol className="ck-depois">
+      {DEPOIS.map(([Icone, titulo, texto], i) => (
+        <li key={titulo} data-feito={feitos !== undefined && i < feitos} data-atual={i === feitos}>
+          <span className="ck-depois__icone"><Icone size={22} strokeWidth={1.75} aria-hidden="true" /></span>
+          <h3>{titulo}</h3>
+          <p>{texto}</p>
+        </li>
+      ))}
+    </ol>
+  );
+}
+
+/** Checkout público: plano, cadastro e pagamento por Pix com QR Code; termina na tela de obrigado. */
 export default function Checkout() {
   const [params] = useSearchParams();
   const [passo, setPasso] = useState(0);
@@ -62,6 +84,7 @@ export default function Checkout() {
   const [erro, setErro] = useState("");
   const [ocupado, setOcupado] = useState(false);
   const [pedido, setPedido] = useState<Pedido | null>(null);
+  const [pedidoPlano, setPedidoPlano] = useState("");
   const [status, setStatus] = useState("pending");
   const [qr, setQr] = useState("");
   const [copiado, setCopiado] = useState(false);
@@ -69,6 +92,7 @@ export default function Checkout() {
   const [info, setInfo] = useState<Info | null>(null);
   const [semSessao, setSemSessao] = useState(false);
   const renovar = params.get("renovar") === "1";
+  const tema = TEMAS[params.get("tema") || ""] || "";
   const tentativasAcesso = useRef(0);
   const topo = useRef<HTMLDivElement>(null);
 
@@ -90,11 +114,13 @@ export default function Checkout() {
     try { setCotacao(await api<Quote>("/api/checkout/quote", { planCode: code, promoCode })); setErro(""); }
     catch (e: any) { setErro(e.message); }
   }, []);
-  useEffect(() => { if (passo === 1) void cotar(planoCode, cupom); }, [passo, planoCode]); // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => { if (!single && !renovar && planos?.some((p) => p.plan.code === planoCode)) void cotar(planoCode, cupom); }, [planos, planoCode]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  const PASSOS = renovar ? ["Pagamento"] : single ? ["Seus dados", "Pagamento"] : ["Seus dados", "Plano", "Pagamento"];
+  const PASSOS = renovar ? ["Pagamento"] : single ? ["Seus dados", "Pagamento"] : ["Plano", "Seus dados", "Pagamento"];
   const payIdx = PASSOS.length - 1;
+  const passoDados = single ? 0 : 1;
   const irPara = (n: number) => { setErro(""); setPasso(n); topo.current?.scrollIntoView({ behavior: "smooth", block: "start" }); };
+  const cotacaoPronta = !!cotacao && cotacao.plan.code === planoCode;
 
   const dadosOk = useMemo(() => {
     const d = dados.documento.replace(/\D/g, "");
@@ -114,12 +140,13 @@ export default function Checkout() {
     restaurado.current = true;
     const token = lsGet();
     if (renovar || !token) return;
-    api<{ status: string; totalCents: number; pixPayload: string; nome: string; email: string; kind: "new" | "renewal"; emailEnviado: boolean | null; empresa?: string }>(`/api/checkout/order/${token}`)
+    api<{ status: string; totalCents: number; planName?: string; pixPayload: string; nome: string; email: string; kind: "new" | "renewal"; emailEnviado: boolean | null; empresa?: string }>(`/api/checkout/order/${token}`)
       .then(async (r) => {
         // So restaura pedido novo e ainda em andamento; renovacao nunca (computador compartilhado).
         if (r.kind !== "new" || r.status === "expired" || r.status === "canceled" || r.status === "paid") { lsSet(""); return; }
         setDados((d) => ({ ...d, nome: r.nome, email: r.email, empresa: r.empresa || d.empresa }));
         setInfo({ kind: r.kind, emailEnviado: r.emailEnviado, email: r.email });
+        setPedidoPlano(r.planName || "");
         await mostrarPedido({ token, totalCents: r.totalCents, pixPayload: r.pixPayload, status: r.status });
         setPasso(PASSOS.length - 1);
       })
@@ -140,6 +167,7 @@ export default function Checkout() {
         if (!res.ok) throw new Error(json?.error || "Não foi possível gerar o Pix da renovação.");
         if (!vivo) return;
         setInfo({ kind: "renewal", emailEnviado: null, email: data.session.user.email || "" });
+        setPedidoPlano(json.planName || "");
         await mostrarPedido(json as Pedido);
         setPasso(0);
       } catch (e: any) { if (vivo) setErro(e.message); }
@@ -154,6 +182,7 @@ export default function Checkout() {
       const p = await api<Pedido>("/api/checkout/order", { planCode: planoCode, promoCode: cupom, ...dados, documento: dados.documento.replace(/\D/g, ""), consentimento: aceite, politicaVersao: POLITICA_VERSAO });
       lsSet(p.token);
       setInfo({ kind: "new", emailEnviado: null, email: dados.email });
+      setPedidoPlano(cotacao?.plan.name || "");
       await mostrarPedido(p);
       irPara(payIdx);
     } catch (e: any) { setErro(e.message); }
@@ -193,6 +222,7 @@ export default function Checkout() {
       });
       const r = await api<{ status: string }>(`/api/checkout/order/${pedido.token}/paid`, { comprovante: { type: arquivo.type, data } });
       setStatus(r.status);
+      topo.current?.scrollIntoView({ behavior: "smooth", block: "start" });
     }
     catch (e: any) { setErro(e.message); if (/expirou/i.test(e.message)) setStatus("expired"); }
     finally { setOcupado(false); }
@@ -201,198 +231,243 @@ export default function Checkout() {
   const set = (k: keyof Dados) => (e: React.ChangeEvent<HTMLInputElement>) => {
     const v = k === "documento" ? maskDoc(e.target.value) : k === "telefone" ? maskFone(e.target.value) : e.target.value;
     setDados((d) => ({ ...d, [k]: v }));
+    setErro("");
   };
 
   const pago = status === "paid";
+  const conferindo = status === "awaiting_confirmation";
+  const obrigado = !!pedido && (pago || conferindo);
   useEffect(() => { if (pago) lsSet(""); }, [pago]);
-  const novoPedido = () => { lsSet(""); setPedido(null); setQr(""); setStatus("pending"); setArquivo(null); setErro(""); if (renovar) window.location.reload(); else irPara(single ? 0 : 1); };
+  const novoPedido = () => { lsSet(""); setPedido(null); setQr(""); setStatus("pending"); setArquivo(null); setErro(""); if (renovar) window.location.reload(); else irPara(passoDados); };
+
+  const aberto = planos !== null && habilitado;
+  const pagando = !!pedido && passo === payIdx && !obrigado;
+  // No pagamento vale o que está no pedido; o detalhamento só aparece se a cotação na tela for a mesma do pedido.
+  const detalhe = pedido ? (cotacao && cotacao.totalCents === pedido.totalCents && cotacao.plan.name === pedidoPlano ? cotacao : null) : cotacao;
+
+  const alerta = erro && <p role="alert" className="ck-erro">{erro}</p>;
+  const voltar = (n: number) => (<button type="button" className="sp-btn sp-btn--outline" onClick={() => irPara(n)}><ArrowLeft size={18} aria-hidden="true" /> Voltar</button>);
 
   return (
-    <div className="min-h-dvh bg-[var(--color-surface)] bg-[radial-gradient(60%_40%_at_50%_0%,color-mix(in_srgb,var(--color-primary-blue)_10%,transparent),transparent)] px-4 py-8 sm:py-12">
-      <div className="mx-auto w-full max-w-xl" ref={topo}>
-        <h1 className="text-center text-2xl font-black text-[var(--color-text-primary)]">Assinar o S.P.Y.</h1>
-        <p className="mt-1 text-center text-sm text-[var(--color-text-muted)]">Leva menos de 2 minutos. Pagamento por Pix.</p>
+    <div className={`sp-root sv ck ${tema}`}>
+      <header className="sp-header ck-topo">
+        <div className="sp-wrap ck-topo__barra">
+          <Link to="/landing" className="sp-brand" aria-label="S.P.Y. — conhecer a plataforma">
+            <img className="sp-brand__img" src="/logo-topbar.webp" alt="S.P.Y. SOA" width={720} height={320} decoding="async" />
+          </Link>
+          <span className="ck-seguro"><Lock size={16} aria-hidden="true" /> Pagamento por Pix</span>
+        </div>
+      </header>
 
-        {/* Indicador de passos */}
-        <ol className="mt-6 flex items-center justify-center gap-2" aria-label="Etapas">
-          {PASSOS.map((nome, i) => {
-            const feito = i < passo || pago;
-            const atual = i === passo && !pago;
-            return (
-              <li key={nome} className="flex items-center gap-2" aria-current={atual ? "step" : undefined}>
-                <span className={`flex h-7 w-7 items-center justify-center rounded-full text-xs font-black ${feito ? "bg-emerald-500 text-white" : atual ? "bg-[var(--color-primary-blue)] text-white" : "bg-[var(--color-surface-elevated)] text-[var(--color-text-muted)] border border-[var(--color-border-default)]"}`}>
-                  {feito ? <Check className="h-4 w-4" /> : i + 1}
-                </span>
-                <span className={`hidden text-xs font-semibold sm:inline ${atual ? "text-[var(--color-text-primary)]" : "text-[var(--color-text-muted)]"}`}>{nome}</span>
-                {i < PASSOS.length - 1 && <span className="mx-1 h-px w-6 bg-[var(--color-border-default)]" />}
-              </li>
-            );
-          })}
-        </ol>
+      <main ref={topo}>
+        <div className="ck-abertura">
+          <div className="sp-wrap">
+            <h1>{obrigado ? (pago ? "Pagamento confirmado!" : "Pedido recebido!") : renovar ? "Renovar a assinatura" : "Coloque o S.P.Y. no seu time"}</h1>
+            <p>{obrigado ? "Veja abaixo o que acontece agora." : "Escolha o plano, informe seus dados e pague por Pix."}</p>
+            <ol className="ck-passos" aria-label="Etapas">
+              {PASSOS.map((nome, i) => {
+                const feito = i < passo || obrigado;
+                return (
+                  <li key={nome} data-feito={feito} aria-current={i === passo && !obrigado ? "step" : undefined}>
+                    <span>{feito ? <Check size={16} aria-hidden="true" /> : i + 1}</span>
+                    <em>{nome}</em>
+                  </li>
+                );
+              })}
+            </ol>
+          </div>
+        </div>
 
-        <div className="mt-6 rounded-2xl border border-[var(--color-border-default)] bg-[var(--color-surface-elevated)] p-5 sm:p-7 shadow-sm">
-          {planos === null && <p className="flex items-center gap-2 text-sm text-[var(--color-text-muted)]"><Loader2 className="h-4 w-4 animate-spin" /> Carregando…</p>}
+        <div className="sp-wrap ck-corpo">
+          {planos === null && <p className="ck-aviso"><Loader2 className="ck-gira" size={20} aria-hidden="true" /> Carregando…</p>}
+          {planos !== null && !habilitado && <p className="ck-aviso">O pagamento online ainda não está liberado. <Link to="/contato" className="sp-link">Fale com a gente</Link> e finalizamos juntos.</p>}
 
-          {planos !== null && !habilitado && (
-            <p className="text-sm text-[var(--color-text-primary)]">O pagamento online ainda não está liberado. Fale com a gente pelo WhatsApp e finalizamos juntos.</p>
-          )}
-
-          {planos !== null && habilitado && !renovar && passo === 0 && (
-            <form onSubmit={(e) => { e.preventDefault(); if (dadosOk) { if (single) void gerarPix(); else irPara(1); } else setErro("Confira os campos: todos são obrigatórios, o CPF/CNPJ precisa estar completo e você precisa aceitar o uso dos dados."); }} className="space-y-4" noValidate>
-              <h2 className="text-lg font-black text-[var(--color-text-primary)]">Seus dados</h2>
-              <div><label className={rotulo} htmlFor="ck-nome">Nome completo</label><input id="ck-nome" className={campo} autoComplete="name" value={dados.nome} onChange={set("nome")} /></div>
-              <div className="grid gap-4 sm:grid-cols-2">
-                <div><label className={rotulo} htmlFor="ck-fone">Telefone (WhatsApp)</label><input id="ck-fone" className={campo} inputMode="tel" autoComplete="tel" placeholder="(11) 99999-9999" value={dados.telefone} onChange={set("telefone")} /></div>
-                <div><label className={rotulo} htmlFor="ck-email">E-mail</label><input id="ck-email" type="email" className={campo} autoComplete="email" value={dados.email} onChange={set("email")} /></div>
-              </div>
-              <div className="grid gap-4 sm:grid-cols-2">
-                <div><label className={rotulo} htmlFor="ck-doc">CPF ou CNPJ</label><input id="ck-doc" className={campo} inputMode="numeric" value={dados.documento} onChange={set("documento")} /></div>
-                <div><label className={rotulo} htmlFor="ck-emp">Nome da empresa</label><input id="ck-emp" className={campo} autoComplete="organization" value={dados.empresa} onChange={set("empresa")} /></div>
-              </div>
-              <label className="flex items-start gap-2 text-xs text-[var(--color-text-muted)]">
-                <input type="checkbox" className="mt-0.5" checked={aceite} onChange={(e) => setAceite(e.target.checked)} />
-                <span>Li e concordo com os <a href="/termos" target="_blank" rel="noopener noreferrer" className="underline">Termos de Uso</a> e com a <a href="/privacidade" target="_blank" rel="noopener noreferrer" className="underline">Política de Privacidade</a>, e autorizo o uso dos meus dados para o cadastro, a cobrança e o contato sobre a minha assinatura (LGPD).</span>
-              </label>
-              {erro && <p role="alert" className="text-sm font-semibold text-rose-500">{erro}</p>}
-              <button type="submit" className={`${botao} w-full`} disabled={ocupado}>{ocupado ? <Loader2 className="h-4 w-4 animate-spin" /> : null} {single ? "Ir para o pagamento" : "Continuar"} <ArrowRight className="h-4 w-4" /></button>
-            </form>
-          )}
-
-          {planos !== null && habilitado && !renovar && !single && passo === 1 && (
-            <div className="space-y-5">
-              <h2 className="text-lg font-black text-[var(--color-text-primary)]">Escolha seu plano</h2>
-              <div className="space-y-2.5" role="radiogroup" aria-label="Plano">
-                {planos.map((p) => (
-                  <button key={p.plan.code} type="button" role="radio" aria-checked={planoCode === p.plan.code} onClick={() => setPlanoCode(p.plan.code)}
-                    className={`w-full rounded-xl border p-4 text-left transition-colors ${planoCode === p.plan.code ? "border-[var(--color-primary-blue)] bg-[var(--color-primary-blue)]/10" : "border-[var(--color-border-default)] bg-[var(--color-surface)]"}`}>
-                    <span className="flex items-baseline justify-between gap-3">
-                      <span className="font-black text-[var(--color-text-primary)]">{p.plan.name}{p.badge && <span className="ml-2 rounded-full bg-[var(--color-primary-blue)] px-2 py-0.5 text-[10px] font-black uppercase text-white">{p.badge}</span>}</span>
-                      <span className="text-right">
-                        {p.discountCents > 0 && <span className="mr-2 text-xs text-[var(--color-text-muted)] line-through">{brl(p.priceCents + p.setupCents)}</span>}
-                        <span className="font-black text-[var(--color-text-primary)]">{p.discountCents > 0 ? brl(p.totalCents) : <>{brl(p.priceCents)}<span className="text-xs font-semibold text-[var(--color-text-muted)]">{p.plan.interval === "yearly" ? "/ano" : "/mês"}</span></>}</span>
-                        {p.discountCents === 0 && p.setupCents > 0 && <span className="block text-[11px] text-[var(--color-text-muted)]">+ {brl(p.setupCents)} de implantação</span>}
-                      </span>
-                    </span>
-                    {p.plan.tagline && <span className="mt-1 block text-xs text-[var(--color-text-muted)]">{p.plan.tagline}</span>}
-                    {p.promo && <span className="mt-1.5 inline-flex items-center gap-1 text-xs font-bold text-emerald-500"><Tag className="h-3 w-3" /> {p.promo.label}</span>}
-                  </button>
-                ))}
-                {planos.length === 0 && <p className="text-sm text-[var(--color-text-muted)]">Nenhum plano disponível no momento.</p>}
-              </div>
-
-              <div>
-                <label className={rotulo} htmlFor="ck-cupom">Tem um cupom?</label>
-                <div className="flex gap-2">
-                  <input id="ck-cupom" className={campo} value={cupom} onChange={(e) => setCupom(e.target.value)} placeholder="Digite o cupom" />
-                  <button type="button" className={botaoSec} onClick={() => void cotar(planoCode, cupom)}>Aplicar</button>
-                </div>
-              </div>
-
-              {cotacao && (
-                <dl className="space-y-1.5 rounded-xl bg-[var(--color-surface)] p-4 text-sm">
-                  <div className="flex justify-between"><dt className="text-[var(--color-text-muted)]">{cotacao.plan.name} ({cotacao.plan.interval === "yearly" ? "anual" : "mensal"})</dt><dd>{brl(cotacao.priceCents)}</dd></div>
-                  {cotacao.setupCents > 0 && <div className="flex justify-between"><dt className="text-[var(--color-text-muted)]">Implantação (uma vez)</dt><dd>{brl(cotacao.setupCents)}</dd></div>}
-                  {cotacao.discountCents > 0 && <div className="flex justify-between text-emerald-500"><dt>{cotacao.promo?.label || "Desconto"}</dt><dd>− {brl(cotacao.discountCents)}</dd></div>}
-                  <div className="flex justify-between border-t border-[var(--color-border-default)] pt-2 text-base font-black text-[var(--color-text-primary)]"><dt>Total hoje</dt><dd>{brl(cotacao.totalCents)}</dd></div>
-                </dl>
-              )}
-              {erro && <p role="alert" className="text-sm font-semibold text-rose-500">{erro}</p>}
-              <div className="flex gap-3">
-                <button type="button" className={botaoSec} onClick={() => irPara(0)}><ArrowLeft className="h-4 w-4" /> Voltar</button>
-                <button type="button" className={`${botao} flex-1`} disabled={ocupado || !cotacao || !planoCode} onClick={() => void gerarPix()}>
-                  {ocupado ? <Loader2 className="h-4 w-4 animate-spin" /> : null} Gerar Pix
-                </button>
-              </div>
-            </div>
-          )}
-
-          {renovar && !pedido && semSessao && (
-            <div className="space-y-3 text-center">
-              <p className="text-sm text-[var(--color-text-primary)]">Entre na sua conta do S.P.Y. para renovar a assinatura.</p>
-              <Link to="/login" className={`${botao} w-full`}>Entrar</Link>
-            </div>
-          )}
-          {renovar && !pedido && !semSessao && (
-            erro ? <p role="alert" className="text-sm font-semibold text-rose-500">{erro}</p>
-              : <p className="flex items-center gap-2 text-sm text-[var(--color-text-muted)]"><Loader2 className="h-4 w-4 animate-spin" /> Gerando o Pix da renovação…</p>
-          )}
-
-          {passo === payIdx && pedido && !pago && (
-            <div className="space-y-5 text-center">
-              <h2 className="text-lg font-black text-[var(--color-text-primary)]">Pague com Pix</h2>
-              {single && single.listCents > pedido.totalCents && (
-                <div className="rounded-xl bg-[var(--color-surface)] p-4">
-                  <p className="text-sm font-semibold text-[var(--color-text-primary)]">{single.plan.name} — com tudo incluído</p>
-                  <p className="mt-1 text-sm text-[var(--color-text-muted)]">de <span className="line-through">{brl(single.listCents)}</span> por</p>
-                  {single.listSetupCents && single.listMonthlyCents ? (
-                    <p className="text-[11px] text-[var(--color-text-muted)]">(valor de tabela: {brl(single.listSetupCents)} de implantação + {brl(single.listMonthlyCents)} de mensalidade)</p>
-                  ) : null}
-                  <p className="text-3xl font-black text-[var(--color-text-primary)]">{brl(pedido.totalCents)}</p>
-                  <p className="mt-1 text-xs font-bold text-emerald-500">Sem taxa de implantação</p>
-                </div>
-              )}
-              {!(single && single.listCents > pedido.totalCents) && <p className="text-3xl font-black text-[var(--color-text-primary)]">{brl(pedido.totalCents)}</p>}
-              {status === "expired" || status === "canceled" ? (
-                <div className="space-y-3">
-                  <p className="text-sm font-semibold text-rose-500">Este Pix {status === "canceled" ? "foi cancelado" : "expirou"}. Gere um novo para continuar.</p>
-                  <button type="button" className={`${botao} w-full`} onClick={novoPedido}>Gerar novo Pix</button>
-                </div>
-              ) : (
-                <>
-                  {qr && <img src={qr} alt="QR Code do Pix" width={240} height={240} className="mx-auto rounded-xl bg-white p-2" />}
-                  <p className="text-xs text-[var(--color-text-muted)]">Abra o app do seu banco, escolha Pix e leia o QR Code — ou use o Pix copia e cola:</p>
-                  <div className="flex gap-2">
-                    <input readOnly aria-label="Pix copia e cola" value={pedido.pixPayload} onFocus={(e) => e.target.select()} className={`${campo} font-mono text-xs`} />
-                    <button type="button" className={botaoSec} onClick={() => void copiar()}>{copiado ? <Check className="h-4 w-4 text-emerald-500" /> : <Copy className="h-4 w-4" />} {copiado ? "Copiado" : "Copiar"}</button>
-                  </div>
-                  {status === "awaiting_confirmation" ? (
-                    <p className="flex items-center justify-center gap-2 rounded-xl bg-amber-500/10 p-3 text-sm font-semibold text-amber-500"><Loader2 className="h-4 w-4 animate-spin" /> Comprovante recebido! Assim que a nossa equipe conferir o pagamento, liberamos o seu acesso e avisamos por e-mail. Esta tela atualiza sozinha.</p>
-                  ) : (
-                    <div className="space-y-3 text-left">
-                      <label className={rotulo} htmlFor="ck-comp">Depois de pagar, anexe o comprovante do Pix (foto ou PDF, até 3 MB)</label>
-                      <input id="ck-comp" type="file" accept="image/jpeg,image/png,image/webp,application/pdf" className={campo}
-                        onChange={(e) => { const f = e.target.files?.[0] ?? null; setErro(f && f.size > 3 * 1024 * 1024 ? "O comprovante precisa ter até 3 MB." : ""); setArquivo(f && f.size <= 3 * 1024 * 1024 ? f : null); }} />
-                      <button type="button" className={`${botao} w-full`} disabled={ocupado || !arquivo} onClick={() => void avisarPagamento()}>
-                        {ocupado ? <Loader2 className="h-4 w-4 animate-spin" /> : <CheckCircle2 className="h-4 w-4" />} Já fiz o pagamento
-                      </button>
-                    </div>
-                  )}
-                </>
-              )}
-              {erro && <p role="alert" className="text-sm font-semibold text-rose-500">{erro}</p>}
-              <p className="flex items-center justify-center gap-1.5 text-xs text-[var(--color-text-muted)]"><Lock className="h-3 w-3" /> O Pix vai direto para a conta da empresa. Validade: 24 horas.</p>
-            </div>
-          )}
-
-          {pago && (
-            <div className="space-y-3 py-4 text-center">
-              <CheckCircle2 className="mx-auto h-14 w-14 text-emerald-500" />
+          {aberto && obrigado && (
+            <section className="ck-obrigado" aria-live="polite">
+              <div className="ck-obrigado__selo">{pago ? <Check size={44} aria-hidden="true" /> : <Loader2 className="ck-gira" size={40} aria-hidden="true" />}</div>
               {info?.kind === "renewal" ? (
                 <>
-                  <h2 className="text-xl font-black text-[var(--color-text-primary)]">Pagamento confirmado!</h2>
-                  <p className="text-sm text-[var(--color-text-muted)]">Sua assinatura está em dia. É só entrar normalmente.</p>
+                  <h2>{pago ? "Sua assinatura está em dia." : "Comprovante recebido."}</h2>
+                  <p>{pago ? "É só entrar normalmente." : "Assim que a nossa equipe conferir o pagamento, a renovação é confirmada. Esta tela atualiza sozinha."}</p>
+                </>
+              ) : !pago ? (
+                <>
+                  <h2>Obrigado{dados.nome ? `, ${dados.nome.trim().split(" ")[0]}` : ""}! O comprovante chegou.</h2>
+                  <p>Assim que a nossa equipe conferir o pagamento, liberamos o seu acesso e avisamos em <strong>{info?.email || dados.email}</strong>. Esta tela atualiza sozinha.</p>
                 </>
               ) : (
                 <>
-                  <h2 className="text-xl font-black text-[var(--color-text-primary)]">Pagamento confirmado!</h2>
-                  <p className="text-sm text-[var(--color-text-muted)]">
+                  <h2>Bem-vindo ao S.P.Y.!</h2>
+                  <p>
                     {(info?.emailEnviado ?? null) === null
                       ? <>Estamos finalizando seu acesso… Esta tela atualiza sozinha e, em instantes, você recebe o link para definir sua senha em <strong>{info?.email || dados.email}</strong>.</>
                       : info?.emailEnviado !== true
                       ? <>Seu acesso foi liberado, mas o e-mail para <strong>{info?.email || dados.email}</strong> não saiu. Abra a tela de login e clique em <strong>“Esqueci a senha”</strong> para criar a sua senha.</>
                       : <>Enviamos para <strong>{info?.email || dados.email}</strong> o link para você definir sua senha e entrar (o link tem validade limitada). Se não encontrar o e-mail ou o link expirar, use <strong>“Esqueci a senha”</strong> na tela de login.</>}
                   </p>
-                  <p className="text-sm text-[var(--color-text-muted)]">Nosso time vai chamar no WhatsApp para a implantação.</p>
                 </>
               )}
-              <Link to="/login" className={`${botao} w-full`}>Ir para o login</Link>
+              <div className="ck-obrigado__pedido">
+                {pedidoPlano && <span>Plano <strong>{pedidoPlano}</strong></span>}
+                <span>Valor do Pix <strong>{brl(pedido!.totalCents)}</strong></span>
+              </div>
+              {info?.kind !== "renewal" && <Depois feitos={pago ? 2 : 0} />}
+              <div className="ck-botoes">
+                {pago ? <Link to="/login" className="sp-btn sp-btn--primary">Ir para o login <ArrowRight size={18} aria-hidden="true" /></Link>
+                  : <Link to="/landing" className="sp-btn sp-btn--outline">Conhecer mais a plataforma</Link>}
+              </div>
+              {alerta}
+            </section>
+          )}
+
+          {aberto && !obrigado && (
+            <div className="ck-grade">
+              <div className="ck-cartao">
+                {!renovar && !single && passo === 0 && (
+                  <>
+                    <h2>1. Quantas pessoas vão usar?</h2>
+                    <div className="ck-planos" role="radiogroup" aria-label="Plano">
+                      {planos!.map((p) => (
+                        <button key={p.plan.code} type="button" role="radio" aria-checked={planoCode === p.plan.code} onClick={() => setPlanoCode(p.plan.code)} className="ck-plano">
+                          <span className="ck-plano__nome">{p.plan.name}{p.badge && <em><Star size={12} aria-hidden="true" /> {p.badge}</em>}</span>
+                          <span className="ck-plano__preco">
+                            {p.discountCents > 0 ? <><s>{brl(p.priceCents + p.setupCents)}</s> <strong>{brl(p.totalCents)}</strong></> : <><strong>{brl(p.priceCents)}</strong>{periodo(p)}</>}
+                            {p.discountCents === 0 && p.setupCents > 0 && <small>+ {brl(p.setupCents)} de implantação</small>}
+                          </span>
+                          {p.plan.tagline && <span className="ck-plano__texto">{p.plan.tagline}</span>}
+                          {p.promo && <span className="ck-promo"><Tag size={12} aria-hidden="true" /> {p.promo.label}</span>}
+                        </button>
+                      ))}
+                      {planos!.length === 0 && <p>Nenhum plano disponível no momento.</p>}
+                    </div>
+                    <p className="ck-nota">Mais de 10 pessoas? <Link to="/contato" className="sp-link">Peça uma proposta Enterprise</Link></p>
+                    {alerta}
+                    <button type="button" className="sp-btn sp-btn--primary ck-largo" disabled={!cotacaoPronta} onClick={() => irPara(1)}>Continuar <ArrowRight size={18} aria-hidden="true" /></button>
+                  </>
+                )}
+
+                {!renovar && passo === passoDados && !pedido && (
+                  <form noValidate onSubmit={(e) => { e.preventDefault(); if (!dadosOk) setErro("Confira os campos: todos são obrigatórios, o CPF/CNPJ precisa estar completo e você precisa aceitar o uso dos dados."); else if (!ocupado && (single || cotacaoPronta)) void gerarPix(); }}>
+                    <h2>{single ? "1" : "2"}. Seus dados</h2>
+                    <div className="ck-campos">
+                      <label className="ck-inteiro">Nome completo<input id="ck-nome" autoComplete="name" value={dados.nome} onChange={set("nome")} /></label>
+                      <label>Telefone (WhatsApp)<input id="ck-fone" inputMode="tel" autoComplete="tel" placeholder="(11) 99999-9999" value={dados.telefone} onChange={set("telefone")} /></label>
+                      <label>E-mail<input id="ck-email" type="email" autoComplete="email" value={dados.email} onChange={set("email")} /></label>
+                      <label>CPF ou CNPJ<input id="ck-doc" inputMode="numeric" value={dados.documento} onChange={set("documento")} /></label>
+                      <label>Nome da empresa<input id="ck-emp" autoComplete="organization" value={dados.empresa} onChange={set("empresa")} /></label>
+                    </div>
+                    <label className="ck-aceite">
+                      <input type="checkbox" checked={aceite} onChange={(e) => { setAceite(e.target.checked); setErro(""); }} />
+                      <span>Li e concordo com os <a href="/termos" target="_blank" rel="noopener noreferrer">Termos de Uso</a> e com a <a href="/privacidade" target="_blank" rel="noopener noreferrer">Política de Privacidade</a>, e autorizo o uso dos meus dados para o cadastro, a cobrança e o contato sobre a minha assinatura (LGPD).</span>
+                    </label>
+                    {alerta}
+                    <div className="ck-botoes">
+                      {!single && voltar(0)}
+                      <button type="submit" className="sp-btn sp-btn--primary" disabled={ocupado || (!single && !cotacaoPronta)}>
+                        {ocupado ? <Loader2 className="ck-gira" size={18} aria-hidden="true" /> : <QrCode size={18} aria-hidden="true" />} Gerar Pix
+                      </button>
+                    </div>
+                  </form>
+                )}
+
+                {renovar && !pedido && (
+                  semSessao ? (
+                    <div className="ck-centro"><p>Entre na sua conta do S.P.Y. para renovar a assinatura.</p><Link to="/login" className="sp-btn sp-btn--primary ck-largo">Entrar</Link></div>
+                  ) : erro ? alerta : <p className="ck-aviso"><Loader2 className="ck-gira" size={20} aria-hidden="true" /> Gerando o Pix da renovação…</p>
+                )}
+
+                {pagando && (
+                  <div className="ck-centro">
+                    <h2>Pague com Pix</h2>
+                    {single && single.listCents > pedido!.totalCents && (
+                      <p className="ck-nota">De <s>{brl(single.listCents)}</s> por</p>
+                    )}
+                    <p className="ck-valor">{brl(pedido!.totalCents)}</p>
+                    {status === "expired" || status === "canceled" ? (
+                      <>
+                        <p className="ck-erro">Este Pix {status === "canceled" ? "foi cancelado" : "expirou"}. Gere um novo para continuar.</p>
+                        <button type="button" className="sp-btn sp-btn--primary ck-largo" onClick={novoPedido}>Gerar novo Pix</button>
+                      </>
+                    ) : (
+                      <>
+                        {qr && <img src={qr} alt="QR Code do Pix" width={240} height={240} className="ck-qr" />}
+                        <p className="ck-nota">Abra o app do seu banco, escolha Pix e leia o QR Code, ou use o Pix copia e cola:</p>
+                        <div className="ck-copia">
+                          <input readOnly aria-label="Pix copia e cola" value={pedido!.pixPayload} onFocus={(e) => e.target.select()} />
+                          <button type="button" className="sp-btn sp-btn--outline" onClick={() => void copiar()}>{copiado ? <Check size={18} aria-hidden="true" /> : <Copy size={18} aria-hidden="true" />} {copiado ? "Copiado" : "Copiar"}</button>
+                        </div>
+                        <label className="ck-envio" htmlFor="ck-comp">
+                          <Upload size={22} aria-hidden="true" />
+                          <strong>Depois de pagar, anexe o comprovante</strong>
+                          <span>{arquivo ? arquivo.name : "Foto ou PDF, até 3 MB"}</span>
+                          <input id="ck-comp" type="file" accept="image/jpeg,image/png,image/webp,application/pdf"
+                            onChange={(e) => { const f = e.target.files?.[0] ?? null; setErro(f && f.size > 3 * 1024 * 1024 ? "O comprovante precisa ter até 3 MB." : ""); setArquivo(f && f.size <= 3 * 1024 * 1024 ? f : null); }} />
+                        </label>
+                        <button type="button" className="sp-btn sp-btn--primary ck-largo" disabled={ocupado || !arquivo} onClick={() => void avisarPagamento()}>
+                          {ocupado ? <Loader2 className="ck-gira" size={18} aria-hidden="true" /> : <CheckCircle2 size={18} aria-hidden="true" />} Já fiz o pagamento
+                        </button>
+                      </>
+                    )}
+                    {alerta}
+                    <p className="ck-nota"><Lock size={14} aria-hidden="true" /> O Pix vai direto para a conta da empresa. Validade: 24 horas.</p>
+                  </div>
+                )}
+              </div>
+
+              <aside className="ck-cartao ck-resumo" aria-label="Seu pedido">
+                <div className="ck-resumo__topo">
+                  <span className="ck-selo"><img src="/spy-icon.png" alt="" width={56} height={56} /></span>
+                  <div><span>Seu pedido</span><h2>{(pedido ? pedidoPlano : cotacao?.plan.name) || "S.P.Y."}</h2></div>
+                </div>
+                {detalhe?.plan.features.length ? (
+                  <ul className="ck-itens">{detalhe.plan.features.map((f) => (<li key={f}><Check size={16} aria-hidden="true" /> {f}</li>))}</ul>
+                ) : null}
+                {!pedido && !single && !renovar && (
+                  <div className="ck-cupom">
+                    <input id="ck-cupom" aria-label="Cupom" value={cupom} onChange={(e) => setCupom(e.target.value)} placeholder="Tem um cupom?" />
+                    <button type="button" className="sp-btn sp-btn--outline" onClick={() => void cotar(planoCode, cupom)}>Aplicar</button>
+                  </div>
+                )}
+                <dl className="ck-contas">
+                  {detalhe && (
+                    <>
+                      <div><dt>Mensalidade</dt><dd>{brl(detalhe.priceCents)}</dd></div>
+                      {detalhe.setupCents > 0 && <div><dt>Implantação (uma vez)</dt><dd>{brl(detalhe.setupCents)}</dd></div>}
+                      {detalhe.discountCents > 0 && <div className="ck-desconto"><dt>{detalhe.promo?.label || "Desconto"}</dt><dd>− {brl(detalhe.discountCents)}</dd></div>}
+                    </>
+                  )}
+                  {(pedido || detalhe) && <div className="ck-total"><dt>Total hoje</dt><dd>{brl(pedido ? pedido.totalCents : detalhe!.totalCents)}</dd></div>}
+                </dl>
+                {detalhe && !single && detalhe.setupCents > 0 && <p className="ck-nota">Nos próximos meses, só a mensalidade: {brl(detalhe.priceCents)}{periodo(detalhe)}.</p>}
+                <p className="ck-nota"><ShieldCheck size={14} aria-hidden="true" /> Seus dados são usados só para o cadastro e a cobrança (LGPD).</p>
+              </aside>
             </div>
+          )}
+
+          {aberto && !obrigado && !renovar && (
+            <>
+              <h2 className="sp-h2 ck-titulo">Depois do pagamento.</h2>
+              <Depois />
+            </>
           )}
         </div>
 
-        <SocialProofPopup />
-        <p className="mt-5 flex items-center justify-center gap-1.5 text-xs text-[var(--color-text-muted)]"><ShieldCheck className="h-3.5 w-3.5" /> Seus dados são usados só para o cadastro e a cobrança (LGPD).</p>
-      </div>
+        {aberto && !obrigado && !renovar && <Perguntas itens={PERGUNTAS} />}
+      </main>
+
+      <footer className="sv-rodape">
+        <div className="sp-wrap">
+          <nav aria-label="Rodapé">
+            <Link to="/landing">Conhecer a plataforma</Link>
+            <Link to="/contato">Falar com a gente</Link>
+            <Link to="/termos">Termos de uso</Link>
+            <Link to="/privacidade">Privacidade</Link>
+            <Link to="/login">Já sou cliente</Link>
+          </nav>
+          <p>© {new Date().getFullYear()} S.P.Y. Todos os direitos reservados.</p>
+        </div>
+      </footer>
+      <SocialProofPopup />
     </div>
   );
 }
