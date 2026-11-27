@@ -1,4 +1,4 @@
-/** As janelas do método: transição com nota, repescagem, perda, venda (pagamento ou loja) e "cliente pediu mais tempo". */
+/** As janelas do método (a nota é opcional: quem registra a conversa é o Agente Secreto): transição, repescagem, perda, venda (pagamento ou loja) e "cliente pediu mais tempo". */
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import { Loader2 } from "lucide-react";
 import { Button } from "../ui/button";
@@ -20,7 +20,7 @@ const campo = "w-full h-9 px-3 rounded-lg text-xs border border-[var(--color-bor
 const Campo = ({ rotulo, children }: { rotulo: string; children: ReactNode }) => (
   <label className="flex flex-col gap-1 text-[11px] font-bold text-[var(--color-text-muted)]">{rotulo}{children}</label>
 );
-const Nota = ({ valor, onChange, rotulo = "Nota", dica }: { valor: string; onChange: (v: string) => void; rotulo?: string; dica: string }) => (
+const Nota = ({ valor, onChange, rotulo = "Nota (se quiser)", dica }: { valor: string; onChange: (v: string) => void; rotulo?: string; dica: string }) => (
   <Campo rotulo={rotulo}><textarea value={valor} onChange={(e) => onChange(e.target.value)} rows={4} maxLength={4000} placeholder={dica} autoFocus className={`${campo} h-auto py-2 resize-y font-medium`} /></Campo>
 );
 const numero = (v: string) => { const n = Number(v.replace(/\./g, "").replace(",", ".")); return v.trim() && Number.isFinite(n) ? n : null; };
@@ -93,16 +93,15 @@ function Transicao({ janela, onFechar, onConcluido }: Props) {
   if (!lead || !info || !etapa) return null;
   const escolhida = opcoes.find((s) => s.codigo === situacao) ?? (destino ? opcoes[0] : undefined);
   const pedeValor = destino === "orcamento";
-  const pedeNota = !!destino || !!escolhida?.exige_nota;
   const pedeData = dataDaSituacao(escolhida);
-  const pode = (!pedeNota || !!nota.trim()) && (destino ? true : !!escolhida) && (!pedeValor || (numero(valor) ?? 0) > 0) && (pedeData !== "obrigatoria" || !!data);
+  const pode = (destino ? true : !!escolhida) && (!pedeValor || (numero(valor) ?? 0) > 0) && (pedeData !== "obrigatoria" || !!data);
   const confirmar = async () => {
     const dados = {
       ...(pedeValor ? { valor: numero(valor) } : {}),
       ...(pedeData && data ? { data: `${data}T${pedeData === "opcional" ? "18" : "09"}:00:00-03:00`, ...(pedeData === "obrigatoria" ? { data_retorno: data } : {}) } : {}),
     };
     const feito = destino
-      ? await metodo.executar(lead.id, "spy_mover_etapa", { p_etapa: destino, p_nota: nota.trim(), p_situacao: escolhida?.codigo ?? null, p_dados: dados }, `Movido para ${NOME_DA_ETAPA[destino]}.`)
+      ? await metodo.executar(lead.id, "spy_mover_etapa", { p_etapa: destino, p_nota: nota.trim() || null, p_situacao: escolhida?.codigo ?? null, p_dados: dados }, `Movido para ${NOME_DA_ETAPA[destino]}.`)
       : await metodo.executar(lead.id, "spy_mudar_situacao", { p_situacao: escolhida!.codigo, p_nota: nota.trim() || null, p_dados: dados }, "Situação atualizada.");
     if (feito) onConcluido();
   };
@@ -118,7 +117,7 @@ function Transicao({ janela, onFechar, onConcluido }: Props) {
       )}
       {pedeValor && <Campo rotulo="Valor do orçamento (R$)"><input value={valor} onChange={(e) => setValor(e.target.value)} inputMode="decimal" placeholder="0,00" className={campo} /></Campo>}
       {pedeData && <Campo rotulo={pedeData === "obrigatoria" ? "Data do retorno" : "Prazo de entrega (se houver)"}><input type="date" value={data} onChange={(e) => setData(e.target.value)} className={campo} /></Campo>}
-      <Nota valor={nota} onChange={setNota} rotulo={pedeNota ? "Nota (obrigatória)" : "Nota (se quiser)"} dica={DICA[info.tipo] ?? "O que aconteceu?"} />
+      <Nota valor={nota} onChange={setNota} dica={DICA[info.tipo] ?? "O que aconteceu?"} />
     </Moldura>
   );
 }
@@ -133,16 +132,16 @@ function Repescagem({ janela, onFechar, onConcluido }: Props) {
   const [concorrente, setConcorrente] = useState("");
   if (!lead) return null;
   const hoje = new Date(Date.now() - 3 * 3600_000).toISOString().slice(0, 10);
-  const pode = !!motivo && !!nota.trim() && (motivo !== "adiou" || data > hoje);
+  const pode = !!motivo && (motivo !== "adiou" || data > hoje);
   const confirmar = async () => {
     const dados = { ...(motivo === "adiou" ? { data_retorno: data } : {}), ...(numero(preco) !== null ? { valor_esperado: numero(preco) } : {}), ...(concorrente.trim() ? { concorrente: concorrente.trim() } : {}) };
-    if (await metodo.executar(lead.id, "spy_enviar_repescagem", { p_motivo: motivo, p_nota: nota.trim(), p_dados: dados }, "Enviado para a Repescagem.")) onConcluido();
+    if (await metodo.executar(lead.id, "spy_enviar_repescagem", { p_motivo: motivo, p_nota: nota.trim() || null, p_dados: dados }, "Enviado para a Repescagem.")) onConcluido();
   };
   return (
     <Moldura titulo={`${lead.name}: enviar para Repescagem`} onFechar={onFechar} onConfirmar={confirmar} pode={pode}>
       <Campo rotulo="Motivo"><select value={motivo} onChange={(e) => setMotivo(e.target.value)} className={campo}><option value="">Escolha o motivo</option>{motivos.map((m) => <option key={m.codigo} value={m.codigo}>{m.nome_exibido}</option>)}</select></Campo>
       {motivo === "adiou" && <Campo rotulo="Data combinada para o retorno"><input type="date" min={hoje} value={data} onChange={(e) => setData(e.target.value)} className={campo} /></Campo>}
-      <Nota valor={nota} onChange={setNota} rotulo="Nota (obrigatória)" dica="Por que travou, o que o cliente disse, o que ficou combinado." />
+      <Nota valor={nota} onChange={setNota} dica="Por que travou, o que o cliente disse, o que ficou combinado." />
       <details className="text-xs text-[var(--color-text-muted)]">
         <summary className="cursor-pointer font-bold">Preço esperado e concorrente (se houver)</summary>
         <div className="grid grid-cols-2 gap-2 pt-2">
@@ -164,12 +163,12 @@ function Perda({ janela, onFechar, onConcluido, naoLead }: Props & { naoLead: bo
   if (!lead) return null;
   const confirmar = async () => {
     const dados = { ...(numero(preco) !== null ? { valor_esperado: numero(preco) } : {}), ...(concorrente.trim() ? { concorrente: concorrente.trim() } : {}) };
-    if (await metodo.executar(lead.id, "spy_marcar_perdido", { p_motivo: motivo, p_nota: nota.trim(), p_dados: dados }, motivo === "nao_lead" ? "Marcado como não-lead." : "Marcado como perdido.")) onConcluido();
+    if (await metodo.executar(lead.id, "spy_marcar_perdido", { p_motivo: motivo, p_nota: nota.trim() || null, p_dados: dados }, motivo === "nao_lead" ? "Marcado como não-lead." : "Marcado como perdido.")) onConcluido();
   };
   return (
-    <Moldura titulo={`${lead.name}: ${naoLead ? "não é um lead" : "marcar como perdido"}`} onFechar={onFechar} onConfirmar={confirmar} pode={!!motivo && !!nota.trim()}>
+    <Moldura titulo={`${lead.name}: ${naoLead ? "não é um lead" : "marcar como perdido"}`} onFechar={onFechar} onConfirmar={confirmar} pode={!!motivo}>
       <Campo rotulo="Motivo"><select value={motivo} onChange={(e) => setMotivo(e.target.value)} className={campo}><option value="">Escolha o motivo</option>{motivos.map((m) => <option key={m.codigo} value={m.codigo}>{m.nome_exibido}</option>)}</select></Campo>
-      <Nota valor={nota} onChange={setNota} rotulo="Nota (obrigatória)" dica="Por que perdeu e o que poderia ter mudado o resultado." />
+      <Nota valor={nota} onChange={setNota} dica="Por que perdeu e o que poderia ter mudado o resultado." />
       {!naoLead && (
         <div className="grid grid-cols-2 gap-2">
           <Campo rotulo="Concorrente (se houver)"><input value={concorrente} onChange={(e) => setConcorrente(e.target.value)} maxLength={120} className={campo} /></Campo>
@@ -236,12 +235,12 @@ function Presencial({ janela, onFechar, onConcluido }: Props) {
     if (await metodo.executar(lead.id, "spy_registrar_venda_presencial", { p_valor: numero(valor), p_nota: nota.trim(), p_metodo: forma, p_entregar: entregar }, "Venda presencial registrada!")) onConcluido();
   };
   return (
-    <Moldura titulo={`${lead.name}: venda presencial`} onFechar={onFechar} onConfirmar={confirmar} pode={(numero(valor) ?? 0) > 0 && !!nota.trim()}>
+    <Moldura titulo={`${lead.name}: venda presencial`} onFechar={onFechar} onConfirmar={confirmar} pode={(numero(valor) ?? 0) > 0}>
       <div className="grid grid-cols-2 gap-2">
         <Campo rotulo="Valor (R$)"><input value={valor} onChange={(e) => setValor(e.target.value)} inputMode="decimal" placeholder="0,00" className={campo} /></Campo>
         <Campo rotulo="Forma de pagamento"><select value={forma} onChange={(e) => setForma(e.target.value)} className={campo}>{METODOS.map(([v, t]) => <option key={v} value={v}>{t}</option>)}</select></Campo>
       </div>
-      <Nota valor={nota} onChange={setNota} rotulo="Nota (obrigatória)" dica="O que decidiu a compra, condição final, entrega ou retirada." />
+      <Nota valor={nota} onChange={setNota} dica="O que decidiu a compra, condição final, entrega ou retirada." />
       <label className="flex items-center gap-2 text-xs text-[var(--color-text-primary)] cursor-pointer"><input type="checkbox" checked={entregar} onChange={(e) => setEntregar(e.target.checked)} /> Ainda falta entregar ou o cliente vai retirar</label>
     </Moldura>
   );
@@ -258,12 +257,12 @@ function Pausa({ janela, onFechar, onConcluido }: Props) {
     if (await metodo.executar(lead.id, "spy_pausar_ate", { p_data: quando, p_nota: nota.trim() }, "Combinado registrado. Os prazos ficam pausados até lá.")) onConcluido();
   };
   return (
-    <Moldura titulo={`${lead.name}: cliente pediu mais tempo`} onFechar={onFechar} onConfirmar={confirmar} pode={!!quando && Date.parse(quando) > Date.now() && !!nota.trim()}>
+    <Moldura titulo={`${lead.name}: cliente pediu mais tempo`} onFechar={onFechar} onConfirmar={confirmar} pode={!!quando && Date.parse(quando) > Date.now()}>
       <div className="grid grid-cols-2 gap-2">
         <Campo rotulo="Retomar em"><input type="date" value={data} onChange={(e) => setData(e.target.value)} className={campo} /></Campo>
         <Campo rotulo="Hora (Brasília)"><input type="time" value={hora} onChange={(e) => setHora(e.target.value)} className={campo} /></Campo>
       </div>
-      <Nota valor={nota} onChange={setNota} rotulo="Nota (obrigatória)" dica="O que o cliente pediu e o que ficou combinado." />
+      <Nota valor={nota} onChange={setNota} dica="O que o cliente pediu e o que ficou combinado." />
       <p className="text-[11px] text-[var(--color-text-faint)]">Ficam pausados os prazos, follow-ups e a cadência deste lead. É criada a tarefa “Retomar contato” para a data.</p>
     </Moldura>
   );

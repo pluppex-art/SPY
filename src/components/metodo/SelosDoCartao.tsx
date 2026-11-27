@@ -23,7 +23,7 @@ export function SelosDoCartao({ lead }: { lead: { id: string; stageId?: string }
       <span className={cn(selo, "bg-[var(--color-surface-sunken)] text-[var(--color-text-primary)]")}>{situacao?.nome_exibido ?? "Sem situação"}</span>
       {situacao?.bola_com && <span className={cn(selo, "border border-[var(--color-border-default)] text-[var(--color-text-muted)]")}>{NOME_DA_BOLA[situacao.bola_com]}</span>}
       {!pausado && sla && <span className={cn(selo, COR_DO_SLA[sla])}>{NOME_DO_SLA[sla]}</span>}
-      {info.tipo === "repescagem" && !!estado?.repescagem_tentativa && <span className={cn(selo, "bg-[var(--color-surface-sunken)] text-[var(--color-text-muted)]")}>{estado.repescagem_tentativa}/7</span>}
+      {info.tipo === "repescagem" && !!estado?.repescagem_tentativa && <span className={cn(selo, "bg-[var(--color-surface-sunken)] text-[var(--color-text-muted)]")}>Tentativa {estado.repescagem_tentativa}</span>}
       {pausado && <span className={cn(selo, "bg-sky-500/10 text-sky-700 dark:text-sky-400")}><Pause className="w-2.5 h-2.5" /> até {diaCurto(estado!.pausa_ate!)}</span>}
     </div>
   );
