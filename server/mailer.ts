@@ -28,13 +28,15 @@ export interface OutgoingEmail {
  */
 // Uma conexão SMTP reaproveitada por servidor/usuário (antes abria conexão e TLS novos para cada destinatário).
 const transportadores = new Map<string, ReturnType<typeof nodemailer.createTransport>>();
-function transporterDe(c: { host: string; port: number; user: string; pass: string; encryption: string }) {
-  const chave = `${c.host}|${c.port}|${c.user}|${c.encryption}|${crypto.createHash("sha1").update(c.pass).digest("hex")}`;
+function transporterDe(c: { host: string; port: number; user: string; pass: string; encryption: string; nome?: string }) {
+  const chave = `${c.host}|${c.port}|${c.user}|${c.encryption}|${c.nome ?? ""}|${crypto.createHash("sha1").update(c.pass).digest("hex")}`;
   let t = transportadores.get(chave);
   if (!t) {
     if (transportadores.size > 50) transportadores.clear();
     t = nodemailer.createTransport({
       host: c.host, port: c.port,
+      // Como o SPY se apresenta ao servidor: com o domínio do remetente, não com um endereço interno da nuvem.
+      ...(c.nome ? { name: c.nome } : {}),
       secure: c.encryption === "SSL/TLS",
       requireTLS: c.encryption === "StartTLS",
       auth: { user: c.user, pass: c.pass },
@@ -63,7 +65,7 @@ export async function emailDaEmpresa(db: any, tenantId: string): Promise<string 
   } catch { return null; }
 }
 
-export async function sendTenantEmail(db: any, tenantId: string, mail: OutgoingEmail): Promise<{ messageId: string; via: "tenant" | "platform" }> {
+export async function sendTenantEmail(db: any, tenantId: string, mail: OutgoingEmail): Promise<{ messageId: string; via: "tenant" | "platform"; response: string }> {
   const { data } = await db.from("app_settings").select("value").eq("tenant_id", tenantId).eq("key", "integracoes_smtp").maybeSingle();
   const t = data?.value;
   const tenantReady = !!(t?.smtpServer && t?.smtpUser && t?.smtpPass && String(t?.fromEmail || "").trim());
@@ -90,9 +92,13 @@ export async function sendTenantEmail(db: any, tenantId: string, mail: OutgoingE
     if (mail.replyToEmpresa && !replyTo) replyTo = await emailDaEmpresa(db, tenantId) ?? undefined;
   }
 
-  const transporter = transporterDe({ host, port, user, pass, encryption });
+  const nome = /@([a-z0-9.-]+\.[a-z]{2,})/i.exec(from)?.[1];
+  const transporter = transporterDe({ host, port, user, pass, encryption, nome });
   const info = await transporter.sendMail({ from, to: mail.to, subject: mail.subject, html: mail.html, text: mail.text, attachments: mail.attachments, headers: mail.headers, replyTo });
-  return { messageId: String(info.messageId || ""), via: tenantReady ? "tenant" : "platform" };
+  const response = String(info.response || "").slice(0, 200);
+  // Registro para investigar "não chegou": o que o servidor respondeu (só o domínio de quem recebe, sem o endereço).
+  console.info("[email] aceito", JSON.stringify({ via: tenantReady ? "tenant" : "platform", host, para: String(mail.to).split("@")[1] ?? "", response }));
+  return { messageId: String(info.messageId || ""), via: tenantReady ? "tenant" : "platform", response };
 }
 
 /**

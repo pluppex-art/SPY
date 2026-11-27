@@ -17,7 +17,7 @@ export function EmailResumoPanel({ mostrarVazio = false }: { mostrarVazio?: bool
     let cancelado = false;
     (async () => {
       const desde = new Date(Date.now() - 90 * 86_400_000).toISOString();
-      const consulta = (cols: string) => supabase!.from("email_campaigns").select(cols).eq("tenant_id", activeTenantId).gte("created_at", desde).gt("sent", 0).limit(500);
+      const consulta = (cols: string) => supabase!.from("email_campaigns").select(cols).eq("tenant_id", activeTenantId).neq("status", "deleted").gte("created_at", desde).gt("sent", 0).limit(500);
       let { data, error } = await consulta("id, name, sent, opened, clicked, created_at");
       if (error) ({ data, error } = await consulta("id, name, sent, created_at"));
       if (!cancelado) setR(error ? null : resumirEmail((data || []) as any));

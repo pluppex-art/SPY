@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
 import { Link } from "react-router-dom";
-import { Mail, Plus, Send, Loader2, FlaskConical, XCircle, AlertTriangle, CheckCircle2, RefreshCw } from "lucide-react";
+import { Mail, Plus, Loader2, AlertTriangle, CheckCircle2, RefreshCw } from "lucide-react";
 import { toast } from "sonner";
 import { PageContainer } from "../../components/PageContainer";
 import { Button } from "../../components/ui/button";
@@ -14,6 +14,9 @@ import { EditorConteudoEmail, type FormatoEmail } from "./components/EditorConte
 import { PreviaEmail } from "./components/PreviaEmail";
 import { FiltrosDoPublico } from "./components/FiltrosDoPublico";
 import { ListaDeDestinatarios } from "./components/ListaDeDestinatarios";
+import { CampanhasEmail, type Campanha as Campaign } from "./components/CampanhasEmail";
+import { DestinatariosDaCampanha } from "./components/DestinatariosDaCampanha";
+import { ReenviarCampanha } from "./components/ReenviarCampanha";
 import { confirmDialog } from "../../components/ui/confirm-dialog";
 import { HelpTip } from "../../components/ui/help-tip";
 import { useData } from "../../contexts/DataContext";
@@ -26,12 +29,10 @@ import { FileSpreadsheet } from "lucide-react";
 // Disparo de e-mail em massa: monta o público a partir dos leads da empresa (por origem/status), cria a campanha
 // e envia em lotes com progresso. Sai pelo SMTP da empresa (Integrações → SMTP) ou, sem ele, pelo da plataforma.
 
-interface Campaign { id: string; name: string; subject: string; status: string; total: number; sent: number; failed: number; opened?: number; clicked?: number; agendada_para?: string | null; subject_b?: string | null; sender: string | null; created_at: string }
 interface Option { value: string; count: number }
 interface Options { sources: Option[]; statuses: Option[]; canais?: Option[]; campanhas?: Option[]; sender: { kind: "tenant" | "platform"; from?: string } }
 interface Preview { total: number; semEmail: number; descadastrados: number; repetidos: number; excluidos?: number; sample: { name: string; email: string }[] }
 
-const STATUS_LABEL: Record<string, string> = { ready: "Pronta para enviar", sending: "Enviando", done: "Concluída", cancelled: "Cancelada" };
 
 /** Bloco numerado do formulário da campanha. */
 function Etapa({ numero, titulo, ajuda, children }: { numero: number; titulo: string; ajuda?: string; children: ReactNode }) {
@@ -57,7 +58,6 @@ export default function MarketingEmail() {
   const [modeloId, setModeloId] = useState("");
   const [seqAberto, setSeqAberto] = useState(false);
   const [subjectB, setSubjectB] = useState("");
-  const [abRes, setAbRes] = useState<Record<string, any>>({});
   const exportar = async (c: Campaign) => {
     try {
       const { linhas } = await apiFetchTenant(`/api/email-campaigns/${c.id}/engajamento`).then(json);
@@ -65,23 +65,11 @@ export default function MarketingEmail() {
       const a = document.createElement("a"); a.href = url; a.download = `${c.name.replace(/[^\w\-]+/g, "_").slice(0, 50) || "campanha"}.csv`; a.click(); URL.revokeObjectURL(url);
     } catch (e: any) { toast.error(e.message); }
   };
-  const [reenvio, setReenvio] = useState<{ c: Campaign; grupo: "nao-abriram" | "clicaram"; assunto: string; texto: string; logo: boolean } | null>(null);
-  const [criandoReenvio, setCriandoReenvio] = useState(false);
-  const reenviar = async (c: Campaign, grupo: "nao-abriram" | "clicaram" = "nao-abriram") => {
-    try { const o = await apiFetchTenant(`/api/email-campaigns/${c.id}`).then(json); const { conteudo, mostrar } = lerOpcaoDeLogo(o.body); setReenvio({ c, grupo, assunto: o.subject, texto: conteudo, logo: mostrar }); }
-    catch (e: any) { toast.error(e.message); }
-  };
-  const criarReenvio = async () => {
-    if (!reenvio) return; setCriandoReenvio(true);
-    try {
-      const r = await apiFetchTenant(`/api/email-campaigns/${reenvio.c.id}/reenviar-${reenvio.grupo}`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ subject: reenvio.assunto, body: comOpcaoDeLogo(reenvio.texto, reenvio.logo) }) }).then(json);
-      toast.success(`Campanha criada com ${r.total} pessoa(s). Envie um teste e dispare.`); setReenvio(null); await load();
-    } catch (e: any) { toast.error(e.message); } finally { setCriandoReenvio(false); }
-  };
-  const verAB = async (id: string) => {
-    try { setAbRes((p) => ({ ...p, [id]: null })); const r = await apiFetchTenant(`/api/email-campaigns/${id}/ab`).then(json); setAbRes((p) => ({ ...p, [id]: r })); }
-    catch (e: any) { toast.error(e.message); setAbRes((p) => { const n = { ...p }; delete n[id]; return n; }); }
-  };
+  const [reenvio, setReenvio] = useState<Campaign | null>(null);
+  const [vendo, setVendo] = useState<Campaign | null>(null);
+  /** Campanha aberta no formulário para edição (nulo = campanha nova). */
+  const [editando, setEditando] = useState<Campaign | null>(null);
+  const [salvando, setSalvando] = useState(false);
   const [descAberto, setDescAberto] = useState(false);
   const [descItens, setDescItens] = useState<{ email: string; created_at: string; motivo?: string | null }[] | null>(null);
   const [descNovo, setDescNovo] = useState("");
@@ -93,7 +81,6 @@ export default function MarketingEmail() {
   const [options, setOptions] = useState<Options | null>(null);
   const [loading, setLoading] = useState(true);
   const [running, setRunning] = useState<string | null>(null);
-  const [falhas, setFalhas] = useState<Record<string, { email: string; error: string | null }[] | null>>({});
   const [check, setCheck] = useState<{ kind: string; host?: string; port?: number; encryption?: string; fromDomain?: string; verified: boolean; error?: string } | null>(null);
   const [checking, setChecking] = useState(false);
   const verifySender = async () => {
@@ -170,7 +157,7 @@ export default function MarketingEmail() {
   useEffect(() => {
     setCampaigns([]); setOptions(null); setCheck(null); setPreview(null); setLoading(true);
     setExcluir([]); setManual([]); setManualText(""); setFileName(""); setSources([]); setStatuses([]); setCanais([]); setCampanhas([]);
-    setOpen(false);
+    setOpen(false); setReenvio(null); setVendo(null); setEditando(null);
     // O que estava sendo escrito é de uma empresa: não passa para outra.
     setName(""); setSubject(""); setSubjectB(""); setBody(""); setBodyHtml(""); setFormato("texto"); setModeloId(""); setAgendarPara(""); setLogoNo({ texto: true, html: false });
     if (activeTenantId) void load();
@@ -178,7 +165,7 @@ export default function MarketingEmail() {
 
   // Prévia do público ao mudar os filtros.
   useEffect(() => {
-    if (!open) return;
+    if (!open || editando) return;
     setPreviewing(true);
     const t0 = activeTenantId;
     const t = setTimeout(() => {
@@ -186,7 +173,7 @@ export default function MarketingEmail() {
         .then(json).then((p) => { if (tenantRef.current === t0) setPreview(p); }).catch(() => setPreview(null)).finally(() => setPreviewing(false));
     }, 350);
     return () => clearTimeout(t);
-  }, [open, activeTenantId, sources, statuses, canais, campanhas, inclLeads, inclClientes, inclContatos, inclEquipe, manual, excluir]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [open, editando, activeTenantId, sources, statuses, canais, campanhas, inclLeads, inclClientes, inclContatos, inclEquipe, manual, excluir]); // eslint-disable-line react-hooks/exhaustive-deps
 
 
   const create = async () => {
@@ -194,17 +181,70 @@ export default function MarketingEmail() {
     try {
       const r = await apiFetchTenant("/api/email-campaigns", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ name, subject, body: corpo, audience, ...(subjectB.trim() ? { subjectB: subjectB.trim() } : {}), ...(agendarPara ? { agendarPara } : {}) }) }).then(json);
       toast.success(agendarPara ? `Campanha agendada para ${agendarPara.split("-").reverse().join("/")} (${r.total} destinatário(s)). Envie um teste para você antes.` : `Campanha criada com ${r.total} destinatário(s). Envie um teste para você antes de disparar.`);
-      setAgendarPara("");
-      setOpen(false); setName(""); setSubject(""); setSubjectB(""); setBody(""); setBodyHtml(""); setFormato("texto"); setLogoNo({ texto: true, html: false }); setModeloId(""); setSources([]); setStatuses([]); setManual([]); setManualText(""); setFileName(""); setExcluir([]); setShowList(false); setInclLeads(true); setInclClientes(false); setInclContatos(false); setInclEquipe(false);
+      setOpen(false); limparFormulario();
       await load();
     } catch (e: any) { toast.error(e.message); } finally { setCreating(false); }
   };
 
+  const limparFormulario = () => {
+    setEditando(null); setName(""); setSubject(""); setSubjectB(""); setBody(""); setBodyHtml(""); setFormato("texto"); setLogoNo({ texto: true, html: false }); setModeloId(""); setAgendarPara("");
+    setSources([]); setStatuses([]); setCanais([]); setCampanhas([]); setManual([]); setManualText(""); setFileName(""); setExcluir([]); setShowList(false);
+    setInclLeads(true); setInclClientes(false); setInclContatos(false); setInclEquipe(false);
+  };
+  const novaCampanha = () => { if (editando) limparFormulario(); setOpen(true); };
+  const fecharFormulario = () => { setOpen(false); if (editando) limparFormulario(); };
+  const editar = async (c: Campaign) => {
+    try {
+      const r = await apiFetchTenant(`/api/email-campaigns/${c.id}`).then(json);
+      limparFormulario(); setEditando(c); setName(r.name); setSubject(r.subject); setSubjectB(r.subjectB || ""); abrirCorpo(r.body);
+      setReenvio(null); setOpen(true);
+    } catch (e: any) { toast.error(e.message); }
+  };
+  const salvarEdicao = async (depoisReenviar: boolean) => {
+    if (!editando) return; setSalvando(true);
+    try {
+      await apiFetchTenant(`/api/email-campaigns/${editando.id}`, { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ name, subject, body: corpo, subjectB: subjectB.trim() }) }).then(json);
+      const atualizada = { ...editando, name: name.trim(), subject: subject.trim(), subject_b: subjectB.trim() || null };
+      toast.success("Campanha atualizada.");
+      setOpen(false); limparFormulario(); await load();
+      if (depoisReenviar) setReenvio(atualizada);
+    } catch (e: any) { toast.error(e.message); } finally { setSalvando(false); }
+  };
+
   const test = async (c: Campaign) => {
+    const aviso = toast.loading("Enviando o teste…");
     try {
       const r = await apiFetchTenant(`/api/email-campaigns/${c.id}/test`, { method: "POST" }).then(json);
-      toast.success(`Teste enviado para ${r.to}. Confira a caixa de entrada e o spam.`);
-    } catch (e: any) { toast.error(e.message); }
+      toast.success(`Teste enviado para ${r.to}.`, { id: aviso, duration: 15000, description: `O servidor de e-mail aceitou a mensagem. Não chegou em alguns minutos? Procure no spam e na aba Promoções${options?.sender.from ? ` e veja se voltou uma recusa para ${options.sender.from}` : ""}.` });
+    } catch (e: any) { toast.error(e.message, { id: aviso }); }
+  };
+
+  /** Reenvia a própria campanha para o grupo ou as pessoas escolhidas. */
+  const reenviarNaCampanha = async (c: Campaign, corpoPedido: { quem: string; emails?: string[]; subject?: string }) => {
+    if (running) { toast.error("Espere o envio atual terminar (ou pause)."); return false; }
+    try {
+      const r = await apiFetchTenant(`/api/email-campaigns/${c.id}/reenviar`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(corpoPedido) }).then(json);
+      toast.success(`${r.requeued} envio(s) na fila.`);
+      setCampaigns((prev) => prev.map((x) => (x.id === c.id ? { ...x, status: "sending", agendada_para: null } : x)));
+      void run({ ...c, status: "sending" });
+      return true;
+    } catch (e: any) { toast.error(e.message); return false; }
+  };
+  const reenviarSelecionados = async (c: Campaign, emails: string[]) => {
+    if (!(await confirmDialog({ title: "Reenviar?", description: emails.length === 1 ? `"${c.subject}" vai de novo para ${emails[0]}.` : `"${c.subject}" vai de novo para ${emails.length} pessoas.`, confirmLabel: "Reenviar" }))) return false;
+    return reenviarNaCampanha(c, { quem: "selecionados", emails });
+  };
+  const excluirCampanhas = async (lista: Campaign[]) => {
+    const uma = lista.length === 1;
+    if (!(await confirmDialog({ title: uma ? "Excluir campanha?" : `Excluir ${lista.length} campanhas?`, description: `${uma ? `"${lista[0].name}" sai` : "Elas saem"} da lista e o que ainda não foi enviado não será enviado. Quem já recebeu não é afetado.`, confirmLabel: "Excluir", variant: "danger" }))) return false;
+    let falhou = 0;
+    for (const c of lista) {
+      try { await apiFetchTenant(`/api/email-campaigns/${c.id}`, { method: "DELETE" }).then(json); setCampaigns((prev) => prev.filter((x) => x.id !== c.id)); }
+      catch (e: any) { falhou++; toast.error(`${c.name}: ${e.message}`); }
+    }
+    if (lista.length > falhou) toast.success(lista.length - falhou === 1 ? "Campanha excluída." : `${lista.length - falhou} campanhas excluídas.`);
+    await load();
+    return falhou === 0;
   };
 
   const run = async (c: Campaign) => {
@@ -224,20 +264,6 @@ export default function MarketingEmail() {
   const send = async (c: Campaign) => {
     if (!(await confirmDialog({ title: "Disparar campanha?", description: `Vai enviar "${c.subject}" para ${c.total} pessoa(s). Mantenha esta página aberta até terminar (se fechar, é só retomar).`, confirmLabel: "Enviar agora" }))) return;
     void run(c);
-  };
-
-  const verFalhas = async (c: Campaign) => {
-    if (falhas[c.id]) { setFalhas((f) => ({ ...f, [c.id]: null })); return; }
-    try { const r = await apiFetchTenant(`/api/email-campaigns/${c.id}/failures`).then(json); setFalhas((f) => ({ ...f, [c.id]: r.failures })); } catch (e: any) { toast.error(e.message); }
-  };
-  const reenviarFalhas = async (c: Campaign) => {
-    try {
-      const r = await apiFetchTenant(`/api/email-campaigns/${c.id}/retry-failed`, { method: "POST" }).then(json);
-      if (!r.requeued) { toast.info("Não há falhas para reenviar."); return; }
-      setFalhas((f) => ({ ...f, [c.id]: null }));
-      toast.success(`${r.requeued} envio(s) voltaram para a fila.`);
-      void run({ ...c, status: "sending" });
-    } catch (e: any) { toast.error(e.message); }
   };
 
   const cancel = async (c: Campaign) => {
@@ -289,7 +315,7 @@ export default function MarketingEmail() {
   const duplicar = async (c: Campaign) => {
     try {
       const r = await apiFetchTenant(`/api/email-campaigns/${c.id}`).then(json);
-      setName(`${r.name} (cópia)`.slice(0, 120)); setSubject(r.subject); abrirCorpo(r.body); setModeloId(""); setOpen(true);
+      limparFormulario(); setName(`${r.name} (cópia)`.slice(0, 120)); setSubject(r.subject); abrirCorpo(r.body); setOpen(true);
     } catch (e: any) { toast.error(e.message); }
   };
 
@@ -300,9 +326,9 @@ export default function MarketingEmail() {
     <PageContainer
       title="E-mail em massa"
       description="Envie um e-mail para leads, clientes, contatos, equipe ou uma lista própria (colada ou de planilha) — com ou sem cadastro no sistema — com descadastro automático."
-      actions={<div className="flex gap-2"><Button variant="outline" onClick={() => setSeqAberto(true)} className="h-9 px-3 text-xs">Sequências</Button><Button variant="outline" onClick={() => void abrirDescadastros()} className="h-9 px-3 text-xs">Descadastrados</Button><Button variant="outline" onClick={() => void load()} className="h-9 px-3 text-xs gap-1.5"><RefreshCw className="w-3.5 h-3.5" /></Button><Button onClick={() => setOpen(true)} className="h-9 px-4 text-xs font-bold gap-1.5"><Plus className="w-3.5 h-3.5" /> Nova campanha</Button></div>}
+      actions={<div className="flex flex-wrap justify-end gap-2"><Button variant="outline" onClick={() => setSeqAberto(true)} className="h-9 px-3 text-xs">Sequências</Button><Button variant="outline" onClick={() => void abrirDescadastros()} className="h-9 px-3 text-xs">Descadastrados</Button><Button variant="outline" onClick={() => void load()} className="h-9 px-3 text-xs gap-1.5"><RefreshCw className="w-3.5 h-3.5" /></Button><Button onClick={novaCampanha} className="h-9 px-4 text-xs font-bold gap-1.5"><Plus className="w-3.5 h-3.5" /> Nova campanha</Button></div>}
     >
-      <div className="space-y-4 max-w-4xl">
+      <div className="space-y-4 max-w-[1500px]">
         {options && (
           <Card className="p-4 flex items-start gap-3 text-xs">
             {options.sender.kind === "tenant"
@@ -325,94 +351,22 @@ export default function MarketingEmail() {
         {loading ? <div className="py-16 text-center text-sm text-[var(--color-text-faint)]">Carregando…</div>
           : campaigns.length === 0 ? (
             <Card className="p-10 text-center space-y-2"><Mail className="w-9 h-9 mx-auto text-[var(--color-primary-blue)]" /><p className="text-sm font-bold text-[var(--color-text-primary)]">Nenhuma campanha ainda</p><p className="text-xs text-[var(--color-text-muted)]">Crie a primeira: escolha o público, escreva a mensagem e dispare.</p></Card>
-          ) : campaigns.map((c) => {
-            const pct = c.total ? Math.round(((c.sent + c.failed) / c.total) * 100) : 0;
-            const active = c.status === "ready" || c.status === "sending";
-            return (
-              <Card key={c.id} className="p-4 space-y-3">
-                <div className="flex flex-wrap items-start justify-between gap-2">
-                  <div className="min-w-0">
-                    <h4 className="text-sm font-bold text-[var(--color-text-primary)] truncate">{c.name}</h4>
-                    <p className="text-xs text-[var(--color-text-muted)] truncate">Assunto: {c.subject}</p>
-                  </div>
-                  <span className="text-[10px] font-bold uppercase px-2 py-1 rounded-full bg-[var(--color-surface-sunken)] text-[var(--color-text-muted)]">{c.status === "ready" && c.agendada_para ? `Agendada para ${new Date(c.agendada_para).toLocaleDateString("pt-BR", { timeZone: "America/Sao_Paulo" })}` : STATUS_LABEL[c.status] || c.status}</span>
-                </div>
-                <div>
-                  <div className="h-2 rounded-full bg-[var(--color-surface-sunken)] overflow-hidden"><div className="h-full bg-[var(--color-primary-blue)] transition-all" style={{ width: `${pct}%` }} /></div>
-                  <p className="text-[11px] mt-1 text-[var(--color-text-muted)]">{c.sent} enviado(s) de {c.total}{c.failed > 0 && <span className="text-[var(--color-danger)]"> · {c.failed} falha(s)</span>}</p>
-                  {c.sent > 0 && c.opened !== undefined && (
-                    <p className="text-[11px] mt-0.5 text-[var(--color-text-muted)] flex items-center gap-1.5">
-                      <span><b className="text-[var(--color-text-primary)]">{Math.round(((c.opened || 0) / c.sent) * 100)}%</b> abriram ({c.opened || 0})</span>
-                      <span>·</span>
-                      <span><b className="text-[var(--color-text-primary)]">{Math.round(((c.clicked || 0) / c.sent) * 100)}%</b> clicaram ({c.clicked || 0})</span>
-                      <HelpTip label="Aberturas e cliques">Aberturas são estimativas: alguns apps de e-mail baixam as imagens sozinhos (contam a mais) e outros bloqueiam (contam a menos). Cliques em links do texto são mais confiáveis.</HelpTip>
-                    </p>
-                  )}
-                </div>
-                {c.sent > 0 && (
-                  <Button variant="outline" onClick={() => void exportar(c)} className="h-8 px-3 text-xs gap-1.5">Exportar planilha (quem abriu/clicou)</Button>
-                )}
-                {c.status === "done" && (c.clicked || 0) > 0 && (
-                  <Button variant="outline" onClick={() => void reenviar(c, "clicaram")} className="h-8 px-3 text-xs gap-1.5"><Send className="w-3.5 h-3.5" /> Follow-up para quem clicou</Button>
-                )}
-                {c.status === "done" && c.sent > 0 && c.opened !== undefined && (c.opened || 0) < c.sent && (
-                  <Button variant="outline" onClick={() => void reenviar(c)} className="h-8 px-3 text-xs gap-1.5"><Send className="w-3.5 h-3.5" /> Reenviar para quem não abriu</Button>
-                )}
-                {c.subject_b && c.sent > 0 && (
-                  <div className="text-[11px] text-[var(--color-text-muted)]">
-                    {abRes[c.id] === undefined ? <button onClick={() => void verAB(c.id)} className="font-bold text-[var(--color-primary-blue)] underline">Ver resultado do teste A/B</button>
-                      : abRes[c.id] === null ? "Carregando…"
-                      : abRes[c.id].ab && (
-                        <div className="grid sm:grid-cols-2 gap-2">
-                          {(["a", "b"] as const).map((v) => {
-                            const x = abRes[c.id][v]; const pct = (n: number) => (x.enviados ? Math.round((n / x.enviados) * 100) : 0);
-                            return <div key={v} className="rounded-lg bg-[var(--color-surface-sunken)] p-2"><p className="font-bold text-[var(--color-text-primary)] truncate">{v.toUpperCase()}: {v === "a" ? abRes[c.id].assuntoA : abRes[c.id].assuntoB}</p><p>{x.enviados} enviado(s) · <b>{pct(x.abriram)}%</b> abriram · <b>{pct(x.clicaram)}%</b> clicaram</p></div>;
-                          })}
-                        </div>)}
-                  </div>
-                )}
-                {active && (
-                  <div className="flex flex-wrap gap-2">
-                    <Button variant="outline" onClick={() => void test(c)} disabled={running === c.id} className="h-8 px-3 text-xs gap-1.5"><FlaskConical className="w-3.5 h-3.5" /> Enviar teste para mim</Button>
-                    {running === c.id
-                      ? <Button variant="outline" onClick={() => { stopRef.current = true; }} className="h-8 px-3 text-xs gap-1.5"><Loader2 className="w-3.5 h-3.5 animate-spin" /> Enviando… (pausar)</Button>
-                      : <Button onClick={() => void (c.status === "sending" ? run(c) : send(c))} className="h-8 px-3 text-xs font-bold gap-1.5"><Send className="w-3.5 h-3.5" /> {c.status === "sending" ? "Retomar envio" : "Disparar"}</Button>}
-                    <Button variant="outline" onClick={() => void cancel(c)} className="h-8 px-3 text-xs gap-1.5 text-[var(--color-danger)]"><XCircle className="w-3.5 h-3.5" /> Cancelar</Button>
-                  </div>
-                )}
-                <div><Button variant="ghost" onClick={() => void duplicar(c)} className="h-7 px-2 text-[11px] text-[var(--color-text-muted)]">Duplicar campanha</Button></div>
-                {c.failed > 0 && c.status !== "cancelled" && running !== c.id && (
-                  <div className="space-y-2">
-                    <div className="flex flex-wrap gap-2">
-                      <Button variant="outline" onClick={() => void verFalhas(c)} className="h-8 px-3 text-xs">{falhas[c.id] ? "Ocultar falhas" : `Ver as ${c.failed} falha(s)`}</Button>
-                      <Button variant="outline" onClick={() => void reenviarFalhas(c)} className="h-8 px-3 text-xs">Reenviar falhas</Button>
-                    </div>
-                    {falhas[c.id] && (
-                      <ul className="text-[11px] text-[var(--color-text-muted)] space-y-0.5 max-h-40 overflow-auto">
-                        {falhas[c.id]!.map((f, i) => <li key={i}><b className="text-[var(--color-text-primary)]">{f.email}</b> — {f.error || "erro desconhecido"}</li>)}
-                        {c.failed > 50 && <li>…mostrando as primeiras 50.</li>}
-                      </ul>
-                    )}
-                  </div>
-                )}
-              </Card>
-            );
-          })}
+          ) : (
+            <CampanhasEmail key={activeTenantId ?? ""} campanhas={campaigns} enviando={running} acoes={{
+              disparar: (c) => void send(c), retomar: (c) => void run(c), pausar: () => { stopRef.current = true; },
+              reenviar: setReenvio, destinatarios: setVendo, testar: (c) => void test(c), editar: (c) => void editar(c),
+              duplicar: (c) => void duplicar(c), exportar: (c) => void exportar(c), cancelar: (c) => void cancel(c), excluir: excluirCampanhas,
+            }} />
+          )}
       </div>
+
+      <DestinatariosDaCampanha campanha={vendo} api={apiFetchTenant} remetente={options?.sender.from ?? null} onFechar={() => setVendo(null)} onReenviar={reenviarSelecionados} />
+      <ReenviarCampanha campanha={reenvio} onFechar={() => setReenvio(null)} onEditar={(c) => void editar(c)}
+        onConfirmar={(c, quem, assunto) => reenviarNaCampanha(c, { quem, ...(assunto ? { subject: assunto } : {}) })} />
 
       {/* A chave recomeça o formulário ao trocar de empresa: nada de uma passa para outra. */}
       <SequenciasEmail key={activeTenantId ?? ""} open={seqAberto} onClose={() => setSeqAberto(false)} api={apiFetchTenant} marca={marca}
         enviarImagem={(arquivo) => enviarImagemDeEmail(activeTenantId || "", arquivo)} />
-      <Modal isOpen={!!reenvio} onClose={() => setReenvio(null)} title={reenvio?.grupo === "clicaram" ? "Follow-up para quem clicou" : "Reenviar para quem não abriu"} description="Cria uma campanha nova só com esse grupo. Ajuste o assunto e o texto se quiser; depois envie um teste e dispare." maxWidth="max-w-xl">
-        {reenvio && (
-          <div className="space-y-3">
-            <label className="flex flex-col gap-1 text-[11px] font-bold text-[var(--color-text-muted)]">Assunto
-              <input value={reenvio.assunto} onChange={(e) => setReenvio({ ...reenvio, assunto: e.target.value })} maxLength={200} className="h-9 px-2 rounded-lg text-xs font-medium border border-[var(--color-border-default)] bg-[var(--color-surface)] text-[var(--color-text-primary)]" /></label>
-            <label className="flex flex-col gap-1 text-[11px] font-bold text-[var(--color-text-muted)]">Mensagem
-              <textarea value={reenvio.texto} onChange={(e) => setReenvio({ ...reenvio, texto: e.target.value })} rows={8} maxLength={ehHtml(reenvio.texto) ? MAX_HTML : MAX_TEXTO} spellCheck={!ehHtml(reenvio.texto)} className="px-2 py-2 rounded-lg text-xs font-medium border border-[var(--color-border-default)] bg-[var(--color-surface)] text-[var(--color-text-primary)] resize-y" /></label>
-            <div className="flex justify-end gap-2"><Button variant="outline" onClick={() => setReenvio(null)} className="h-9 px-3 text-xs">Cancelar</Button><Button onClick={() => void criarReenvio()} disabled={criandoReenvio || !reenvio.assunto.trim() || !reenvio.texto.trim()} className="h-9 px-4 text-xs font-bold">{criandoReenvio ? "Criando…" : "Criar campanha"}</Button></div>
-          </div>)}
-      </Modal>
       <Modal isOpen={descAberto} onClose={() => setDescAberto(false)} title="Descadastrados" description="Quem pediu para sair nunca mais recebe campanhas: o sistema pula essas pessoas em qualquer envio. Esta lista não pode ser desfeita por aqui." maxWidth="max-w-lg">
         <div className="space-y-3">
           <div className="flex gap-2">
@@ -427,14 +381,19 @@ export default function MarketingEmail() {
         </div>
       </Modal>
 
-      <Modal isOpen={open} onClose={() => !creating && setOpen(false)} closeOnBackdrop={false} title="Nova campanha de e-mail" maxWidth="max-w-6xl"
-        footer={<>
+      <Modal isOpen={open} onClose={() => !creating && !salvando && fecharFormulario()} closeOnBackdrop={false} title={editando ? "Editar campanha" : "Nova campanha de e-mail"} maxWidth="max-w-6xl"
+        footer={editando ? <>
+          <span className="mr-auto text-[11px] text-[var(--color-text-faint)]">Quem recebe não muda. A alteração vale no próximo envio.</span>
+          <Button variant="outline" onClick={fecharFormulario} disabled={salvando} className="h-9 px-4 text-xs">Cancelar</Button>
+          {(editando.status === "done" || editando.status === "cancelled") && <Button variant="outline" onClick={() => void salvarEdicao(true)} disabled={salvando || !name.trim() || !subject.trim() || !corpo.trim()} className="h-9 px-4 text-xs font-bold">Salvar e reenviar</Button>}
+          <Button onClick={() => void salvarEdicao(false)} disabled={salvando || !name.trim() || !subject.trim() || !corpo.trim()} className="h-9 px-5 text-xs font-bold gap-1.5">{salvando && <Loader2 className="w-3.5 h-3.5 animate-spin" />} Salvar alterações</Button>
+        </> : <>
           {!canCreate && !creating && falta.length > 0 && <span className="mr-auto text-[11px] text-[var(--color-text-faint)]">Para criar, falta: {falta.join(", ")}.</span>}
           <label className="flex items-center gap-2 text-[11px] font-bold text-[var(--color-text-muted)]">Enviar em
             <input type="date" value={agendarPara} min={new Date(Date.now() - 3 * 3600_000).toISOString().slice(0, 10)} onChange={(e) => setAgendarPara(e.target.value)} className="h-9 px-2 rounded-lg text-xs border border-[var(--color-border-default)] bg-[var(--color-surface)] text-[var(--color-text-primary)]" />
             <HelpTip label="Agendamento">Deixe em branco para disparar você mesmo quando quiser. Com uma data, a campanha sai sozinha no envio automático das 10h (Brasília) desse dia, mesmo com o sistema fechado. Você ainda pode enviar antes pelo botão.</HelpTip>
           </label>
-          <Button variant="outline" onClick={() => setOpen(false)} disabled={creating} className="h-9 px-4 text-xs">Cancelar</Button>
+          <Button variant="outline" onClick={fecharFormulario} disabled={creating} className="h-9 px-4 text-xs">Cancelar</Button>
           <Button onClick={() => void create()} disabled={!canCreate} className="h-9 px-5 text-xs font-bold gap-1.5">{creating && <Loader2 className="w-3.5 h-3.5 animate-spin" />} {agendarPara ? "Agendar campanha" : "Criar campanha"}</Button>
         </>}>
         <div className="grid gap-5 lg:grid-cols-[minmax(0,1fr)_minmax(0,440px)] items-start">
@@ -464,6 +423,7 @@ export default function MarketingEmail() {
               mostrarLogo={logoNo[formato]} onMostrarLogo={(v) => setLogoNo((p) => ({ ...p, [formato]: v }))} enviarImagem={(arquivo) => enviarImagemDeEmail(activeTenantId || "", arquivo)} />
           </Etapa>
 
+          {!editando && (
           <Etapa numero={3} titulo="Quem recebe" ajuda="Pode ser gente que está no sistema ou não: marque as fontes e/ou use uma lista própria.">
             <div className="flex flex-wrap gap-x-4 gap-y-1.5 text-xs text-[var(--color-text-primary)]">
               {([["Leads", inclLeads, setInclLeads], ["Clientes", inclClientes, setInclClientes], ["Contatos das empresas", inclContatos, setInclContatos], ["Equipe (usuários do sistema)", inclEquipe, setInclEquipe]] as const).map(([l, v, set]) => (
@@ -502,6 +462,7 @@ export default function MarketingEmail() {
                   : "Não foi possível calcular o público."}
             </div>
           </Etapa>
+          )}
           </div>
           <div className="lg:sticky lg:top-0 min-w-0">
             <PreviaEmail assunto={subject} corpo={corpo} api={apiFetchTenant} />

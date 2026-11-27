@@ -945,3 +945,52 @@ test("Meta Ads: teste de conexão traduz os erros e não grava nem vaza o token"
     assert.equal(db.t.app_settings[0].value.adsToken, "SALVO"); // não grava nada
   } finally { (globalThis as any).fetch = orig; srv.close(); }
 });
+
+test("campanha: editar, reenviar na mesma campanha e excluir, só na própria empresa e fora do envio", async () => {
+  const C = "77777777-7777-4777-8777-777777777777", SEQ = "66666666-6666-4666-8666-666666666666", OUTRA = "88888888-8888-4888-8888-888888888888";
+  const agora = new Date().toISOString();
+  const dest = (id: string, email: string, status: string, extra: any = {}) => ({ id, campaign_id: C, tenant_id: T, email, status, sent_at: status === "sent" ? agora : null, open_count: 0, click_count: 0, ...extra });
+  const db = criarFakeDb({
+    tenants: [{ id: T, modules: { marketing: true } }], users: [{ id: "u1", is_master: false, is_tenant_admin: true, tenant_id: T }],
+    email_campaigns: [
+      { id: C, tenant_id: T, name: "Aviso", subject: "Oi", subject_b: "Olá", body: "Texto", status: "done", audience: { leads: true }, total: 4, sent: 3, failed: 1 },
+      { id: SEQ, tenant_id: T, name: "[Sequência] Boas-vindas", subject: "s", body: "b", status: "done" },
+      { id: OUTRA, tenant_id: "99999999-9999-4999-8999-999999999999", name: "Alheia", subject: "x", body: "y", status: "done" },
+    ],
+    email_campaign_recipients: [dest("1", "a@x.com", "sent", { open_count: 1 }), dest("2", "b@x.com", "sent"), dest("3", "c@x.com", "failed", { error: "caixa cheia" }), dest("4", "saiu@x.com", "sent")],
+    email_optouts: [{ tenant_id: T, email: "saiu@x.com" }],
+  });
+  const app = express(); app.use(express.json());
+  registerEmailCampaignRoutes(app as any, { requireUser: (q: any, _s: any, n: any) => { q.user = { id: "u1" }; n(); }, resolveRequestedTenantId: async () => T, limiter: (_q: any, _s: any, n: any) => n(), supabaseService: db });
+  const srv = app.listen(0); const base = `http://127.0.0.1:${(srv.address() as any).port}/api/email-campaigns`;
+  const pedir = (metodo: string, caminho: string, corpo?: unknown) => fetch(`${base}/${caminho}`, { method: metodo, headers: { "Content-Type": "application/json" }, ...(corpo ? { body: JSON.stringify(corpo) } : {}) });
+  try {
+    for (const alvo of [OUTRA]) for (const [m, c] of [["PUT", alvo], ["DELETE", alvo], ["POST", `${alvo}/reenviar`]]) assert.equal((await pedir(m, c, { quem: "todos" })).status, 404, m);
+    assert.equal((await pedir("DELETE", SEQ)).status, 409);
+
+    assert.equal((await pedir("PUT", C, { name: "", subject: "x", body: "y" })).status, 400);
+    assert.equal((await pedir("PUT", C, { name: "Novo nome", subject: "Oi", body: "<div>HTML</div>", subjectB: "Olá" })).status, 200);
+    const camp = () => db.t.email_campaigns.find((x: any) => x.id === C)!;
+    assert.deepEqual([camp().name, camp().body, camp().subject_b], ["Novo nome", "<div>HTML</div>", "Olá"]);
+
+    assert.equal((await pedir("POST", `${C}/reenviar`, { quem: "alguem" })).status, 400);
+    const r = await (await pedir("POST", `${C}/reenviar`, { quem: "selecionados", emails: ["B@x.com", "c@x.com", "saiu@x.com"], subject: "Assunto novo" })).json();
+    assert.equal(r.requeued, 2);
+    const situacao = () => db.t.email_campaign_recipients.map((x: any) => x.status);
+    assert.deepEqual(situacao(), ["sent", "pending", "pending", "sent"]);
+    assert.deepEqual([camp().status, camp().sent, camp().failed, camp().subject, camp().subject_b], ["sending", 2, 0, "Assunto novo", null]);
+    assert.equal(camp().audience.reenvios[0].qtd, 1); // só quem já contava no limite de hoje
+    assert.equal(camp().audience.leads, true);
+    assert.equal(db.t.email_campaigns.length, 3); // nenhuma campanha nova
+
+    // Enquanto envia, não edita nem reenvia.
+    assert.equal((await pedir("PUT", C, { name: "n", subject: "s", body: "b" })).status, 409);
+    assert.equal((await pedir("POST", `${C}/reenviar`, { quem: "todos" })).status, 409);
+
+    assert.equal((await pedir("DELETE", C)).status, 200);
+    assert.equal(camp().status, "deleted");
+    assert.deepEqual(situacao(), ["sent", "skipped", "skipped", "sent"]);
+    assert.equal((await pedir("GET", C)).status, 404);
+    assert.equal((await pedir("POST", `${C}/send-batch`)).status, 404);
+  } finally { srv.close(); }
+});

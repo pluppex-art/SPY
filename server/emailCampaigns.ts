@@ -322,6 +322,32 @@ export function resumoAB(rows: { variant?: string | null; status?: string; open_
   return out;
 }
 
+export type QuemReenviar = "todos" | "nao_abriram" | "clicaram" | "falhas" | "selecionados";
+export const QUEM_REENVIAR: QuemReenviar[] = ["todos", "nao_abriram", "clicaram", "falhas", "selecionados"];
+
+/** Quem volta para a fila num reenvio da própria campanha. Descadastrado nunca volta; quem está na fila já vai receber. */
+export function selecionarParaReenvio<T extends { email: string; status: string; open_count?: number; click_count?: number }>(rows: T[], quem: QuemReenviar, emails: string[], optouts: Set<string>): T[] {
+  const marcados = new Set(emails.map((e) => String(e).trim().toLowerCase()));
+  return rows.filter((r) => {
+    if (r.status === "pending" || r.status === "sending" || optouts.has(r.email)) return false;
+    if (quem === "todos") return true;
+    if (quem === "falhas") return r.status === "failed";
+    if (quem === "clicaram") return r.status === "sent" && (r.click_count || 0) > 0;
+    if (quem === "nao_abriram") return r.status === "sent" && !(r.open_count || 0) && !(r.click_count || 0);
+    return marcados.has(String(r.email).toLowerCase());
+  });
+}
+
+/** Envios das últimas 24h que um reenvio tirou da contagem (a linha volta para a fila): continuam contando no limite diário. */
+export function somarReenvios(audiences: unknown[], agora: number = Date.now()): number {
+  let n = 0;
+  for (const a of audiences) {
+    const lista = (a as any)?.reenvios;
+    if (Array.isArray(lista)) for (const r of lista) if (agora - Date.parse(r?.quando) < 24 * 3600_000) n += Number(r?.qtd) || 0;
+  }
+  return n;
+}
+
 /** Data de envio escolhida (AAAA-MM-DD, horário de Brasília): de hoje até 90 dias. O disparo automático sai a partir das 00h desse dia. */
 export function parseAgendamento(raw: unknown, agora: Date = new Date()): { ok: true; quando: string | null } | { ok: false; erro: string } {
   if (raw === undefined || raw === null || raw === "") return { ok: true, quando: null };
@@ -448,7 +474,7 @@ export function registerEmailCampaignRoutes(app: Express, { requireUser, resolve
     // Colunas novas (métricas e agendamento) podem ainda não existir no banco: tenta com tudo e vai tirando.
     let data: any[] | null = null; let error: any = null;
     for (const extra of [", opened, clicked, agendada_para, subject_b", ", opened, clicked, agendada_para", ", opened, clicked", ""]) {
-      ({ data, error } = await supabaseService.from("email_campaigns").select(`${colunas}${extra}`).eq("tenant_id", tenantId).not("name", "like", "[Sequência] %").order("created_at", { ascending: false }).limit(50));
+      ({ data, error } = await supabaseService.from("email_campaigns").select(`${colunas}${extra}`).eq("tenant_id", tenantId).neq("status", "deleted").not("name", "like", "[Sequência] %").order("created_at", { ascending: false }).limit(50));
       if (!error || !/opened|clicked|agendada_para|subject_b/i.test(error.message)) break;
     }
     if (error) return res.status(500).json({ error: error.message });
@@ -493,7 +519,7 @@ export function registerEmailCampaignRoutes(app: Express, { requireUser, resolve
     const id = String(req.params.id || "");
     if (!UUID.test(id)) { res.status(400).json({ error: "Campanha inválida." }); return null; }
     const { data } = await supabaseService.from("email_campaigns").select("*").eq("id", id).eq("tenant_id", tenantId).maybeSingle();
-    if (!data) { res.status(404).json({ error: "Campanha não encontrada." }); return null; }
+    if (!data || data.status === "deleted") { res.status(404).json({ error: "Campanha não encontrada." }); return null; }
     return data;
   };
 
@@ -520,7 +546,7 @@ export function registerEmailCampaignRoutes(app: Express, { requireUser, resolve
       const mail = await mailFor(camp, await tenantNameOf(tenantId), baseUrl(req), { name: "Nome de Teste", company: "Empresa de Teste", email: to });
       mail.subject = `[TESTE] ${mail.subject}`;
       const r = await sendTenantEmail(supabaseService, tenantId, mail);
-      res.json({ ok: true, to, via: r.via });
+      res.json({ ok: true, to, via: r.via, resposta: r.response });
     } catch (e: any) { res.status(502).json({ error: `Não foi possível enviar: ${String(e?.message || e).slice(0, 200)}` }); }
   });
 
@@ -531,7 +557,12 @@ export function registerEmailCampaignRoutes(app: Express, { requireUser, resolve
     const proprio = !!(t?.smtpServer && t?.smtpUser && t?.smtpPass && String(t?.fromEmail || "").trim());
     const limite = proprio ? COTA_DIARIA_SMTP_PROPRIO : COTA_DIARIA_SMTP_PLATAFORMA;
     const { count } = await db.from("email_campaign_recipients").select("id", { count: "exact", head: true }).eq("tenant_id", tenantId).eq("status", "sent").gte("sent_at", new Date(Date.now() - 24 * 3600_000).toISOString());
-    return { restante: Math.max(0, limite - (count || 0)), limite, proprio };
+    let reenvios = 0;
+    try {
+      const { data } = await db.from("email_campaigns").select("audience").eq("tenant_id", tenantId).not("audience->reenvios", "is", null).limit(500);
+      reenvios = somarReenvios((data || []).map((c: any) => c.audience));
+    } catch (e: any) { console.warn("[email cota] reenvios:", e?.message); }
+    return { restante: Math.max(0, limite - (count || 0) - reenvios), limite, proprio };
   };
 
   registrarSequencias(app, { requireUser, resolveRequestedTenantId, limiter, supabaseService }, { liberarMarketing, cotaRestante, tenantNameOf, baseUrl });
@@ -540,7 +571,7 @@ export function registerEmailCampaignRoutes(app: Express, { requireUser, resolve
 
   /** Envia o próximo lote de uma campanha (usado pelo navegador e pela rotina automática). */
   const processarLote = async (camp: any, tenantId: string, base: string): Promise<ResultadoLote> => {
-    if (camp.status === "cancelled") return { done: true, status: "cancelled", pending: 0, sent: camp.sent, failed: camp.failed, total: camp.total };
+    if (camp.status === "cancelled" || camp.status === "deleted") return { done: true, status: camp.status, pending: 0, sent: camp.sent, failed: camp.failed, total: camp.total };
     const started = Date.now();
     const db = supabaseService;
     // Lotes que travaram (função interrompida) voltam para a fila.
@@ -587,7 +618,7 @@ export function registerEmailCampaignRoutes(app: Express, { requireUser, resolve
     const done = pending === 0 && sending === 0;
     await db.from("email_campaigns").update({
       sent, failed, ...(via ? { sender: via } : {}), ...(done ? { status: "done", finished_at: new Date().toISOString() } : {}),
-    }).eq("id", camp.id).neq("status", "cancelled");
+    }).eq("id", camp.id).neq("status", "cancelled").neq("status", "deleted");
     return { done, status: done ? "done" : "sending", pending: pending + sending, sent, failed, total: camp.total, ...(tamanho === 0 && !done ? { cota: { limite: cota.limite, proprio: cota.proprio } } : {}) };
   };
 
@@ -717,7 +748,83 @@ export function registerEmailCampaignRoutes(app: Express, { requireUser, resolve
     if (!supabaseService) return noDb(res);
     const tenantId = await resolveRequestedTenantId(req, res); if (!tenantId) return;
     const camp = await loadCampaign(req, res, tenantId); if (!camp) return;
-    res.json({ name: camp.name, subject: camp.subject, body: camp.body });
+    res.json({ name: camp.name, subject: camp.subject, body: camp.body, ...(camp.subject_b ? { subjectB: camp.subject_b } : {}) });
+  });
+
+  const ehDeSequencia = (camp: any) => String(camp.name).startsWith("[Sequência] ");
+
+  // Editar a própria campanha (nome, assunto e conteúdo); quem recebe não muda. Vale para o próximo envio ou reenvio.
+  app.put("/api/email-campaigns/:id", requireUser, limiter, async (req: any, res: any) => {
+    if (!supabaseService) return noDb(res);
+    const tenantId = await resolveRequestedTenantId(req, res); if (!tenantId) return;
+    if (!(await liberarMarketing(req, res, tenantId))) return;
+    const camp = await loadCampaign(req, res, tenantId); if (!camp) return;
+    if (ehDeSequencia(camp)) return res.status(409).json({ error: "Edite os e-mails dessa sequência em Sequências." });
+    if (camp.status === "sending") return res.status(409).json({ error: "A campanha está sendo enviada. Pause ou espere terminar para editar." });
+    const name = String(req.body?.name || "").trim().slice(0, 120);
+    const subject = String(req.body?.subject || "").replace(/[\r\n]+/g, " ").trim().slice(0, 200);
+    const conferido = conferirCorpo(req.body?.body);
+    if (conferido.ok === false) return res.status(400).json({ error: conferido.erro });
+    if (!name || !subject || !conferido.corpo) return res.status(400).json({ error: "Informe nome, assunto e mensagem." });
+    const mudancas: Record<string, unknown> = { name, subject, body: conferido.corpo };
+    if (camp.subject_b !== undefined && req.body?.subjectB !== undefined) {
+      const b = String(req.body.subjectB || "").replace(/[\r\n]+/g, " ").trim().slice(0, 200);
+      mudancas.subject_b = b && b !== subject ? b : null;
+    }
+    const { error } = await supabaseService.from("email_campaigns").update(mudancas).eq("id", camp.id).neq("status", "sending");
+    if (error) return res.status(500).json({ error: error.message });
+    res.json({ ok: true });
+  });
+
+  // Excluir: sai da lista e o que não foi enviado não sai. O histórico fica guardado (limite diário e descadastros).
+  app.delete("/api/email-campaigns/:id", requireUser, limiter, async (req: any, res: any) => {
+    if (!supabaseService) return noDb(res);
+    const tenantId = await resolveRequestedTenantId(req, res); if (!tenantId) return;
+    if (!(await liberarMarketing(req, res, tenantId))) return;
+    const camp = await loadCampaign(req, res, tenantId); if (!camp) return;
+    if (ehDeSequencia(camp)) return res.status(409).json({ error: "Exclua a sequência em Sequências." });
+    const { error } = await supabaseService.from("email_campaigns").update({ status: "deleted", finished_at: camp.finished_at ?? new Date().toISOString() }).eq("id", camp.id);
+    if (error) return res.status(500).json({ error: error.message });
+    await supabaseService.from("email_campaign_recipients").update({ status: "skipped", error: "campanha excluída" }).eq("campaign_id", camp.id).in("status", ["pending", "sending"]);
+    res.json({ ok: true });
+  });
+
+  // Reenviar a própria campanha, sem criar outra: as pessoas escolhidas voltam para a fila.
+  app.post("/api/email-campaigns/:id/reenviar", requireUser, limiter, async (req: any, res: any) => {
+    if (!supabaseService) return noDb(res);
+    const tenantId = await resolveRequestedTenantId(req, res); if (!tenantId) return;
+    if (!(await liberarMarketing(req, res, tenantId))) return;
+    const camp = await loadCampaign(req, res, tenantId); if (!camp) return;
+    if (ehDeSequencia(camp)) return res.status(409).json({ error: "E-mails de sequência são enviados em Sequências." });
+    const quem = String(req.body?.quem || "") as QuemReenviar;
+    if (!QUEM_REENVIAR.includes(quem)) return res.status(400).json({ error: "Escolha para quem reenviar." });
+    if (camp.status === "ready") return res.status(409).json({ error: "Esta campanha ainda não foi enviada: use Disparar." });
+    if (camp.status === "sending") return res.status(409).json({ error: "A campanha ainda está sendo enviada. Espere terminar ou retome o envio." });
+    const emails = Array.isArray(req.body?.emails) ? req.body.emails.slice(0, MAX_RECIPIENTS).map(String) : [];
+    try {
+      const todos = await pagedTable(supabaseService, "email_campaign_recipients", "id, email, status, sent_at, open_count, click_count", tenantId, (q) => q.eq("campaign_id", camp.id).order("id", { ascending: true }));
+      const rows = selecionarParaReenvio(todos, quem, emails, await optoutSet(supabaseService, tenantId));
+      if (!rows.length) return res.status(400).json({ error: "Ninguém desse grupo pode receber de novo (ou saiu da lista)." });
+      const agora = Date.now();
+      const jaContavam = rows.filter((r: any) => r.status === "sent" && agora - Date.parse(r.sent_at) < 24 * 3600_000).length;
+      const reenvios = [...(Array.isArray(camp.audience?.reenvios) ? camp.audience.reenvios : []).filter((r: any) => agora - Date.parse(r?.quando) < 24 * 3600_000),
+        ...(jaContavam ? [{ quando: new Date(agora).toISOString(), qtd: jaContavam }] : [])];
+      // Primeiro registra o que continua contando no limite; só depois devolve para a fila.
+      const { error: e1 } = await supabaseService.from("email_campaigns").update({ audience: { ...(camp.audience || {}), reenvios } }).eq("id", camp.id);
+      if (e1) throw new Error(e1.message);
+      for (let i = 0; i < rows.length; i += 200) {
+        const { error: e2 } = await supabaseService.from("email_campaign_recipients").update({ status: "pending", error: null, claimed_at: null }).in("id", rows.slice(i, i + 200).map((r: any) => r.id));
+        if (e2) throw new Error(e2.message);
+      }
+      const contar = async (status: string) => (await supabaseService.from("email_campaign_recipients").select("id", { count: "exact", head: true }).eq("campaign_id", camp.id).eq("status", status)).count || 0;
+      const [sent, failed] = await Promise.all([contar("sent"), contar("failed")]);
+      // Assunto trocado no reenvio vale para todos (e encerra o teste A/B, que tinha dois).
+      const novo = String(req.body?.subject || "").replace(/[\r\n]+/g, " ").trim().slice(0, 200);
+      const troca = novo && novo !== camp.subject ? { subject: novo, ...(camp.subject_b ? { subject_b: null } : {}) } : {};
+      const { error: e3 } = await supabaseService.from("email_campaigns").update({ status: "sending", sent, failed, finished_at: null, ...(camp.agendada_para ? { agendada_para: null } : {}), ...troca }).eq("id", camp.id);
+      if (e3) throw new Error(e3.message);
+      res.json({ requeued: rows.length });
+    } catch (e: any) { res.status(500).json({ error: e?.message || "Não foi possível reenviar." }); }
   });
 
   // Quem recebeu e o que fez (abriu/clicou): base da planilha para o time comercial ligar para quem se interessou.
@@ -727,7 +834,7 @@ export function registerEmailCampaignRoutes(app: Express, { requireUser, resolve
     const camp = await loadCampaign(req, res, tenantId); if (!camp) return;
     try {
       let linhas: any[];
-      try { linhas = await pagedTable(supabaseService, "email_campaign_recipients", "email, name, status, open_count, click_count, opened_at, clicked_at", tenantId, (q) => q.eq("campaign_id", camp.id)); }
+      try { linhas = await pagedTable(supabaseService, "email_campaign_recipients", "email, name, status, error, sent_at, open_count, click_count, opened_at, clicked_at", tenantId, (q) => q.eq("campaign_id", camp.id)); }
       catch (e: any) { if (!/open_count|click_count|opened_at|clicked_at/i.test(String(e?.message))) throw e; linhas = await pagedTable(supabaseService, "email_campaign_recipients", "email, name, status", tenantId, (q) => q.eq("campaign_id", camp.id)); }
       res.json({ linhas });
     } catch (e: any) { res.status(500).json({ error: e?.message || "Falha ao ler os destinatários." }); }

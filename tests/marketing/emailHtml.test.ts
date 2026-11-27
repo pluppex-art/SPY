@@ -143,3 +143,17 @@ test("retirados são contados por pessoa, mesmo repetidos em dois cadastros", as
   const r = dedupeCandidates(c, new Set(), new Set(["a@x.com.br"]));
   assert.deepEqual([r.rows.map((x) => x.email), r.excluidos, r.repetidos], [["b@x.com.br", "c@x.com.br"], 1, 2]);
 });
+
+test("reenvio na própria campanha: escolhe certo, nunca quem saiu da lista nem quem está na fila", async () => {
+  const { selecionarParaReenvio, somarReenvios } = await import("../../server/emailCampaigns.js");
+  const l = (email: string, status: string, open_count = 0, click_count = 0) => ({ email, status, open_count, click_count });
+  const rows = [l("abriu@x.com", "sent", 1), l("nao@x.com", "sent"), l("clicou@x.com", "sent", 1, 2), l("falhou@x.com", "failed"), l("pulado@x.com", "skipped"), l("fila@x.com", "pending"), l("saiu@x.com", "sent")];
+  const quem = (q: any, emails: string[] = []) => selecionarParaReenvio(rows, q, emails, new Set(["saiu@x.com"])).map((r) => r.email.split("@")[0]);
+  assert.deepEqual(quem("todos"), ["abriu", "nao", "clicou", "falhou", "pulado"]);
+  assert.deepEqual(quem("nao_abriram"), ["nao"]);
+  assert.deepEqual(quem("clicaram"), ["clicou"]);
+  assert.deepEqual(quem("falhas"), ["falhou"]);
+  assert.deepEqual(quem("selecionados", [" NAO@x.com ", "saiu@x.com", "fila@x.com", "de-fora@x.com"]), ["nao"]);
+  const agora = Date.parse("2026-11-27T12:00:00Z");
+  assert.equal(somarReenvios([{ reenvios: [{ quando: "2026-11-27T11:00:00Z", qtd: 5 }, { quando: "2026-11-25T11:00:00Z", qtd: 99 }] }, {}, null, { reenvios: "x" }], agora), 5);
+});
