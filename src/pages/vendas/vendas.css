@@ -2,7 +2,7 @@
 .sv-topo { position: sticky; top: 0; z-index: 40; }
 .sv-topo__barra { display: flex; align-items: center; justify-content: space-between; gap: 12px; min-height: 72px; }
 .sv .sv-h1 { font-size: clamp(34px, 5.4vw, 62px); line-height: 1.06; letter-spacing: -0.025em; font-weight: 700; }
-.sv-sub { margin: 20px 0 28px; font-size: 18px; max-width: 54ch; }
+.sv .sv-sub { margin: 20px 0 28px; font-size: 18px; max-width: 54ch; }
 .sv-duas { display: grid; gap: 40px; align-items: center; }
 .sv-duas > * { min-width: 0; }
 @media (min-width: 900px) {
@@ -37,7 +37,8 @@
 /* 1. dossiê */
 .sv-carimbo { display: inline-block; font: 600 12px/1 ui-monospace, "SFMono-Regular", Menlo, monospace; letter-spacing: .14em; text-transform: uppercase; color: #fbbf24; border: 1px dashed rgba(251,191,36,.6); border-radius: 4px; padding: 8px 10px; margin-bottom: 20px; }
 .sv-emblema { display: grid; place-items: center; min-height: 260px; }
-.sv-emblema .sp-emblem { position: relative; inset: auto; width: 240px; height: 240px; }
+/* com .sp-root na frente para ganhar da posição que a landing dá ao emblema, em qualquer ordem de carregamento */
+.sp-root.sv .sv-emblema .sp-emblem { position: relative; inset: auto; width: 240px; height: 240px; }
 .sv-linha { margin-top: 40px; border-left: 2px dashed var(--sp-line-strong); }
 .sv-linha li { display: grid; grid-template-columns: 72px 1fr; gap: 16px; padding: 18px 0 18px 20px; }
 .sv-linha time { font: 600 15px/1.6 ui-monospace, Menlo, monospace; color: #fbbf24; }

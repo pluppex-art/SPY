@@ -25,7 +25,7 @@ export function HeroSection() {
       <div className="sp-wrap sp-hero__grid">
         <div>
           <motion.h1 id="sp-hero-title" {...item(0)}>
-            <span>Plataforma de Inteligência</span> <span className="sp-grad">e Gestão Empresarial.</span>
+            <span className="sp-hero__linha">Plataforma de Inteligência</span> <span className="sp-hero__linha sp-grad">e Gestão Empresarial.</span>
           </motion.h1>
           <motion.p className="sp-hero__sub" {...item(1)}>
             <strong>Uma plataforma. Quatro pilares:</strong> inteligência, recuperação, dados e gestão. O S.P.Y. capta as informações de venda, retoma o que parou, centraliza tudo e mostra

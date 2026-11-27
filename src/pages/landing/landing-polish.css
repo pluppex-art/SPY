@@ -1132,3 +1132,22 @@ html:has(.sp-root) body {
   .sp-emblem__eye { transform: none; }
   .sp-emblem__lid { animation: none; }
 }
+
+/* =====================================================================
+   HERO simétrico: duas colunas iguais, centradas na altura, título em duas linhas
+   ===================================================================== */
+.sp-hero__grid { align-items: center; }
+.sp-hero__grid > div:first-child { container-type: inline-size; min-width: 0; }
+.sp-hero h1 { font-size: 26px; font-size: clamp(24px, 7.3cqi, 46px); line-height: 1.16; max-width: none; }
+.sp-hero__linha { display: block; white-space: nowrap; }
+.sp-hero__sub { max-width: none; }
+.sp-hero .sp-caption { text-align: center; }
+@media (max-width: 1039px) { .sp-hero__grid > figure { padding-top: 40px; } } /* espaço para o emblema não cobrir o texto */
+/* o emblema fica no meio da borda de cima da tela */
+.sp-hero .sp-emblem { width: 96px; height: 96px; top: -64px; right: auto; left: calc(50% - 48px); }
+@media (min-width: 1040px) {
+  .sp-hero { padding-block: 104px 96px; }
+  .sp-hero__grid { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 64px; }
+  .sp-hero .sp-emblem { width: 128px; height: 128px; top: -84px; left: calc(50% - 64px); }
+}
+
