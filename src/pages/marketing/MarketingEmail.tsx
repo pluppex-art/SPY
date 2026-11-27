@@ -399,7 +399,9 @@ export default function MarketingEmail() {
           })}
       </div>
 
-      <SequenciasEmail open={seqAberto} onClose={() => setSeqAberto(false)} api={apiFetchTenant} />
+      {/* A chave recomeça o formulário ao trocar de empresa: nada de uma passa para outra. */}
+      <SequenciasEmail key={activeTenantId ?? ""} open={seqAberto} onClose={() => setSeqAberto(false)} api={apiFetchTenant} marca={marca}
+        enviarImagem={(arquivo) => enviarImagemDeEmail(activeTenantId || "", arquivo)} />
       <Modal isOpen={!!reenvio} onClose={() => setReenvio(null)} title={reenvio?.grupo === "clicaram" ? "Follow-up para quem clicou" : "Reenviar para quem não abriu"} description="Cria uma campanha nova só com esse grupo. Ajuste o assunto e o texto se quiser; depois envie um teste e dispare." maxWidth="max-w-xl">
         {reenvio && (
           <div className="space-y-3">

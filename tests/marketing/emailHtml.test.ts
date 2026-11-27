@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { ehHtml, comoHtml, conferirCorpo, sanitizarHtml, trocarLinks, htmlParaTexto, avisosDoHtml, modeloExemploHtml, comOpcaoDeLogo, lerOpcaoDeLogo, imagemEmHtml, imagemEmTexto, inserirNoHtml, MAX_HTML } from "../../src/lib/emailHtml.js";
+import { ehHtml, comoHtml, conferirCorpo, sanitizarHtml, trocarLinks, htmlParaTexto, avisosDoHtml, modeloExemploHtml, comOpcaoDeLogo, lerOpcaoDeLogo, imagemEmHtml, imagemEmTexto, inserirNoHtml, abrirConteudo, corpoDoConteudo, conteudoVazio, MAX_HTML } from "../../src/lib/emailHtml.js";
 import { avisosDoEmail } from "../../src/lib/avisosEmail.js";
 import { buildMail } from "../../server/emailCampaigns.js";
 import { parsePassos } from "../../server/emailSequences.js";
@@ -115,4 +115,13 @@ test("imagem no HTML: entra no cursor sem partir marcação, ou antes do fim", (
   assert.match(inserirNoHtml(doc, "[X]", doc.indexOf("um")), /<p>\n\[X\]\num<\/p>/);
   assert.match(inserirNoHtml(doc, "[X]", doc.indexOf("<p>") + 2), /<p>\n\[X\]\num<\/p>/);
   assert.equal(inserirNoHtml("", "[X]"), "<div>[X]</div>");
+});
+
+test("sequência: o que foi gravado reabre no editor e volta igual", () => {
+  for (const corpo of ["Olá {{nome}}", "{{sem_logo}}\nOlá", "<div>Oi</div>", "<!--spy:logo-no-topo-->\n<div>Oi</div>"]) assert.equal(corpoDoConteudo(abrirConteudo(corpo)), corpo);
+  assert.deepEqual(abrirConteudo("<div>Oi</div>"), { formato: "html", texto: "", html: "<div>Oi</div>", logo: { texto: true, html: false } });
+  assert.equal(corpoDoConteudo(conteudoVazio()), "");
+  assert.equal(corpoDoConteudo({ ...conteudoVazio(), formato: "html", html: "  " }), "");
+  const p = parsePassos([{ subject: "a", body: "<!--spy:logo-no-topo-->\n<div>Oi</div>" }, { subject: "b", body: "{{sem_logo}}\nOi", dias: 3 }]);
+  assert.ok(p.ok && p.passos[0].body.startsWith("<!--spy") && p.passos[1].body.startsWith("{{sem_logo}}"));
 });

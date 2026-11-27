@@ -184,3 +184,20 @@ export function inserirNoHtml(html: string, trecho: string, posicao?: number | n
   const onde = aberta ? html.indexOf(">", i) + 1 || html.length : i;
   return `${html.slice(0, onde)}\n${trecho}\n${html.slice(onde)}`;
 }
+
+// ── Conteúdo enquanto está sendo escrito ──
+export type FormatoEmail = "texto" | "html";
+export interface ConteudoEmail { formato: FormatoEmail; texto: string; html: string; logo: Record<FormatoEmail, boolean> }
+
+export const conteudoVazio = (): ConteudoEmail => ({ formato: "texto", texto: "", html: "", logo: { texto: true, html: false } });
+
+/** Corpo gravado → o que o editor mostra. */
+export function abrirConteudo(corpo: string): ConteudoEmail {
+  const { conteudo, mostrar } = lerOpcaoDeLogo(corpo);
+  const formato: FormatoEmail = ehHtml(conteudo) ? "html" : "texto";
+  const vazio = conteudoVazio();
+  return { formato, texto: formato === "texto" ? conteudo : "", html: formato === "html" ? conteudo : "", logo: { ...vazio.logo, [formato]: mostrar } };
+}
+
+/** O que o editor mostra → corpo que vai no e-mail (vazio enquanto não há conteúdo). */
+export const corpoDoConteudo = (c: ConteudoEmail) => comOpcaoDeLogo(c.formato === "html" ? comoHtml(c.html.trim()) : c.texto.trim(), c.logo[c.formato]);

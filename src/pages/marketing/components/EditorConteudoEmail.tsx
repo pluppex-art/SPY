@@ -5,11 +5,11 @@ import { toast } from "sonner";
 import { Button } from "../../../components/ui/button";
 import { confirmDialog } from "../../../components/ui/confirm-dialog";
 import { avisosDoEmail } from "../../../lib/avisosEmail";
-import { avisosDoHtml, comoHtml, htmlParaTexto, imagemEmHtml, imagemEmTexto, inserirNoHtml, modeloExemploHtml, MAX_HTML, MAX_TEXTO } from "../../../lib/emailHtml";
+import { type FormatoEmail, avisosDoHtml, comoHtml, htmlParaTexto, imagemEmHtml, imagemEmTexto, inserirNoHtml, modeloExemploHtml, MAX_HTML, MAX_TEXTO } from "../../../lib/emailHtml";
 import { ImagensDoEmail } from "./ImagensDoEmail";
 import { cn } from "../../../lib/utils";
 
-export type FormatoEmail = "texto" | "html";
+export type { FormatoEmail };
 
 const VARIAVEIS: [string, string][] = [["{{primeiro_nome}}", "Primeiro nome"], ["{{nome}}", "Nome completo"], ["{{empresa}}", "Empresa da pessoa"]];
 const campo = "px-3 py-2 rounded-xl text-xs font-medium border border-[var(--color-border-default)] bg-[var(--color-surface)] text-[var(--color-text-primary)]";
