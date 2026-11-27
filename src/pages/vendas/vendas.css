@@ -60,12 +60,12 @@
 .sp-root.sv-recupera { --sp-bg: #fffdf7; --sp-warm: #fef3c7; --sp-brand: #b45309; --sp-brand-text: #92400e; --sp-brand-tint: #fef3c7; --sp-brand-tint-text: #78350f; --sp-grad: linear-gradient(100deg, #fcd34d, #f59e0b); --sp-glow: rgba(251,191,36,.35); accent-color: #f59e0b; }
 .sp-root.sv-recupera .sp-header { --sp-brand-text: #fcd34d; }
 /* o logo e o emblema acompanham a cor da página (a arte original é laranja; a landing a gira para roxo) */
-.sp-root.sv-recupera .sp-brand__img, .sp-root.sv-recupera .sp-emblem img, .sp-root.sv-recupera .ck-selo img { filter: hue-rotate(18deg) saturate(1.25) brightness(1.18); }
+.sp-root.sv-recupera .sp-brand__img, .sp-root.sv-recupera .sp-emblem img { filter: hue-rotate(18deg) saturate(1.25) brightness(1.18); }
 .sp-root.sv-recupera .sp-brand:hover .sp-brand__img { filter: hue-rotate(18deg) saturate(1.25) brightness(1.18) drop-shadow(0 0 14px rgba(251,191,36,.55)); }
 .sp-root.sv-recupera ::selection { background: #fcd34d; color: #0b1120; }
 html:has(.sv-recupera) { scrollbar-color: #fbbf24 #0b1120; }
 .sp-root.sv-recupera ::-webkit-scrollbar-thumb { background: #fbbf24; }
-.sp-root.sv-recupera:not(.ck) .sp-plan--hl { background-color: #fef3c7; background-image: linear-gradient(180deg, #fef3c7 0%, #fff 75%); border-color: #f59e0b; box-shadow: 0 0 0 1px rgba(245,158,11,.3), 0 30px 60px -28px rgba(245,158,11,.55); }
+.sp-root.sv-recupera .sp-plan--hl { background-color: #fef3c7; background-image: linear-gradient(180deg, #fef3c7 0%, #fff 75%); border-color: #f59e0b; box-shadow: 0 0 0 1px rgba(245,158,11,.3), 0 30px 60px -28px rgba(245,158,11,.55); }
 .sp-root.sv-recupera .sp-plan--hl::before { border-color: #f59e0b; }
 .sp-root.sv-recupera .sp-plan:hover { border-color: #f59e0b; }
 .sp-root.sv-recupera .sp-faq__item:hover, .sp-root.sv-recupera .sp-faq__item:has([aria-expanded="true"]) { border-color: #f59e0b; box-shadow: 0 16px 30px -22px rgba(245,158,11,.6); }

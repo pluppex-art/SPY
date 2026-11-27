@@ -45,8 +45,6 @@ async function api<T>(url: string, body?: unknown): Promise<T> {
 }
 
 const periodo = (q: Quote) => (q.plan.interval === "yearly" ? "/ano" : "/mês");
-/** Cores da página de venda de onde a pessoa veio (?tema=). Valor desconhecido = tema roxo do S.P.Y. */
-const TEMAS: Record<string, string> = { amarelo: "ck--amarelo sv-recupera" };
 
 const DEPOIS: [typeof Check, string, string][] = [
   [CheckCircle2, "Pagamento conferido", "Você anexa o comprovante e a nossa equipe confirma o Pix."],
@@ -92,7 +90,6 @@ export default function Checkout() {
   const [info, setInfo] = useState<Info | null>(null);
   const [semSessao, setSemSessao] = useState(false);
   const renovar = params.get("renovar") === "1";
-  const tema = TEMAS[params.get("tema") || ""] || "";
   const tentativasAcesso = useRef(0);
   const topo = useRef<HTMLDivElement>(null);
 
@@ -249,7 +246,7 @@ export default function Checkout() {
   const voltar = (n: number) => (<button type="button" className="sp-btn sp-btn--outline" onClick={() => irPara(n)}><ArrowLeft size={18} aria-hidden="true" /> Voltar</button>);
 
   return (
-    <div className={`sp-root sv ck ${tema}`}>
+    <div className="sp-root sv ck">
       <header className="sp-header ck-topo">
         <div className="sp-wrap ck-topo__barra">
           <Link to="/landing" className="sp-brand" aria-label="S.P.Y. — conhecer a plataforma">

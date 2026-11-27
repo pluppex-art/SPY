@@ -1,4 +1,4 @@
-/* Checkout com a cara do S.P.Y.: escuro, mesma base da landing (sp-). A cor muda pelo tema (?tema=). */
+/* Checkout com a cara do S.P.Y.: escuro, mesma base da landing (sp-), sempre no roxo da marca. */
 .sp-root.ck {
   --sp-bg: #0b1120; --sp-bg-2: #111a2e; --sp-warm: #1c1b3a; --sp-panel: #131c31; --sp-panel-2: #1b2640;
   --sp-line: rgba(255,255,255,.12); --sp-line-strong: rgba(255,255,255,.24);
@@ -6,7 +6,6 @@
   --sp-brand: #8b5cf6; --sp-brand-text: #c4b5fd; --sp-brand-tint: rgba(139,92,246,.18); --sp-glow: rgba(139,92,246,.35);
   color-scheme: dark; background: #0b1120; color: var(--sp-text);
 }
-.sp-root.ck.ck--amarelo { --sp-brand: #fbbf24; --sp-brand-text: #fcd34d; --sp-brand-tint: rgba(251,191,36,.16); --sp-glow: rgba(251,191,36,.28); --sp-warm: #2a2210; --sp-grad: linear-gradient(100deg, #fcd34d, #f59e0b); accent-color: #fbbf24; }
 
 .ck-topo__barra { display: flex; align-items: center; justify-content: space-between; gap: 12px; min-height: 72px; }
 .ck-seguro { display: inline-flex; align-items: center; gap: 8px; font-weight: 600; font-size: 14px; color: var(--sp-body); }
