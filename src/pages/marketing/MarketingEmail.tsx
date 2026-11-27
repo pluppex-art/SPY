@@ -48,6 +48,9 @@ function Etapa({ numero, titulo, ajuda, children }: { numero: number; titulo: st
   );
 }
 
+/** O navegador lança TypeError quando a conexão cai no meio do pedido (ex.: ERR_NETWORK_CHANGED). */
+const semRede = (e: unknown) => e instanceof TypeError;
+
 const json = async (r: Response) => { const b = await r.json().catch(() => ({})); if (!r.ok) throw new Error(b?.error || "Falha na requisição."); return b; };
 
 export default function MarketingEmail() {
@@ -230,7 +233,13 @@ export default function MarketingEmail() {
       setCampaigns((prev) => prev.map((x) => (x.id === c.id ? { ...x, status: "sending", agendada_para: null } : x)));
       void run({ ...c, status: "sending" });
       return true;
-    } catch (e: any) { toast.error(e.message); return false; }
+    } catch (e: any) {
+      if (!semRede(e)) { toast.error(e.message); return false; }
+      // O pedido pode ter chegado antes de a conexão cair: não incentive um segundo reenvio.
+      toast.warning("A conexão caiu durante o reenvio. Antes de tentar de novo, veja se a campanha aparece como Enviando: se sim, já está na fila.", { duration: 15000 });
+      void load();
+      return false;
+    }
   };
   const reenviarSelecionados = async (c: Campaign, emails: string[]) => {
     if (!(await confirmDialog({ title: "Reenviar?", description: emails.length === 1 ? `"${c.subject}" vai de novo para ${emails[0]}.` : `"${c.subject}" vai de novo para ${emails.length} pessoas.`, confirmLabel: "Reenviar" }))) return false;
@@ -252,15 +261,24 @@ export default function MarketingEmail() {
   const run = async (c: Campaign) => {
     stopRef.current = false; setRunning(c.id);
     try {
-      for (;;) {
-        const r = await apiFetchTenant(`/api/email-campaigns/${c.id}/send-batch`, { method: "POST" }).then(json);
+      for (let quedas = 0; ;) {
+        let r: any;
+        try { r = await apiFetchTenant(`/api/email-campaigns/${c.id}/send-batch`, { method: "POST" }).then(json); quedas = 0; }
+        catch (e) { // conexão caiu: pedir de novo é seguro (o servidor nunca pega a mesma pessoa duas vezes)
+          if (!semRede(e) || stopRef.current || ++quedas > 4) throw e;
+          await new Promise((ok) => setTimeout(ok, 2000 * quedas));
+          continue;
+        }
         setCampaigns((prev) => prev.map((x) => (x.id === c.id ? { ...x, sent: r.sent, failed: r.failed, status: r.status } : x)));
         if (r.cota) { toast.warning(r.cota.porHora ? `Ritmo de ${r.cota.porHora} e-mails por hora atingido. O restante sai sozinho na próxima hora.` : `Limite de ${r.cota.limite} e-mails em 24h atingido${r.cota.proprio ? "" : " (SMTP da plataforma — cadastre o seu em Integrações → SMTP para enviar mais)"}. O restante sai sozinho quando liberar.`, { duration: 12000 }); break; }
         if (r.done) { toast.success(`Envio concluído: ${r.sent} enviado(s), ${r.failed} falha(s).`); break; }
         if (stopRef.current) { toast.info("Envio pausado. Você pode retomar quando quiser."); break; }
         if (r.aguardando) { toast.info(`${r.pending} envio(s) na espera. Saem sozinhos, não precisa manter a página aberta.`, { duration: 12000 }); break; }
       }
-    } catch (e: any) { toast.error(`${e.message} — o envio pode ser retomado.`); }
+    } catch (e: any) {
+      if (semRede(e)) toast.warning("A conexão caiu. O que está na fila continua saindo sozinho em até 5 minutos.", { duration: 12000 });
+      else toast.error(`${e.message} — o envio pode ser retomado.`);
+    }
     finally { setRunning(null); void load(); }
   };
 
