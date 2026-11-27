@@ -14,6 +14,7 @@ export const diaCurto = (iso: string) => new Date(iso).toLocaleDateString("pt-BR
 
 export function SelosDoCartao({ lead }: { lead: { id: string; stageId?: string } }) {
   const info = useMetodo().info(lead);
+  if (info?.tipo === "desqualificado") return null;
   if (!info?.situacao) return null; // sem situação (perdidos antigos) não há o que mostrar
   const { estado, situacao } = info;
   const sla = situacaoDoPrazo(estado);
