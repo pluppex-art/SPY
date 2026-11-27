@@ -97,52 +97,113 @@ const vazio: ChatbotFlow = {
 
 
 /**
- * Coleta dos dados de implantação — modelo inicial, para a equipe reorganizar no editor.
+ * Coleta dos dados de implantação, em 5 partes, para a equipe reorganizar no editor se quiser.
  * Cada variável tem o MESMO nome do campo do formulário de Implementações. O bot se apresenta pelo próprio
  * nome ({{bot_nome}} = nome do chatbot = responsável pela implementação), pula o que o SPY já sabe do cliente
- * e aceita "não sei" nas perguntas. O WhatsApp do responsável é o próprio número da conversa ({{telefone}}).
+ * e aceita "não sei" nas perguntas opcionais. O WhatsApp do responsável é o próprio número da conversa ({{telefone}}).
+ * No fim mostra um resumo para o cliente conferir antes de gravar. Nunca pede senha.
  */
-const PERGUNTAS_IMPLANTACAO: [string, ValidationKind, string][] = [
-  ["nome_fantasia", "text", "Como se chama a empresa?"],
-  ["razao_social", "text", "E a razão social?"],
-  ["cnpj", "text", "Qual é o CNPJ?"],
-  ["endereco", "text", "Qual o endereço da empresa (rua, número, bairro e cidade)?"],
-  ["resp_nome", "text", "E com quem eu falo? Me diz seu nome completo."],
-  ["resp_email", "email", "Qual o seu melhor e-mail?"],
-  ["segmento", "text", "Em que segmento a empresa atua?"],
-  ["qtd_usuarios", "number", "Quantas pessoas vão usar o sistema?"],
-  ["etapas_funil", "text", "Quais as etapas do seu funil de vendas? Ex.: Novo lead → Proposta → Fechado"],
-  ["origens_leads", "text", "De onde vêm os leads hoje? (Instagram, indicação, anúncios…)"],
-  ["meta_mensal", "text", "Qual a meta mensal de vendas?"],
-];
-
-/** Exigidas para criar o ambiente do cliente (tenantReadiness): nessas o bot insiste, não aceita "não sei". */
-const OBRIGATORIAS_IMPLANTACAO = new Set(["nome_fantasia", "razao_social", "cnpj", "endereco", "resp_nome", "resp_email"]);
-
 function implantacao(): ChatbotFlow {
-  const nodes: ChatbotFlow["nodes"] = {
-    boas_vindas: {
-      id: "boas_vindas", type: "message", next: PERGUNTAS_IMPLANTACAO[0][0],
-      text: "Oi! Aqui é {{bot_nome}}, responsável pela implementação de vocês no SPY. 🙂 Vou te fazer algumas perguntas rápidas — leva uns 3 minutos. Se não souber alguma das opcionais, é só dizer \"não sei\" que a gente segue.",
-    },
-  };
-  PERGUNTAS_IMPLANTACAO.forEach(([variable, validation, text], i) => {
-    const next = i + 1 < PERGUNTAS_IMPLANTACAO.length ? PERGUNTAS_IMPLANTACAO[i + 1][0] : "whats_usa";
-    nodes[variable] = { id: variable, type: "question", text, variable, validation, skip_if_known: true, allow_unknown: !OBRIGATORIAS_IMPLANTACAO.has(variable), next };
+  const nodes: ChatbotFlow["nodes"] = {};
+  const add = (n: FlowNode) => { nodes[n.id] = n; };
+  const fala = (id: string, text: string, next: string) => add({ id, type: "message", text, next });
+  // Opcional aceita "não sei"; as exigidas para criar o ambiente (tenantReadiness) insistem.
+  const pergunta = (variable: string, text: string, next: string, extra: { validation?: ValidationKind; obrigatoria?: boolean; erro?: string; id?: string } = {}) =>
+    add({ id: extra.id ?? variable, type: "question", text, variable, validation: extra.validation ?? "text", skip_if_known: true, allow_unknown: !extra.obrigatoria, error_text: extra.erro, next });
+  // O texto de cada opção é o valor gravado: precisa ser igual ao do formulário.
+  const menu = (variable: string, text: string, opcoes: [string, string][]) =>
+    add({ id: variable, type: "menu", text, variable, skip_if_known: true, options: opcoes.map(([label, next], i) => ({ id: `${variable}_${i + 1}`, label, next })) });
+  const simNao = (variable: string, text: string, sim: string, nao: string = sim) => menu(variable, text, [["Sim", sim], ["Não", nao]]);
+
+  fala("boas_vindas", "Oi! Aqui é {{bot_nome}}, responsável pela implementação de vocês no S.P.Y. 🙂\n\n*Como funciona a implementação:*\n1️⃣ Diagnóstico (esta conversa)\n2️⃣ Criação do ambiente, funil e permissões\n3️⃣ Integrações e importação de dados\n4️⃣ Aurora, agentes e WhatsApp de cada pessoa\n5️⃣ Treinamento e 30 dias de acompanhamento\n\nEsta parte leva uns 5 minutos. No que for opcional, pode responder *não sei*. 🔒 Nunca pedimos senha por aqui.", "parte_empresa");
+
+  fala("parte_empresa", "*Parte 1 de 5 · Sua empresa* 🏢", "nome_fantasia");
+  pergunta("nome_fantasia", "Como se chama a empresa?", "razao_social", { obrigatoria: true });
+  pergunta("razao_social", "E a razão social?", "cnpj", { obrigatoria: true });
+  pergunta("cnpj", "Qual é o CNPJ?", "endereco", { obrigatoria: true });
+  pergunta("endereco", "Qual o endereço da empresa? (rua, número, bairro, cidade e CEP)", "segmento", { obrigatoria: true });
+  pergunta("segmento", "Em que segmento a empresa atua?", "operacao_descricao");
+  pergunta("operacao_descricao", "Conte em poucas linhas como a operação funciona hoje, do primeiro contato do cliente até a cobrança.", "parte_estrutura");
+
+  // Várias unidades, vários clientes ou várias empresas: cada caso é organizado de um jeito.
+  fala("parte_estrutura", "*Parte 2 de 5 · Estrutura* 🧩", "estrutura");
+  menu("estrutura", "Como é a estrutura de vocês?", [
+    ["Uma empresa só", "parte_pessoas"],
+    ["Matriz com filiais", "info_filiais"],
+    ["Atendo vários clientes", "info_clientes"],
+    ["Empresas separadas", "info_separadas"],
+  ]);
+  fala("info_filiais", "Dentro do seu ambiente cada filial fica separada: leads, tarefas, propostas, contratos, produtos, agenda, equipe e financeiro. Um seletor no menu mostra uma filial ou todas juntas. A base de clientes e o WhatsApp são compartilhados.", "unidades");
+  pergunta("estrutura_detalhes", "Quais são as filiais? Mande o nome e a cidade de cada uma.", "parte_pessoas", { id: "unidades" });
+  fala("info_clientes", "Para agência, contabilidade ou BPO: cada cliente atendido fica separado dentro do seu ambiente, com seletor no menu, calendário de conteúdo e banco de arquivos próprios. O WhatsApp é compartilhado.", "carteira");
+  pergunta("estrutura_detalhes", "Quais clientes você vai gerenciar no sistema? Pode mandar os nomes.", "parte_pessoas", { id: "carteira" });
+  fala("info_separadas", "Cada empresa separada ganha o *próprio ambiente*: dados, usuários e mensalidade não se misturam. Nesta conversa criamos o primeiro; os outros a equipe cria com você.", "outras_empresas");
+  pergunta("estrutura_detalhes", "Quais são as outras empresas? Mande o nome e o CNPJ de cada uma.", "parte_pessoas", { id: "outras_empresas" });
+
+  fala("parte_pessoas", "*Parte 3 de 5 · Pessoas e vendas* 👥", "resp_nome");
+  pergunta("resp_nome", "Com quem eu falo? Me diga seu nome completo.", "resp_cargo", { obrigatoria: true });
+  pergunta("resp_cargo", "Qual é o seu cargo?", "resp_email");
+  pergunta("resp_email", "Qual o seu melhor e-mail? É nele que chega o acesso ao sistema.", "qtd_usuarios", { validation: "email", obrigatoria: true, erro: "Esse e-mail não parece válido. Pode digitar de novo?" });
+  pergunta("qtd_usuarios", "Quantas pessoas vão usar o sistema? (só o número)", "usuarios_lista", { validation: "number", erro: "Mande só o número de pessoas, por exemplo: 5" });
+  pergunta("usuarios_lista", "Mande o nome, o e-mail e a função de cada pessoa, tudo em uma mensagem. Se preferir enviar depois, responda *depois*.", "etapas_funil");
+  pergunta("etapas_funil", "Quais são as etapas do funil de vendas? Ex.: Novo lead → Proposta → Fechado", "origens_leads");
+  pergunta("origens_leads", "De onde vêm os leads hoje? (Instagram, indicação, anúncios…)", "meta_mensal");
+  pergunta("meta_mensal", "Qual é a meta mensal de vendas? (em reais)", "importar_base");
+  simNao("importar_base", "Vocês têm uma base de clientes ou leads para importar?", "importar_base_origem", "parte_integracoes");
+  pergunta("importar_base_origem", "Onde está essa base? (planilha, outro sistema…)", "parte_integracoes");
+
+  fala("parte_integracoes", "*Parte 4 de 5 · Integrações* 🔌", "whats_usa");
+  simNao("whats_usa", "Vocês vão usar o WhatsApp no sistema?", "whats_tipo", "meta_usa");
+  menu("whats_tipo", "Que tipo de WhatsApp é?", [["WhatsApp Business (app)", "whats_numero"], ["API oficial (Meta)", "whats_numero"], ["Ainda não sei", "whats_numero"]]);
+  pergunta("whats_numero", "Qual número principal será conectado? (com DDD)", "meta_usa", { validation: "phone", erro: "Mande o número com DDD, por exemplo: 63 99999-8888" });
+  simNao("meta_usa", "Vocês anunciam no Facebook ou Instagram (Meta Ads)?", "meta_conta_id", "google_usa");
+  pergunta("meta_conta_id", "Se souber, qual é o ID da conta de anúncios? (só o número)", "google_usa");
+  simNao("google_usa", "Usam Google Ads ou Google Analytics?", "agenda_usa");
+  simNao("agenda_usa", "Usam o Google Agenda para marcar reuniões?", "parte_aurora");
+
+  fala("parte_aurora", "*Parte 5 de 5 · Aurora, a inteligência do sistema* 🤖", "ia_tom");
+  menu("ia_tom", "Que tom a inteligência artificial deve usar?", [["Formal", "ia_horario"], ["Consultivo", "ia_horario"], ["Descontraído", "ia_horario"]]);
+  pergunta("ia_horario", "Qual é o horário de atendimento de vocês?", "info_mensalidade");
+
+  fala("info_mensalidade", "💳 *Sobre a mensalidade*\n• O sistema avisa nos *15 dias antes* do vencimento.\n• Sem o pagamento na data, o acesso é bloqueado e volta quando o pagamento é conferido. Os dados ficam guardados.\n• Com 45 dias de atraso, a conta pode ser encerrada e excluída, com cópia de segurança antes.", "conferir");
+
+  // Resumo antes de gravar. Cada correção pergunta de novo só aquele dado e volta para cá.
+  const correcoes: [string, string, string, string, ValidationKind][] = [
+    ["Corrigir razão social", "corrigir_razao", "razao_social", "Qual é a razão social correta?", "text"],
+    ["Corrigir CNPJ", "corrigir_cnpj", "cnpj", "Qual é o CNPJ correto?", "text"],
+    ["Corrigir endereço", "corrigir_endereco", "endereco", "Qual é o endereço correto?", "text"],
+    ["Corrigir meu nome", "corrigir_nome", "resp_nome", "Qual é o seu nome completo?", "text"],
+    ["Corrigir e-mail", "corrigir_email", "resp_email", "Qual é o e-mail correto?", "email"],
+  ];
+  add({
+    id: "conferir", type: "menu",
+    text: "📋 *Confira antes de eu salvar*\n\nEmpresa: {{nome_fantasia}}\nRazão social: {{razao_social}}\nCNPJ: {{cnpj}}\nEndereço: {{endereco}}\nEstrutura: {{estrutura}}\nResponsável: {{resp_nome}}\nE-mail: {{resp_email}}",
+    options: [
+      { id: "conferir_ok", label: "Está tudo certo", next: "salvar" },
+      ...correcoes.map(([label, id]) => ({ id: `conferir_${id}`, label, next: id })),
+      { id: "conferir_equipe", label: "Falar com a equipe", next: "salvar_antes_de_chamar" },
+    ],
   });
-  // Parte técnica: só pergunta os detalhes de quem vai usar.
-  nodes.whats_usa = { id: "whats_usa", type: "menu", text: "Vocês vão usar o WhatsApp no sistema?", variable: "whats_usa", skip_if_known: true, options: [{ id: "whats_sim", label: "Sim", next: "whats_numero" }, { id: "whats_nao", label: "Não", next: "meta_usa" }] };
-  nodes.whats_numero = { id: "whats_numero", type: "question", text: "Qual número vai ser conectado? (com DDD)", variable: "whats_numero", validation: "phone", skip_if_known: true, allow_unknown: true, next: "meta_usa" };
-  nodes.meta_usa = { id: "meta_usa", type: "menu", text: "Vocês investem em anúncios no Facebook/Instagram (Meta Ads)?", variable: "meta_usa", skip_if_known: true, options: [{ id: "meta_sim", label: "Sim", next: "meta_conta_id" }, { id: "meta_nao", label: "Não", next: "salvar" }] };
-  nodes.meta_conta_id = { id: "meta_conta_id", type: "question", text: "Se souber, qual o ID da conta de anúncios? (é só o número — se não souber, tudo bem)", variable: "meta_conta_id", validation: "text", skip_if_known: true, allow_unknown: true, next: "salvar" };
-  const map = [...PERGUNTAS_IMPLANTACAO.map(([v]) => ({ field: v, variable: v })), { field: "resp_whatsapp", variable: "telefone" }, ...["whats_usa", "whats_numero", "meta_usa", "meta_conta_id"].map((v) => ({ field: v, variable: v }))];
-  nodes.salvar = { id: "salvar", type: "save_data", target: "implementation", map, provision: true, next: "fim" };
-  nodes.fim = { id: "fim", type: "end", text: "Pronto, recebi tudo! 🎉 Já deixei sua implementação encaminhada. Se os dados estiverem completos, você recebe por e-mail o link para criar sua senha e acessar o sistema. Qualquer dúvida é só chamar por aqui." };
+  for (const [, id, variable, text, validation] of correcoes) add({ id, type: "question", text, variable, validation, next: "conferir" });
+
+  const map = [
+    "nome_fantasia", "razao_social", "cnpj", "endereco", "segmento", "operacao_descricao", "estrutura", "estrutura_detalhes",
+    "resp_nome", "resp_cargo", "resp_email", "qtd_usuarios", "usuarios_lista", "etapas_funil", "origens_leads", "meta_mensal",
+    "importar_base", "importar_base_origem", "whats_usa", "whats_tipo", "whats_numero", "meta_usa", "meta_conta_id", "google_usa",
+    "agenda_usa", "ia_tom", "ia_horario",
+  ].map((v) => ({ field: v, variable: v }));
+  map.push({ field: "resp_whatsapp", variable: "telefone" });
+
+  add({ id: "salvar", type: "save_data", target: "implementation", map, provision: true, next: "fim" });
+  add({ id: "fim", type: "end", text: "Pronto, recebi tudo! 🎉\n\n*Próximos passos:*\n✅ Com os dados completos, você recebe por e-mail o link para criar sua senha.\n✅ A equipe configura funil, permissões e integrações.\n✅ Depois vêm o WhatsApp de cada pessoa, o treinamento e 30 dias de acompanhamento.\n\nQualquer dúvida, é só chamar por aqui." });
+  // Quem pede a equipe no resumo não perde o que já respondeu (grava sem criar o ambiente).
+  add({ id: "salvar_antes_de_chamar", type: "save_data", target: "implementation", map, next: "equipe" });
+  add({ id: "equipe", type: "handoff", text: "Certo! Guardei suas respostas e vou chamar alguém da equipe para ajustar com você. 🙂" });
   return { start: "boas_vindas", nodes };
 }
 
 export const CHATBOT_TEMPLATES: ChatbotTemplate[] = [
   { id: "basico", name: "Atendimento + captação de lead", description: "Boas-vindas, menu, coleta de nome/e-mail/interesse, cria o lead em Vendas e opção de falar com atendente.", flow: basico },
-  { id: "implantacao", name: "Implantação de cliente (SPY)", description: "Perguntas de cadastro da empresa, responsável e Vendas. As respostas preenchem o formulário de Implementações do cliente.", flow: implantacao() },
+  { id: "implantacao", name: "Implantação de cliente (SPY)", description: "Em 5 partes: empresa, estrutura (filiais, clientes ou várias empresas), pessoas e vendas, integrações e Aurora. Explica a implementação e a mensalidade, mostra um resumo e preenche o formulário de Implementações.", flow: implantacao() },
   { id: "vazio", name: "Em branco", description: "Só uma mensagem de boas-vindas. Monte o resto do zero.", flow: vazio },
 ];

@@ -191,8 +191,11 @@ test("modelo de implantação: cliente conhecido responde só o que falta; Whats
   let r = run(null, "oi");
   const said = r.actions.filter((a) => a.kind === "send_text").map((a: any) => a.text);
   assert.match(said[0], /Aqui é Gustavo Oliveira/);
-  assert.equal(said[1], "Em que segmento a empresa atua?"); // 1ª pergunta que o SPY ainda não sabe
-  for (const ans of ["Varejo", "8", "Novo → Fechado", "Instagram", "não sei"]) r = run(r.session, ans);
+  assert.equal(said[2], "Em que segmento a empresa atua?"); // 1ª pergunta que o SPY ainda não sabe (depois do título da parte 1)
+  const respostas: Record<string, string> = { segmento: "Varejo", estrutura: "Uma empresa só", qtd_usuarios: "8", etapas_funil: "Novo → Fechado", origens_leads: "Instagram", importar_base: "Não", whats_tipo: "Ainda não sei", google_usa: "Não", agenda_usa: "Não", ia_tom: "Formal", conferir: "Está tudo certo" };
+  const perguntados: string[] = [];
+  for (let i = 0; i < 40 && r.session.status === "active"; i++) { const no = r.session.current_node!; perguntados.push(no); r = run(r.session, respostas[no] ?? "não sei"); }
+  for (const sabido of ["nome_fantasia", "razao_social", "cnpj", "endereco", "resp_nome", "resp_email", "whats_usa", "whats_numero", "meta_usa"]) assert.ok(!perguntados.includes(sabido), sabido);
   const save = r.actions.find((a) => a.kind === "save_data");
   assert.ok(save && save.kind === "save_data" && save.provision === true);
   assert.deepEqual(save.map.find((m) => m.field === "resp_whatsapp"), { field: "resp_whatsapp", variable: "telefone" });

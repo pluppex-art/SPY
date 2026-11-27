@@ -67,6 +67,8 @@ export const IMPLEMENTATION_SECTIONS: ImplSection[] = [
       { id: "endereco", label: "Endereço", type: "text", audience: "client" },
       { id: "faixa_colaboradores", label: "Nº de colaboradores", type: "select", options: ["1–5", "6–20", "21–50", "51–200", "200+"], audience: "client" },
       { id: "operacao_descricao", label: "Como a operação funciona hoje?", type: "textarea", audience: "client", track: "answered", help: "Do primeiro contato do cliente até a entrega/cobrança." },
+      { id: "estrutura", label: "Estrutura da empresa", type: "select", options: ["Uma empresa só", "Matriz com filiais", "Atendo vários clientes", "Empresas separadas"], audience: "client", help: "Filiais e clientes atendidos ficam dentro do mesmo ambiente (Configurações > Filiais e clientes). Empresas separadas ganham um ambiente cada." },
+      { id: "estrutura_detalhes", label: "Filiais, clientes ou outras empresas", type: "textarea", audience: "client", help: "Um por linha: nome e cidade da filial, nome do cliente ou nome e CNPJ da outra empresa." },
     ],
   },
   {

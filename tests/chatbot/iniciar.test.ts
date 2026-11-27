@@ -61,7 +61,8 @@ test("equipe inicia: cadastra cliente + implementação, abre pelo WhatsApp do b
   assert.equal(impl.cliente_id, db.t.clientes[0].id); assert.equal(impl.responsavel, "Gustavo Oliveira"); assert.equal(impl.data.resp_whatsapp, "5563999998888");
   assert.ok(sent.length >= 2); assert.ok(sent.every((m) => m.session === "chatbot-abc" && m.phone === "5563999998888"));
   assert.match(sent[0].text, /Aqui é Gustavo Oliveira/);
-  assert.equal(sent[1].text, "E a razão social?"); // o nome da empresa a equipe já informou: não pergunta de novo
+  assert.match(sent[1].text, /Parte 1 de 5/);
+  assert.equal(sent[2].text, "E a razão social?"); // o nome da empresa a equipe já informou: não pergunta de novo
   const s = db.t.chatbot_sessions[0];
   assert.equal(s.status, "active"); assert.equal(s.current_node, "razao_social"); assert.equal(s.chat_id, "5563999998888@c.us"); assert.equal(s.vars.telefone, "5563999998888");
   // o cliente responde: o motor segue exatamente de onde parou
