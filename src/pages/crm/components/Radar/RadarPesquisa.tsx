@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Loader2, UserPlus, Check, Phone, Mail, MapPin, Globe, MessageCircle, Star } from "lucide-react";
 import { toast } from "sonner";
 import { Card } from "../../../../components/ui/card";
@@ -9,6 +9,7 @@ import { apiFetch } from "../../../../lib/apiClient";
 import { getStageId } from "../../../../lib/funilStages";
 import { FUNIS_DEFAULT } from "../../../settings/sections/crm/funisTypes";
 import { FiltroDoRadar } from "../../../../components/radar/FiltroDoRadar";
+import { EsperaDoRadar } from "../../../../components/radar/EsperaDoRadar";
 import { chaveDaEmpresa, descreverBusca, pesquisarNoRadar, type EmpresaDoRadar, type FiltroRadar } from "../../../../lib/buscaRadar";
 
 type Resultado = EmpresaDoRadar;
@@ -24,6 +25,9 @@ export function RadarPesquisa() {
   const { user, activeTenantId } = useAuth();
   const [restante, setRestante] = useState<number | null>(null);
   const [mais, setMais] = useState<FiltroRadar | null>(null);
+  const [esperaAte, setEsperaAte] = useState<number | null>(null);
+  const parada = useRef<AbortController | null>(null);
+  useEffect(() => () => parada.current?.abort(), [activeTenantId]);
   const [buscando, setBuscando] = useState(false);
   const [erro, setErro] = useState<string | null>(null);
   const [feita, setFeita] = useState<string | null>(null);
@@ -38,18 +42,25 @@ export function RadarPesquisa() {
   const api = (path: string, init?: RequestInit) => apiFetch(activeTenantId ? `${path}${path.includes("?") ? "&" : "?"}tenantId=${encodeURIComponent(activeTenantId)}` : path, init);
 
   async function pesquisar(filtro: FiltroRadar, somar = false) {
-    setBuscando(true); setErro(null);
+    parada.current?.abort();
+    const controle = new AbortController(); parada.current = controle;
+    const antes = somar ? resultados : [];
+    const mostrar = (novas: Resultado[]) => setResultados([...new Map([...antes, ...novas].map((e) => [chaveDaEmpresa(e), e])).values()]);
+    setBuscando(true); setErro(null); setMais(null); setEsperaAte(null);
+    if (!somar) { setResultados([]); setFeita(descreverBusca(filtro)); setCriados(new Set()); }
     try {
-      const r = await pesquisarNoRadar(api, filtro);
-      setResultados((antes) => (somar ? [...new Map([...antes, ...r.empresas].map((e) => [chaveDaEmpresa(e), e])).values()] : r.empresas));
-      setMais(r.mais); setErro(r.aviso);
-      if (!somar) { setFeita(descreverBusca(filtro)); setCriados(new Set()); }
+      const r = await pesquisarNoRadar(api, filtro, {
+        sinal: controle.signal,
+        aoAvancar: (novas, saldo) => { if (parada.current !== controle) return; mostrar(novas); if (saldo !== null) setRestante(saldo); },
+        aoEsperar: (s) => { if (parada.current === controle) setEsperaAte(s === null ? null : Date.now() + (s + 1) * 1000); },
+      });
+      if (parada.current !== controle) return;
+      mostrar(r.empresas); setMais(r.mais); setErro(r.aviso);
       if (r.restante !== null) setRestante(r.restante);
     } catch (e: any) {
       setErro(e instanceof TypeError ? "Não foi possível pesquisar agora. Tente de novo." : e.message);
-      if (!somar) { setResultados([]); setMais(null); }
       if (typeof e.restante === "number") setRestante(e.restante);
-    } finally { setBuscando(false); }
+    } finally { if (parada.current === controle) { setBuscando(false); setEsperaAte(null); } }
   }
 
   async function virarLead(e: Resultado) {
@@ -74,9 +85,11 @@ export function RadarPesquisa() {
         </div>
       </Card>
 
+      {esperaAte !== null && <EsperaDoRadar ate={esperaAte} onParar={() => parada.current?.abort()} />}
+
       {erro && <Card className="p-4 text-sm text-[var(--color-danger)]">{erro}</Card>}
 
-      {buscando && (
+      {buscando && esperaAte === null && (
         <Card className="p-10 text-center text-sm text-[var(--color-text-muted)] flex items-center justify-center gap-2"><Loader2 className="w-4 h-4 animate-spin" /> Procurando empresas… pode levar alguns segundos.</Card>
       )}
 

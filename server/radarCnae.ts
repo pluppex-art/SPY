@@ -5,6 +5,9 @@ import { montarUrlBusca, normalizarCnae, normalizarEmpresa, normalizarMunicipio,
 import { LIMITE_POR_DIA, reservar, devolver, restanteHoje } from "./radarCota.js";
 import { cleanEmail } from "./emailCampaigns.js";
 
+/** O serviço de consulta cobra cada empresa devolvida do limite por minuto (10 no plano gratuito). */
+export const porMinuto = () => Number(process.env.APIPJ_POR_MINUTO) || 10;
+
 const soDigitos = (v: unknown) => String(v ?? "").replace(/\D/g, "");
 
 /** Formato que a tela do Radar já mostra. */
@@ -40,7 +43,7 @@ export function registerRadarCnaeRoutes(app: Express, { requireUser, resolveRequ
     const cnae = normalizarCnae(req.body?.cnae), municipio = normalizarMunicipio(req.body?.municipio);
     if (!cnae) return res.status(400).json({ error: "Informe o CNAE com 7 dígitos (ex.: 56.11-2-01)." });
     if (!municipio) return res.status(400).json({ error: "Escolha a cidade." });
-    const quantidade = Math.min(20, Math.max(1, parseInt(String(req.body?.quantidade ?? "10"), 10) || 10));
+    const quantidade = Math.min(porMinuto(), Math.max(1, parseInt(String(req.body?.quantidade ?? "10"), 10) || 10));
     const cursor = typeof req.body?.cursor === "string" ? req.body.cursor.slice(0, 512) : null;
     let separado = 0;
     const encerrar = async (entregues: number) => {
@@ -56,8 +59,15 @@ export function registerRadarCnaeRoutes(app: Express, { requireUser, resolveRequ
       if (!separado) return res.status(429).json({ error: `O limite de ${LIMITE_POR_DIA} empresas por dia foi atingido. Volta amanhã.`, restante: 0 });
       const r = await (buscar ?? fetch)(montarUrlBusca({ cnae, municipio, limite: separado, cursor }), { headers: { Authorization: `Bearer ${chave}` }, signal: AbortSignal.timeout(20_000) });
       if (!r.ok) {
-        console.error("[radar/cnae] apipj", r.status);
+        const erro: any = await r.json().catch(() => ({}));
+        console.error("[radar/cnae] apipj", r.status, String(erro?.code ?? ""));
         const restante = await encerrar(0);
+        if (r.status === 429) {
+          if (erro?.code === "quota_exceeded") return res.status(429).json({ error: "A cota mensal da consulta por CNAE acabou. Volta no dia 1º, ou aumente o plano da apipj.", restante });
+          // Limite do minuto: a tela espera e pede de novo.
+          const aguardar = Math.min(90, Math.max(5, Number(r.headers.get("retry-after")) || 60));
+          return res.status(429).json({ error: "A consulta por CNAE libera poucas empresas por minuto. Tente de novo em instantes.", aguardar, restante });
+        }
         return res.status(502).json({ error: MENSAGENS_APIPJ[r.status] ?? "A consulta por CNAE não respondeu como esperado.", restante });
       }
       const j: any = await r.json();

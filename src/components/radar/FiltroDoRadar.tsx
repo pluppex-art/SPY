@@ -111,6 +111,7 @@ export function FiltroDoRadar({ api, ocupado, restante, onSaldo, onBuscar }: {
           ))}
         </div>
       )}
+      {modo === "cnae" && pedidas > 10 && !acabou && <p className="text-[11px] text-[var(--color-text-muted)]">A consulta libera 10 empresas por minuto: esta busca pode levar cerca de {Math.ceil(Math.min(pedidas, restante ?? pedidas) / 10)} minuto(s). Os resultados aparecem aos poucos.</p>}
       {restante !== null && (
         <p role="status" className={`text-[11px] ${acabou ? "font-bold text-amber-700 dark:text-amber-400" : "text-[var(--color-text-muted)]"}`}>
           {acabou ? "O limite de 50 empresas por dia foi atingido. Volta amanhã." : `Restam ${restante} de 50 empresas hoje.${pedidas > restante ? ` Esta busca pede até ${pedidas}: as últimas escolhidas podem ficar sem.` : ""}`}

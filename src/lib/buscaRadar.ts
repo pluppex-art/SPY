@@ -27,32 +27,81 @@ export const descreverBusca = (f: FiltroRadar) => {
   return `${f.modo === "cnae" ? (f.cnaes ?? []).map(nomeDaAtividade).join(", ") : f.tipo.trim() || "empresas"}${onde}`;
 };
 
-export async function pesquisarNoRadar(api: Api, filtro: FiltroRadar): Promise<ResultadoDaBusca> {
+export interface OpcoesDaBusca {
+  /** Chamado a cada resposta, com tudo o que já veio. */
+  aoAvancar?: (empresas: EmpresaDoRadar[], restante: number | null) => void;
+  /** Começo (quantos segundos) e fim (null) de uma espera pela liberação da consulta. */
+  aoEsperar?: (segundos: number | null) => void;
+  /** Para a busca, guardando o que já veio. */
+  sinal?: AbortSignal;
+  esperar?: (ms: number, sinal?: AbortSignal) => Promise<void>;
+}
+
+const dormir = (ms: number, sinal?: AbortSignal) => new Promise<void>((ok) => {
+  if (sinal?.aborted) return ok();
+  const fim = () => { clearTimeout(t); sinal?.removeEventListener("abort", fim); ok(); };
+  const t = setTimeout(fim, ms);
+  sinal?.addEventListener("abort", fim);
+});
+/** Esperas seguidas sem receber nada antes de desistir. */
+const MAX_ESPERAS = 6;
+
+export async function pesquisarNoRadar(api: Api, filtro: FiltroRadar, opcoes: OpcoesDaBusca = {}): Promise<ResultadoDaBusca> {
+  const { aoAvancar, aoEsperar, sinal, esperar = dormir } = opcoes;
   const tipo = filtro.tipo.trim();
   const porCnae = filtro.modo === "cnae";
   const cnaes = [...new Set((filtro.cnaes ?? []).map((c) => c.replace(/\D/g, "")))];
   if (porCnae && (!cnaes.length || cnaes.some((c) => c.length !== 7))) throw new Error("Escolha pelo menos uma atividade (o CNAE tem 7 dígitos).");
   if (porCnae && !filtro.cidades.length) throw new Error("Escolha pelo menos uma cidade.");
   if (!porCnae && !filtro.cidades.length && tipo.length < 3) throw new Error("Diga o tipo de empresa ou escolha uma cidade.");
-  // Por CNAE: cada atividade em cada cidade (ou só as que ainda têm continuação).
-  const consultas: { corpo: object; cnae?: string; municipio?: string }[] = porCnae
-    ? (filtro.continuar ?? cnaes.flatMap((cnae) => filtro.cidades.map((c) => ({ cnae, municipio: c.id!, cursor: "" })))).map((q) => ({ cnae: q.cnae, municipio: q.municipio, corpo: { cnae: q.cnae, municipio: q.municipio, ...(q.cursor ? { cursor: q.cursor } : {}) } }))
-    : filtro.cidades.length ? filtro.cidades.map((c) => ({ corpo: { criterio: `${tipo || "empresas"} em ${c.cidade}/${c.uf}`, cidade: c.cidade, uf: c.uf } })) : [{ corpo: { criterio: tipo } }];
+
   const juntas = new Map<string, EmpresaDoRadar>();
   const continuar: Continuacao[] = [];
   let restante: number | null = null;
   let aviso: string | null = null;
-  for (const consulta of consultas) {
-    const r = await api(porCnae ? "/api/radar/cnae" : "/api/radar/pesquisar", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ ...consulta.corpo, quantidade: filtro.quantidade }) });
+  const pedir = async (rota: string, corpo: object) => {
+    const r = await api(rota, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(corpo) });
     const j = await r.json().catch(() => ({}));
     if (typeof j.restante === "number") restante = j.restante;
-    if (!r.ok) {
-      aviso = j.error || "Não foi possível pesquisar agora.";
-      if (!juntas.size) throw Object.assign(new Error(aviso!), { restante });
-      break; // o que já veio das consultas anteriores não se perde
+    return { r, j };
+  };
+  const guardar = (lista: EmpresaDoRadar[]) => { for (const e of lista) juntas.set(chaveDaEmpresa(e), e); aoAvancar?.([...juntas.values()], restante); };
+  const recusar = (mensagem?: string) => {
+    aviso = mensagem || "Não foi possível pesquisar agora.";
+    if (!juntas.size) throw Object.assign(new Error(aviso), { restante }); // o que já veio não se perde
+  };
+
+  if (porCnae) {
+    // Cada atividade em cada cidade (ou só as que ficaram por continuar).
+    const fila = filtro.continuar ?? cnaes.flatMap((cnae) => filtro.cidades.map((c) => ({ cnae, municipio: c.id!, cursor: "" })));
+    let parar = false;
+    for (const q of fila) {
+      let cursor = q.cursor, falta = filtro.quantidade, esperas = 0, esgotada = false;
+      while (!parar && !sinal?.aborted && falta > 0) {
+        const { r, j } = await pedir("/api/radar/cnae", { cnae: q.cnae, municipio: q.municipio, quantidade: falta, ...(cursor ? { cursor } : {}) });
+        if (r.status === 429 && j.aguardar && esperas < MAX_ESPERAS) {
+          esperas++; aoEsperar?.(j.aguardar);
+          await esperar((j.aguardar + 1) * 1000, sinal);
+          aoEsperar?.(null);
+          continue;
+        }
+        if (!r.ok) { parar = true; recusar(j.error); break; }
+        const vieram: EmpresaDoRadar[] = j.resultados ?? [];
+        esperas = 0; falta -= vieram.length; cursor = j.proximoCursor || ""; guardar(vieram);
+        if (!cursor) { esgotada = true; break; }
+        if (!vieram.length) break;
+        if (restante === 0) parar = true;
+      }
+      if (!esgotada) continuar.push({ ...q, cursor });
     }
-    for (const e of (j.resultados ?? []) as EmpresaDoRadar[]) juntas.set(chaveDaEmpresa(e), e);
-    if (consulta.cnae && j.proximoCursor) continuar.push({ cnae: consulta.cnae, municipio: consulta.municipio!, cursor: j.proximoCursor });
+  } else {
+    const consultas = filtro.cidades.length ? filtro.cidades.map((c) => ({ criterio: `${tipo || "empresas"} em ${c.cidade}/${c.uf}`, cidade: c.cidade, uf: c.uf })) : [{ criterio: tipo }];
+    for (const consulta of consultas) {
+      if (sinal?.aborted) break;
+      const { r, j } = await pedir("/api/radar/pesquisar", { ...consulta, quantidade: filtro.quantidade });
+      if (!r.ok) { recusar(j.error); break; }
+      guardar(j.resultados ?? []);
+    }
   }
   return { empresas: [...juntas.values()], restante, aviso, mais: continuar.length && restante !== 0 ? { ...filtro, continuar } : null };
 }

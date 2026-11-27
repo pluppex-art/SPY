@@ -14,10 +14,10 @@ test("CNAE: aceita máscara, exige 7 dígitos", () => {
 test("URL da busca: formato simplificado, limite entre 1 e o teto, cursor só quando existe", () => {
   const u = new URL(montarUrlBusca({ cnae: "4781400", municipio: "5208707" }));
   assert.equal(u.searchParams.get("formato"), "simplificado");
-  assert.equal(u.searchParams.get("limite"), "25");
+  assert.equal(u.searchParams.get("limite"), "10");
   assert.equal(u.searchParams.has("cursor"), false);
   assert.equal(new URL(montarUrlBusca({ cnae: "4781400", municipio: "5208707", limite: 99999 })).searchParams.get("limite"), String(LIMITE_MAXIMO));
-  assert.equal(new URL(montarUrlBusca({ cnae: "4781400", municipio: "5208707", limite: 0 })).searchParams.get("limite"), "25");
+  assert.equal(new URL(montarUrlBusca({ cnae: "4781400", municipio: "5208707", limite: 0 })).searchParams.get("limite"), "10");
   assert.equal(new URL(montarUrlBusca({ cnae: "4781400", municipio: "5208707", cursor: "abc" })).searchParams.get("cursor"), "abc");
 });
 

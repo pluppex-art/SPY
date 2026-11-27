@@ -6,7 +6,7 @@ const APIPJ = "https://apipj.com.br/v1/busca";
 const IBGE = "https://servicodados.ibge.gov.br/api/v1/localidades/estados";
 const UFS = new Set("AC AL AP AM BA CE DF ES GO MA MT MS MG PA PB PR PE PI RJ RN RS RO RR SC SP SE TO".split(" "));
 /** Teto por página: cada empresa custa 1 da cota, então a tela pede pouco e o usuário pede mais. */
-export const LIMITE_PADRAO = 25;
+export const LIMITE_PADRAO = 10; // no plano gratuito, a página não pode passar do limite por minuto (10)
 export const LIMITE_MAXIMO = 100;
 
 export type EmpresaProspeccao = {

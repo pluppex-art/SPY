@@ -1,9 +1,10 @@
 /** Puxa empresas do Radar (pesquisa nova ou já salvas) para a lista própria da campanha. */
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Loader2, Radar } from "lucide-react";
 import { Button } from "../../../components/ui/button";
 import { cn } from "../../../lib/utils";
 import { FiltroDoRadar } from "../../../components/radar/FiltroDoRadar";
+import { EsperaDoRadar } from "../../../components/radar/EsperaDoRadar";
 import { pesquisarNoRadar, type FiltroRadar } from "../../../lib/buscaRadar";
 
 export interface ContatoDoRadar { email: string; name: string; company: string }
@@ -26,6 +27,9 @@ export function PuxarDoRadar({ api, jaNaLista, onAdicionar }: {
   const [aviso, setAviso] = useState<string | null>(null);
   const [fora, setFora] = useState<Set<string>>(new Set()); // desmarcados pela pessoa
   const pedido = useRef(0); // resposta atrasada de uma busca antiga não vale
+  const [esperaAte, setEsperaAte] = useState<number | null>(null);
+  const parada = useRef<AbortController | null>(null);
+  useEffect(() => () => parada.current?.abort(), []);
 
   const ler = async (path: string, init?: RequestInit) => {
     const r = await api(path, init); const j = await r.json().catch(() => ({}));
@@ -33,18 +37,28 @@ export function PuxarDoRadar({ api, jaNaLista, onAdicionar }: {
     return j;
   };
   /** `somar`: pedindo as próximas empresas, as que já apareceram continuam na lista. */
-  const comecar = (somar = false) => { const n = ++pedido.current; setCarregando(true); setAviso(null); setMais(null); if (!somar) { setItens([]); setFora(new Set()); } return n; };
+  const comecar = (somar = false) => { const n = ++pedido.current; parada.current?.abort(); setEsperaAte(null); setCarregando(true); setAviso(null); setMais(null); if (!somar) { setItens([]); setFora(new Set()); } return n; };
 
   const buscar = async (filtro: FiltroRadar, somar = false) => {
     const antes = somar ? itens : [];
     const n = comecar(somar);
     try {
-      const busca = await pesquisarNoRadar(api, filtro);
+      const controle = new AbortController(); parada.current = controle;
+      const busca = await pesquisarNoRadar(api, filtro, {
+        sinal: controle.signal,
+        // Por CNAE a busca pode demorar: o que já veio aparece (e pode ser adicionado) enquanto o resto não chega.
+        aoAvancar: (empresas, saldo) => {
+          if (n !== pedido.current) return;
+          if (saldo !== null) setRestante(saldo);
+          if (filtro.modo === "cnae") setItens([...antes, ...empresas.map((e) => ({ empresa: e.empresa, detalhe: e.endereco, email: e.email || "" }))]);
+        },
+        aoEsperar: (s) => { if (n === pedido.current) setEsperaAte(s === null ? null : Date.now() + (s + 1) * 1000); },
+      });
       if (busca.restante !== null) setRestante(busca.restante);
       if (n !== pedido.current) return;
       setAviso(busca.aviso); setMais(busca.mais);
       const achados = busca.empresas;
-      if (!achados.length) { setAviso("Nenhuma empresa encontrada. Tente outro tipo de empresa ou outra cidade."); return; }
+      if (!achados.length) { if (!controle.signal.aborted) setAviso("Nenhuma empresa encontrada. Tente outra atividade ou outra cidade."); return; }
       const lista: Item[] = achados.map((e) => ({ empresa: e.empresa, detalhe: e.endereco, email: e.email || "", procurando: !e.email && temSite(e.site) }));
       setItens([...antes, ...lista]); setCarregando(false);
       const sites = achados.filter((e, i) => lista[i].procurando).map((e) => e.site);
@@ -69,7 +83,7 @@ export function PuxarDoRadar({ api, jaNaLista, onAdicionar }: {
     } catch (e: any) { if (n === pedido.current) setAviso(e.message); }
     finally { if (n === pedido.current) setCarregando(false); }
   };
-  const abrirBusca = () => { setAba("buscar"); pedido.current++; setItens([]); setAviso(null); setCarregando(false); setMais(null); };
+  const abrirBusca = () => { setAba("buscar"); pedido.current++; parada.current?.abort(); setEsperaAte(null); setItens([]); setAviso(null); setCarregando(false); setMais(null); };
 
   const naLista = new Set(jaNaLista.map((e) => e.toLowerCase()));
   const disponiveis = itens.filter((i) => i.email && !naLista.has(i.email.toLowerCase()));
@@ -93,7 +107,8 @@ export function PuxarDoRadar({ api, jaNaLista, onAdicionar }: {
 
       {aba === "buscar" && <FiltroDoRadar api={api} ocupado={carregando || itens.some((i) => i.procurando)} restante={restante} onSaldo={setRestante} onBuscar={(f) => void buscar(f)} />}
 
-      {carregando && <p className="inline-flex items-center gap-1.5 text-[var(--color-text-muted)]"><Loader2 className="w-3.5 h-3.5 animate-spin" /> Consultando o Radar…</p>}
+      {esperaAte !== null && <EsperaDoRadar ate={esperaAte} onParar={() => parada.current?.abort()} />}
+      {carregando && esperaAte === null && <p className="inline-flex items-center gap-1.5 text-[var(--color-text-muted)]"><Loader2 className="w-3.5 h-3.5 animate-spin" /> Consultando o Radar…</p>}
       {aviso && <p role="status" className="text-[11px] text-amber-700 dark:text-amber-400">{aviso}</p>}
 
       {itens.length > 0 && (

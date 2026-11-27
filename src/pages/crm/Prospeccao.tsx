@@ -67,7 +67,7 @@ export default function Prospeccao() {
   async function buscar(maisUma: boolean) {
     setBuscando(true); setErro(null);
     try {
-      const q = new URLSearchParams({ cnae: soDigitos(cnae), municipio, limite: "25" });
+      const q = new URLSearchParams({ cnae: soDigitos(cnae), municipio, limite: "10" });
       if (maisUma && cursor) q.set("cursor", cursor);
       const r = await apiFetch(`/api/prospeccao/cnae?${q.toString()}`);
       const j = await r.json().catch(() => ({}));
@@ -153,7 +153,7 @@ export default function Prospeccao() {
       {cursor && (
         <div className="mt-3 flex justify-center">
           <Button variant="outline" onClick={() => buscar(true)} disabled={buscando}>
-            {buscando ? <Loader2 className="w-4 h-4 animate-spin" /> : null} Carregar mais 25
+            {buscando ? <Loader2 className="w-4 h-4 animate-spin" /> : null} Carregar mais 10
           </Button>
         </div>
       )}
