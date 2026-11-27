@@ -1,8 +1,11 @@
--- NÃO APLICADA. Precisa de autorização.
+-- Aplicada em produção em 27/11/2026, com autorização. Visão dos 31 usuários nas 5 tabelas: igual antes e depois.
 -- A regra "tenant_isolation" chama has_tenant_access() uma vez para CADA linha lida (uma consulta a users por linha).
 -- Em lead_activities isso são 60 mil chamadas por leitura numa empresa grande, e estoura o limite de 8 s.
 -- Aqui a MESMA regra (própria empresa, ou master, ou empresa de parceiro) é resolvida uma vez por consulta.
 -- Medido em leitura, sem aplicar: a pior página de atividades cai de cerca de 3 s para 12 ms.
+
+-- Se a troca da regra não conseguir a tabela em 3 s, desiste e nada muda.
+set local lock_timeout = '3s';
 
 create or replace function public.usuario_e_master()
 returns boolean language sql stable security definer set search_path to 'public' as $$
