@@ -388,7 +388,7 @@ export default function Corretores() {
 
   const handleSave = async (form: any) => {
     const slug = makeSlug(form.nome);
-    const novo: Corretor = { ...form, id: Date.now().toString(), slug, imovisAtivos: 0, vendasMes: 0, totalVendas: 0, vgvMes: 0, avaliacao: 5.0, status: "Ativo", createdAt: new Date().toISOString() };
+    const novo: Corretor = { ...form, id: crypto.randomUUID(), slug, imovisAtivos: 0, vendasMes: 0, totalVendas: 0, vgvMes: 0, avaliacao: 5.0, status: "Ativo", createdAt: new Date().toISOString() };
     setCorretores(prev => [novo, ...prev]);
     if (supabase && activeTenantId) {
       const { error } = await supabase.from("imobiliario_corretores").insert({ nome: form.nome, creci: form.creci, telefone: form.telefone, email: form.email, especialidade: form.especialidade, bio: form.bio, slug, meta: form.meta, comissao_pct: form.comissaoPct, id: novo.id, tenant_id: activeTenantId });

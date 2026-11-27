@@ -379,7 +379,7 @@ export default function Visitas() {
   const corretoresList = Array.from(new Set(visitas.map(v => v.corretor).filter(Boolean))).sort();
 
   const handleSave = async (form: any) => {
-    const nova: Visita = { ...form, id: Date.now().toString(), status: "Agendada" };
+    const nova: Visita = { ...form, id: crypto.randomUUID() };
     setVisitas(prev => [nova, ...prev]);
     if (supabase && activeTenantId) {
       const { imovelId, veiculoId, ...rest } = form;
