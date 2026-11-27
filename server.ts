@@ -53,6 +53,7 @@ import { isVendedorColab } from "./src/lib/sellers.js";
 import { criarSituacaoEmpresa } from "./server/situacaoEmpresa.js";
 import { registerBackupEmpresaRoutes } from "./server/backupEmpresa.js";
 import { registerExclusaoEmpresaRoutes } from "./server/exclusaoEmpresa.js";
+import { criarEmpresaSelecionada } from "./server/empresaSelecionada.js";
 import { registerAgenteInternoGruposRoutes } from "./server/agenteInternoGrupos.js";
 import { registerDevAmbientesRoutes } from "./server/devAmbientes.js";
 import { registerFaturaPdfRoutes } from "./server/faturaPdf.js";
@@ -6962,7 +6963,7 @@ app.post("/api/integrations/webhook-test", requireUser, async (req: any, res) =>
 // ── Conector Externo (FASE 5.4 — mandato Aurora+SPY+Integrações, V1 API/Webhook-only) ──────
 // Escrita/leitura do secret_value nunca passa pelo cliente do tenant (RLS nega tudo na tabela
 // base) — só estas rotas, via supabaseService. tenant_id nunca vem do corpo da requisição:
-// resolvido aqui a partir do próprio usuário autenticado (mesmo princípio de /api/v1/leads).
+// resolvido a partir do usuário autenticado; o master pode agir na empresa selecionada (ver empresaSelecionada).
 async function requireTenantAdmin(req: any, res: express.Response, next: express.NextFunction) {
   try {
     const { data: caller, error } = await req.supabase
@@ -6977,6 +6978,7 @@ async function requireTenantAdmin(req: any, res: express.Response, next: express
       return res.status(403).json({ error: "Apenas administradores da empresa podem gerenciar conectores externos." });
     }
     req.tenantId = caller.tenant_id;
+    req.isMaster = !!caller.is_master;
     next();
   } catch (err: any) {
     console.error("[requireTenantAdmin]", err?.message);
@@ -6984,7 +6986,10 @@ async function requireTenantAdmin(req: any, res: express.Response, next: express
   }
 }
 
-app.post("/api/integrations/external", requireUser, requireTenantAdmin, async (req: any, res) => {
+// Chaves de API e conectores valem na empresa selecionada na tela (?tenantId), não só na de origem do master.
+const empresaSelecionada = criarEmpresaSelecionada(resolveRequestedTenantId);
+
+app.post("/api/integrations/external", requireUser, requireTenantAdmin, empresaSelecionada, async (req: any, res) => {
   if (!supabaseService) return res.status(503).json({ error: "SUPABASE_SERVICE_ROLE_KEY não configurada no servidor." });
   const { name, base_url, auth_type = "none", auth_header_name, secret_value, sync_events = [] } = req.body ?? {};
   if (!name || !base_url) return res.status(400).json({ error: "Nome e URL base são obrigatórios." });
@@ -7019,7 +7024,7 @@ app.post("/api/integrations/external", requireUser, requireTenantAdmin, async (r
   res.status(201).json({ success: true, id: data?.id });
 });
 
-app.put("/api/integrations/external/:id", requireUser, requireTenantAdmin, async (req: any, res) => {
+app.put("/api/integrations/external/:id", requireUser, requireTenantAdmin, empresaSelecionada, async (req: any, res) => {
   if (!supabaseService) return res.status(503).json({ error: "SUPABASE_SERVICE_ROLE_KEY não configurada no servidor." });
   const { name, base_url, auth_type, auth_header_name, secret_value, sync_events, active } = req.body ?? {};
 
@@ -7052,7 +7057,7 @@ app.put("/api/integrations/external/:id", requireUser, requireTenantAdmin, async
   res.json({ success: true });
 });
 
-app.delete("/api/integrations/external/:id", requireUser, requireTenantAdmin, async (req: any, res) => {
+app.delete("/api/integrations/external/:id", requireUser, requireTenantAdmin, empresaSelecionada, async (req: any, res) => {
   if (!supabaseService) return res.status(503).json({ error: "SUPABASE_SERVICE_ROLE_KEY não configurada no servidor." });
   const { error } = await supabaseService
     .from("external_integrations")
@@ -7070,7 +7075,7 @@ app.delete("/api/integrations/external/:id", requireUser, requireTenantAdmin, as
 // dispatcher (dispatch_external_integration_event) montaria, e faz uma chamada de verdade —
 // não é um setTimeout/Math.random() fingindo sucesso (mesmo cuidado já aplicado no teste do
 // Meta Pixel).
-app.post("/api/integrations/external/:id/test", requireUser, requireTenantAdmin, async (req: any, res) => {
+app.post("/api/integrations/external/:id/test", requireUser, requireTenantAdmin, empresaSelecionada, async (req: any, res) => {
   if (!supabaseService) return res.status(503).json({ error: "SUPABASE_SERVICE_ROLE_KEY não configurada no servidor." });
   const { data: integration, error } = await supabaseService
     .from("external_integrations")
@@ -7111,7 +7116,7 @@ app.post("/api/integrations/external/:id/test", requireUser, requireTenantAdmin,
 // SPY_API_KEYS no .env do servidor e redeployar. Agora qualquer admin da
 // empresa gera/revoga a própria chave aqui, na hora — ver requireApiKey acima
 // pra como a chave é validada depois (hash, nunca texto puro).
-app.get("/api/settings/api-keys", requireUser, requireTenantAdmin, async (req: any, res) => {
+app.get("/api/settings/api-keys", requireUser, requireTenantAdmin, empresaSelecionada, async (req: any, res) => {
   if (!supabaseService) return res.status(503).json({ error: "SUPABASE_SERVICE_ROLE_KEY não configurada no servidor." });
   const { data, error } = await supabaseService
     .from("api_keys")
@@ -7122,7 +7127,7 @@ app.get("/api/settings/api-keys", requireUser, requireTenantAdmin, async (req: a
   res.json({ keys: data || [] });
 });
 
-app.post("/api/settings/api-keys", requireUser, requireTenantAdmin, async (req: any, res) => {
+app.post("/api/settings/api-keys", requireUser, requireTenantAdmin, empresaSelecionada, async (req: any, res) => {
   if (!supabaseService) return res.status(503).json({ error: "SUPABASE_SERVICE_ROLE_KEY não configurada no servidor." });
   const name = String(req.body?.name || "").trim();
   if (!name) return res.status(400).json({ error: "Dê um nome pra identificar essa chave (ex.: nome do app)." });
@@ -7140,7 +7145,7 @@ app.post("/api/settings/api-keys", requireUser, requireTenantAdmin, async (req: 
   res.status(201).json({ ...data, key: rawKey });
 });
 
-app.delete("/api/settings/api-keys/:id", requireUser, requireTenantAdmin, async (req: any, res) => {
+app.delete("/api/settings/api-keys/:id", requireUser, requireTenantAdmin, empresaSelecionada, async (req: any, res) => {
   if (!supabaseService) return res.status(503).json({ error: "SUPABASE_SERVICE_ROLE_KEY não configurada no servidor." });
   const { error } = await supabaseService
     .from("api_keys")

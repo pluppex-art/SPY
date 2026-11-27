@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Card } from "../../components/ui/card";
 import { Button } from "../../components/ui/button";
 import { Input } from "../../components/ui/input";
@@ -10,6 +10,7 @@ import { toast } from "sonner";
 import { confirmDialog } from "../../components/ui/confirm-dialog";
 import { useExternalIntegrations, type ExternalIntegrationInput } from "../../hooks/useExternalIntegrations";
 import { apiFetch } from "../../lib/apiClient";
+import { useAuth } from "../../contexts/AuthContext";
 
 import { HelpTip } from "../../components/ui/help-tip";
 interface ApiKeyRow {
@@ -49,6 +50,13 @@ const AUTH_TYPE_LABELS: Record<string, string> = {
 };
 
 export function ConfigConectoresExternos() {
+  const { activeTenantId } = useAuth();
+  // Trocar de empresa recomeça a tela: chave revelada, segredo digitado e resultados nunca passam de uma empresa para outra.
+  return <ConectoresDaEmpresa key={activeTenantId ?? ""} tenantId={activeTenantId ?? ""} />;
+}
+
+function ConectoresDaEmpresa({ tenantId }: { tenantId: string }) {
+  const daEmpresa = `?tenantId=${tenantId}`;
   const { integrations, loading, saving, create, update, remove, test } = useExternalIntegrations();
 
   const [form, setForm] = useState<ExternalIntegrationInput>({
@@ -70,20 +78,26 @@ export function ConfigConectoresExternos() {
   const [revealedKey, setRevealedKey] = useState<string | null>(null);
   const [revokingId, setRevokingId] = useState<string | null>(null);
 
+  const [apiKeysError, setApiKeysError] = useState("");
+  const montado = useRef(true);
   const fetchApiKeys = () => {
-    apiFetch("/api/settings/api-keys")
-      .then((res) => res.json())
-      .then((data) => setApiKeys(data.keys || []))
+    apiFetch(`/api/settings/api-keys${daEmpresa}`)
+      .then(async (res) => {
+        const data = await res.json();
+        if (!montado.current) return;
+        setApiKeys(data.keys || []);
+        setApiKeysError(res.ok ? "" : data?.error || "Não foi possível listar as chaves.");
+      })
       .catch(() => {})
-      .finally(() => setApiKeysLoading(false));
+      .finally(() => { if (montado.current) setApiKeysLoading(false); });
   };
-  useEffect(() => { fetchApiKeys(); }, []);
+  useEffect(() => { montado.current = true; fetchApiKeys(); return () => { montado.current = false; }; }, []);
 
   const handleCreateKey = async () => {
     if (!newKeyName.trim()) { toast.error("Dê um nome pra identificar a chave (ex.: nome do app)."); return; }
     setCreatingKey(true);
     try {
-      const res = await apiFetch("/api/settings/api-keys", {
+      const res = await apiFetch(`/api/settings/api-keys${daEmpresa}`, {
         method: "POST", headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ name: newKeyName.trim() }),
       });
@@ -103,7 +117,7 @@ export function ConfigConectoresExternos() {
     if (!(await confirmDialog({ title: "Revogar chave", description: `Revogar a chave "${name}"? Qualquer app usando ela para de funcionar imediatamente.` }))) return;
     setRevokingId(id);
     try {
-      const res = await apiFetch(`/api/settings/api-keys/${id}`, { method: "DELETE" });
+      const res = await apiFetch(`/api/settings/api-keys/${id}${daEmpresa}`, { method: "DELETE" });
       if (!res.ok) throw new Error((await res.json())?.error || "Erro ao revogar chave.");
       toast.success("Chave revogada.");
       fetchApiKeys();
@@ -214,6 +228,8 @@ export function ConfigConectoresExternos() {
         <div className="space-y-2">
           {apiKeysLoading ? (
             <div className="text-center py-4 text-[var(--color-text-faint)] text-xs">Carregando...</div>
+          ) : apiKeysError ? (
+            <p className="text-xs font-medium text-rose-600 py-2">{apiKeysError}</p>
           ) : apiKeys.length === 0 ? (
             <p className="text-xs text-[var(--color-text-faint)] py-2">Nenhuma chave criada ainda.</p>
           ) : (

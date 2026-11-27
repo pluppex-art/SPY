@@ -85,11 +85,14 @@ export function useExternalIntegrations() {
     refresh();
   }, [refresh]);
 
+  // A empresa selecionada na tela: o servidor confere o acesso e age nela.
+  const daEmpresa = `?tenantId=${activeTenantId ?? ""}`;
+
   const create = useCallback(
     async (input: ExternalIntegrationInput) => {
       setSaving(true);
       try {
-        const res = await apiFetch("/api/integrations/external", {
+        const res = await apiFetch(`/api/integrations/external${daEmpresa}`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify(input),
@@ -102,14 +105,14 @@ export function useExternalIntegrations() {
         setSaving(false);
       }
     },
-    [refresh]
+    [refresh, daEmpresa]
   );
 
   const update = useCallback(
     async (id: string, input: Partial<ExternalIntegrationInput>) => {
       setSaving(true);
       try {
-        const res = await apiFetch(`/api/integrations/external/${id}`, {
+        const res = await apiFetch(`/api/integrations/external/${id}${daEmpresa}`, {
           method: "PUT",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify(input),
@@ -122,14 +125,14 @@ export function useExternalIntegrations() {
         setSaving(false);
       }
     },
-    [refresh]
+    [refresh, daEmpresa]
   );
 
   const remove = useCallback(
     async (id: string) => {
       setSaving(true);
       try {
-        const res = await apiFetch(`/api/integrations/external/${id}`, { method: "DELETE" });
+        const res = await apiFetch(`/api/integrations/external/${id}${daEmpresa}`, { method: "DELETE" });
         const data = await res.json();
         if (!res.ok) return { error: data.error || "Falha ao excluir conector." };
         await refresh();
@@ -138,13 +141,13 @@ export function useExternalIntegrations() {
         setSaving(false);
       }
     },
-    [refresh]
+    [refresh, daEmpresa]
   );
 
   const test = useCallback(async (id: string) => {
-    const res = await apiFetch(`/api/integrations/external/${id}/test`, { method: "POST" });
+    const res = await apiFetch(`/api/integrations/external/${id}/test${daEmpresa}`, { method: "POST" });
     return res.json();
-  }, []);
+  }, [daEmpresa]);
 
   return { integrations, loading, saving, refresh, create, update, remove, test };
 }
