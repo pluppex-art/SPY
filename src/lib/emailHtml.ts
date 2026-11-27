@@ -201,3 +201,37 @@ export function abrirConteudo(corpo: string): ConteudoEmail {
 
 /** O que o editor mostra → corpo que vai no e-mail (vazio enquanto não há conteúdo). */
 export const corpoDoConteudo = (c: ConteudoEmail) => comOpcaoDeLogo(c.formato === "html" ? comoHtml(c.html.trim()) : c.texto.trim(), c.logo[c.formato]);
+
+// ── Imagens do modelo que não abririam (arquivo do computador) ──
+export interface ImagemSemEndereco { src: string; nome: string; pareceLogo: boolean }
+
+const IMG = /<img(?=[\s/>])(?:"[^"]*"|'[^']*'|[^'">])*>/gi;
+const SRC = /(\ssrc\s*=\s*)(?:"([^"]*)"|'([^']*)'|([^\s>"']+))/i;
+const atributo = (tag: string, nome: string) => { const m = new RegExp(`\\s${nome}\\s*=\\s*(?:"([^"]*)"|'([^']*)'|([^\\s>"']+))`, "i").exec(tag); return m ? semEntidades(m[1] ?? m[2] ?? m[3] ?? "") : ""; };
+const srcDe = (tag: string) => { const m = SRC.exec(tag); return m ? (m[2] ?? m[3] ?? m[4] ?? "").trim() : null; };
+
+/** Imagens sem endereço na internet, uma vez cada; "parece logo" pelo nome do arquivo, descrição, classe ou id. */
+export function imagensSemEndereco(html: string): ImagemSemEndereco[] {
+  const achadas = new Map<string, ImagemSemEndereco>();
+  for (const [tag] of String(html ?? "").replace(/<!--[\s\S]*?-->/g, "").matchAll(IMG)) {
+    const src = srcDe(tag);
+    if (src === null || /^(https?:)?\/\//i.test(src) || /\{\{/.test(src)) continue;
+    const pareceLogo = /logo/i.test(`${src.startsWith("data:") ? "" : src} ${atributo(tag, "alt")} ${atributo(tag, "class")} ${atributo(tag, "id")}`);
+    const nome = src.startsWith("data:") ? "imagem embutida no arquivo" : src.split(/[\\/]/).pop() || atributo(tag, "alt") || "imagem sem arquivo";
+    const antes = achadas.get(src);
+    achadas.set(src, { src, nome, pareceLogo: pareceLogo || !!antes?.pareceLogo });
+  }
+  return [...achadas.values()];
+}
+
+/** Põe um endereço no lugar dessa imagem. A altura fixa sai, para a nova não ficar esticada (a largura do modelo é mantida). */
+export function trocarImagem(html: string, srcAntigo: string, url: string): string {
+  return html.replace(IMG, (tag) => {
+    if (srcDe(tag) !== srcAntigo) return tag;
+    let nova = tag.replace(SRC, (_m, ini: string) => `${ini}"${esc(url)}"`);
+    if (/\swidth\s*[=]|[;"'\s]width\s*:/i.test(nova)) {
+      nova = nova.replace(/\sheight\s*=\s*(?:"[^"]*"|'[^']*'|[^\s>"']+)/i, "").replace(/([;"'\s])height\s*:\s*[^;"']+/i, "$1height:auto");
+    }
+    return nova;
+  });
+}

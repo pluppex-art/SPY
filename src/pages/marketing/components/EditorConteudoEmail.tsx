@@ -5,7 +5,7 @@ import { toast } from "sonner";
 import { Button } from "../../../components/ui/button";
 import { confirmDialog } from "../../../components/ui/confirm-dialog";
 import { avisosDoEmail } from "../../../lib/avisosEmail";
-import { type FormatoEmail, avisosDoHtml, comoHtml, htmlParaTexto, imagemEmHtml, imagemEmTexto, inserirNoHtml, modeloExemploHtml, MAX_HTML, MAX_TEXTO } from "../../../lib/emailHtml";
+import { type FormatoEmail, type ImagemSemEndereco, imagensSemEndereco, trocarImagem, avisosDoHtml, comoHtml, htmlParaTexto, imagemEmHtml, imagemEmTexto, inserirNoHtml, modeloExemploHtml, MAX_HTML, MAX_TEXTO } from "../../../lib/emailHtml";
 import { ImagensDoEmail } from "./ImagensDoEmail";
 import { cn } from "../../../lib/utils";
 
@@ -58,6 +58,26 @@ export function EditorConteudoEmail({ formato, onFormato, texto, onTexto, html, 
     toast.success(posicao ? "Imagem colocada onde estava o cursor." : "Imagem colocada no fim do e-mail. Mova o trecho no código se quiser em outro lugar.");
   };
 
+  const logoDaEmpresa = /^https:\/\//i.test(marca.logo || "") ? marca.logo! : null;
+  const entradaFalta = useRef<HTMLInputElement>(null);
+  const [trocando, setTrocando] = useState<ImagemSemEndereco | null>(null);
+  const [enviandoFalta, setEnviandoFalta] = useState(false);
+  // O envio de uma imagem demora: a troca vale sobre o HTML mais novo.
+  const htmlAtual = useRef(html);
+  htmlAtual.current = html;
+  const colocar = (img: ImagemSemEndereco, url: string) => {
+    onHtml(trocarImagem(htmlAtual.current, img.src, url));
+    if (img.pareceLogo) onMostrarLogo(false); // a logo já está no lugar do modelo: sem repetir no topo
+  };
+  const enviarFalta = async (arquivoNovo?: File | null) => {
+    if (!arquivoNovo || !trocando) return;
+    setEnviandoFalta(true);
+    try { colocar(trocando, await enviarImagem(arquivoNovo)); toast.success("Imagem colocada no lugar do modelo."); }
+    catch (e: any) { toast.error(e.message); }
+    finally { setEnviandoFalta(false); setTrocando(null); }
+  };
+  const faltando = formato === "html" ? imagensSemEndereco(html) : [];
+
   const usar = async (f?: File | null) => {
     if (!f) return;
     if (!/\.html?$/i.test(f.name) && f.type !== "text/html") { toast.error("Envie um arquivo .html. Se o modelo veio compactado (.zip), extraia primeiro."); return; }
@@ -65,7 +85,12 @@ export function EditorConteudoEmail({ formato, onFormato, texto, onTexto, html, 
     const conteudo = comoHtml((await lerHtml(f)).trim());
     if (!conteudo) { toast.error("O arquivo está vazio."); return; }
     if (conteudo.length > MAX_HTML) { toast.error(`O HTML passa de ${MAX_HTML / 1000} mil caracteres. Hospede as imagens na internet em vez de colocá-las dentro do arquivo.`); return; }
-    onHtml(conteudo); setArquivo(f.name); setVerCodigo(false);
+    // O modelo chama a logo por um arquivo do computador: a logo da empresa entra no mesmo lugar.
+    let pronto = conteudo;
+    const logos = logoDaEmpresa ? imagensSemEndereco(conteudo).filter((i) => i.pareceLogo) : [];
+    for (const i of logos) pronto = trocarImagem(pronto, i.src, logoDaEmpresa!);
+    if (logos.length) { onMostrarLogo(false); toast.success(`A logo da empresa entrou no lugar de "${logos[0].nome}" do seu modelo.`); }
+    onHtml(pronto); setArquivo(f.name); setVerCodigo(false);
   };
   const usarExemplo = async () => {
     if (html.trim() && !(await confirmDialog({ title: "Substituir o HTML atual?", description: "O conteúdo atual será trocado pelo modelo de exemplo.", confirmLabel: "Substituir" }))) return;
@@ -140,6 +165,21 @@ export function EditorConteudoEmail({ formato, onFormato, texto, onTexto, html, 
             <textarea aria-label="Código HTML" value={html} onSelect={marcarCursor("html")} onChange={(e) => { marcarCursor("html")(e); onHtml(e.target.value); }} onBlur={() => onHtml(comoHtml(html))} rows={12} maxLength={MAX_HTML} spellCheck={false}
               placeholder={"<!doctype html>\n<html>\n  <body>\n    <h1>Olá, {{primeiro_nome}}!</h1>\n  </body>\n</html>"} className={`${campo} w-full resize-y font-mono !text-[11px] leading-relaxed`} />
           )}
+          {faltando.length > 0 && (
+            <div className="space-y-2 rounded-xl border border-amber-500/40 bg-amber-500/10 p-3">
+              <p className="text-xs font-black text-[var(--color-text-primary)]">{faltando.length === 1 ? "Uma imagem do seu modelo não vai aparecer" : `${faltando.length} imagens do seu modelo não vão aparecer`}</p>
+              <input ref={entradaFalta} type="file" accept="image/png,image/jpeg,image/webp" className="hidden" aria-label="Arquivo da imagem que falta" onChange={(e) => { void enviarFalta(e.target.files?.[0]); e.target.value = ""; }} />
+              {faltando.slice(0, 10).map((img) => (
+                <div key={img.src} className="flex flex-wrap items-center justify-between gap-2">
+                  <span className="min-w-0 truncate text-xs font-medium text-[var(--color-text-primary)]" title={img.nome}>{img.nome}</span>
+                  <div className="flex flex-wrap gap-1.5">
+                    {logoDaEmpresa && <Button type="button" variant={img.pareceLogo ? "default" : "outline"} onClick={() => colocar(img, logoDaEmpresa)} className="h-8 px-3 text-[11px] font-bold">Usar a logo da empresa aqui</Button>}
+                    <Button type="button" variant="outline" disabled={enviandoFalta} onClick={() => { setTrocando(img); entradaFalta.current?.click(); }} className="h-8 px-3 text-[11px] gap-1"><Upload className="w-3 h-3" /> {enviandoFalta && trocando?.src === img.src ? "Enviando…" : "Enviar esta imagem"}</Button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
           <div className="flex flex-wrap items-center gap-2">
             <span className="text-[11px] font-bold text-[var(--color-text-muted)]">Não tem um modelo?</span>
             <Button type="button" variant="outline" onClick={() => void usarExemplo()} className="h-8 px-3 text-[11px] gap-1.5"><Wand2 className="w-3 h-3" /> Usar modelo com a minha marca</Button>
@@ -149,7 +189,7 @@ export function EditorConteudoEmail({ formato, onFormato, texto, onTexto, html, 
         </>
       )}
 
-      <ImagensDoEmail logo={/^https:\/\//i.test(marca.logo || "") ? marca.logo! : null} mostrarLogo={mostrarLogo} onMostrarLogo={onMostrarLogo} enviar={enviarImagem} onInserir={inserirImagem} />
+      <ImagensDoEmail rotuloDaLogo={formato === "html" ? "Colocar mais uma logo acima do meu modelo" : "Mostrar a logo da empresa no topo"} logo={logoDaEmpresa} mostrarLogo={mostrarLogo} onMostrarLogo={onMostrarLogo} enviar={enviarImagem} onInserir={inserirImagem} />
 
       <div className="flex flex-wrap items-center gap-1.5">
         <span className="text-[11px] font-bold text-[var(--color-text-muted)]">Personalizar:</span>
