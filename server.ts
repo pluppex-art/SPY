@@ -32,7 +32,7 @@ import { assertSafeHttpUrl, assertSafeSmtpTarget, ssrfSafeAgents } from "./serve
 import { sendTenantEmail, sendPlatformEmail } from "./server/mailer.js";
 import { emailNotifyTenant } from "./server/emailNotify.js";
 import { registerPushRoutes } from "./server/webPush.js";
-import { registerEmailCampaignRoutes } from "./server/emailCampaigns.js";
+import { registerEmailCampaignRoutes, mailDeTeste, marcaDaEmpresa } from "./server/emailCampaigns.js";
 import { registerAcquisitionRoutes } from "./server/acquisition.js";
 import { registerAdsConversionRoutes } from "./server/adsConversions.js";
 import { registerLoyaltyRoutes } from "./server/loyalty.js";
@@ -7180,10 +7180,17 @@ app.post("/api/integrations/smtp-send-test", requireUser, requireTenantAdmin, as
   if (!supabaseService) return res.status(503).json({ error: "SUPABASE_SERVICE_ROLE_KEY não configurada no servidor." });
   const to = String(req.user?.email || "").trim();
   if (!to) return res.status(400).json({ ok: false, error: "Seu usuário não tem e-mail cadastrado." });
+  // A empresa selecionada na tela (com acesso conferido), não a empresa de origem de quem está logado.
+  const tenantId = await resolveRequestedTenantId(req, res);
+  if (!tenantId) return;
   try {
-    const mail = testEmail(await getTenantBrand(supabaseService, req.tenantId));
-    const sent = await sendTenantEmail(supabaseService, req.tenantId, { to, ...mail });
-    res.json({ ok: true, to, via: sent.via });
+    const marca = await marcaDaEmpresa(supabaseService, tenantId);
+    const { data: smtp } = await supabaseService.from("app_settings").select("value").eq("tenant_id", tenantId).eq("key", "integracoes_smtp").maybeSingle();
+    const t = smtp?.value;
+    const proprio = !!(t?.smtpServer && t?.smtpUser && t?.smtpPass && String(t?.fromEmail || "").trim());
+    const mail = proprio ? mailDeTeste(marca) : testEmail(await getTenantBrand(supabaseService, tenantId));
+    const sent = await sendTenantEmail(supabaseService, tenantId, { to, ...mail, deParte: marca.nome });
+    res.json({ ok: true, to, via: sent.via, empresa: marca.nome });
   } catch (err: any) {
     res.json({ ok: false, error: err?.message || "Falha ao enviar o e-mail de teste." });
   }

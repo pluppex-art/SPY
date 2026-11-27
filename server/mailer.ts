@@ -83,6 +83,8 @@ export async function sendTenantEmail(db: any, tenantId: string, mail: OutgoingE
   }
 
   let replyTo = mail.replyTo;
+  // No servidor próprio o endereço é o da empresa; sem nome cadastrado no remetente, vai o nome dela.
+  if (tenantReady && mail.deParte && !from.includes("<")) from = montarRemetente(from, mail.deParte);
   if (!tenantReady) {
     if (mail.deParte) from = montarRemetente(from, mail.deParte);
     if (mail.replyToEmpresa && !replyTo) replyTo = await emailDaEmpresa(db, tenantId) ?? undefined;

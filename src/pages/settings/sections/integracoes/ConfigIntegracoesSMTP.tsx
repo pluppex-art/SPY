@@ -8,6 +8,7 @@ import { Mail, Server, ShieldCheck, Send, Save } from "lucide-react";
 import { toast } from "sonner";
 import { useData } from "../../../../contexts/DataContext";
 import { apiFetch } from "../../../../lib/apiClient";
+import { useAuth } from "../../../../contexts/AuthContext";
 
 const SETTING_KEY = "integracoes_smtp";
 
@@ -22,14 +23,16 @@ const DEFAULT_SMTP = {
 
 export function ConfigIntegracoesSMTP() {
   const { appSettings, saveAppSetting } = useData();
+  const { activeTenantId } = useAuth();
   const [config, setConfig] = useState(DEFAULT_SMTP);
-  const [hydrated, setHydrated] = useState(false);
 
+  // O formulário acompanha o que está salvo na empresa selecionada: ao trocar de empresa, nada da anterior fica na tela.
+  const salvo = appSettings?.[SETTING_KEY];
+  const salvoTexto = JSON.stringify(salvo ?? null);
   useEffect(() => {
-    if (hydrated) return;
-    const saved = appSettings?.[SETTING_KEY];
-    if (saved) { setConfig(saved); setHydrated(true); }
-  }, [appSettings, hydrated]);
+    setConfig({ ...DEFAULT_SMTP, ...(salvo ?? {}) });
+  }, [activeTenantId, salvoTexto]);
+  const temMudanca = Object.keys(DEFAULT_SMTP).some((k) => (config as any)[k] !== ({ ...DEFAULT_SMTP, ...(salvo ?? {}) } as any)[k]);
 
   const [testing, setTesting] = useState(false);
 
@@ -57,14 +60,19 @@ export function ConfigIntegracoesSMTP() {
 
   const [sending, setSending] = useState(false);
 
-  // Envia um e-mail real pro usuário logado usando o SMTP JÁ SALVO (não o do formulário).
+  // Envia um e-mail real pro usuário logado usando o SMTP JÁ SALVO da empresa selecionada (não o do formulário).
   const sendTestEmail = async () => {
+    if (temMudanca) {
+      toast.error("Salve a configuração antes de enviar o e-mail de teste.");
+      return;
+    }
     setSending(true);
     try {
-      const res = await apiFetch("/api/integrations/smtp-send-test", { method: "POST" });
+      const res = await apiFetch(`/api/integrations/smtp-send-test?tenantId=${activeTenantId}`, { method: "POST" });
       const data = await res.json();
-      if (data.ok) toast.success(`E-mail de teste enviado para ${data.to}. Confira a caixa de entrada (e o spam).`);
-      else toast.error(data.error || "Falha ao enviar o e-mail de teste.");
+      if (!data.ok) toast.error(data.error || "Falha ao enviar o e-mail de teste.");
+      else if (data.via === "tenant") toast.success(`E-mail de teste enviado para ${data.to} pelo servidor de ${data.empresa}. Confira a caixa de entrada (e o spam).`);
+      else toast.warning(`Enviado para ${data.to} pelo servidor do S.P.Y., não pelo de ${data.empresa}: falta salvar servidor, usuário, senha e remetente.`, { duration: 12000 });
     } catch {
       toast.error("Falha ao contatar o servidor para enviar o teste.");
     } finally {
@@ -73,7 +81,6 @@ export function ConfigIntegracoesSMTP() {
   };
 
   const handleSave = async () => {
-    setHydrated(true);
     await saveAppSetting(SETTING_KEY, config);
     toast.success("Preferências de SMTP salvas com sucesso!");
   };

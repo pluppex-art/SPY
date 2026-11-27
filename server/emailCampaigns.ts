@@ -143,6 +143,22 @@ ${opts.track ? `<img src="${urlAbertura(opts.track.base, opts.track.rid)}" width
   return { subject, text: textoSimples(text) + footerTxt, html };
 }
 
+/** Teste do servidor próprio: sai com o nome, a cor e a logo da empresa, como os e-mails que os clientes dela recebem. */
+export function mailDeTeste(empresa: { nome: string; cor?: string | null; logo?: string | null }) {
+  const texto = `Este é um teste do servidor de e-mail da ${empresa.nome}.\n\nSe você recebeu esta mensagem, as campanhas e sequências da ${empresa.nome} já podem sair pelo servidor próprio.`;
+  const html = `<!doctype html><html><body style="margin:0;padding:24px;background:#f5f5f7;font-family:Arial,Helvetica,sans-serif;color:#1f2937">
+<div style="max-width:600px;margin:0 auto;background:#fff;border-radius:12px;padding:28px;font-size:15px">${logoHtml(empresa.logo, empresa.nome)}${textToHtml(texto, safeColor(empresa.cor))}</div>
+<p style="max-width:600px;margin:14px auto 0;font-size:11px;color:#6b7280;text-align:center">E-mail de teste enviado por ${escapeHtml(empresa.nome)}.</p></body></html>`;
+  return { subject: `Teste de envio — ${empresa.nome}`.replace(/[\r\n]+/g, " "), text: texto, html };
+}
+
+/** Nome, cor e logo (só endereço seguro) da empresa, para montar o e-mail de teste dela. */
+export async function marcaDaEmpresa(db: any, tenantId: string): Promise<{ nome: string; cor: string | null; logo: string | null }> {
+  const { data } = await db.from("tenants").select("name, primary_color").eq("id", tenantId).maybeSingle();
+  const { data: emp } = await db.from("app_settings").select("value").eq("tenant_id", tenantId).eq("key", "empresa_dados").maybeSingle();
+  return { nome: String(data?.name || "sua empresa"), cor: data?.primary_color ?? null, logo: logoSegura(emp?.value?.logoUrl) };
+}
+
 interface Deps { requireUser: any; resolveRequestedTenantId: (req: any, res: any) => Promise<string | null>; limiter: any; supabaseService: any }
 
 async function pagedLeads(db: any, tenantId: string) {
