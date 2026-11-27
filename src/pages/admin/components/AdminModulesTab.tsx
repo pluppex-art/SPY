@@ -5,6 +5,8 @@ import { useAuth } from "../../../contexts/AuthContext";
 import { useData } from "../../../contexts/DataContext";
 import { toast } from "sonner";
 import { chavePagina, paginaOculta, paginasDoModulo } from "../../../lib/paginasOcultas";
+import { chamarAgentes } from "../../../lib/agentesApi";
+import { modulosDeAgenteLigados } from "../../../lib/modulosDeAgente";
 
 import { HelpTip } from "../../../components/ui/help-tip";
 interface AdminModulesTabProps {
@@ -31,7 +33,9 @@ const DEFAULT_MODULES: Record<string, boolean> = {
   automotivo: false,
   varejo: false,
   solar: false,
-  aurora: true,
+  // Falso de propósito: a Aurora tem agente próprio no n8n. Se a tela a mostrasse ligada sem estar gravada,
+  // salvar qualquer outro módulo ligaria a Aurora e criaria o agente sem ninguém pedir.
+  aurora: false,
 };
 
 const MODULE_DEFINITIONS = [
@@ -57,7 +61,7 @@ const MODULE_DEFINITIONS = [
 ];
 
 export function AdminModulesTab({ initialTenant, onTenantChange }: AdminModulesTabProps) {
-  const { user, login, allTenantModules, updateTenantModules, getTenantModules, activeTenantName } = useAuth();
+  const { user, login, allTenantModules, updateTenantModules, getTenantModules, activeTenantName, tenantIdMap } = useAuth();
   // Empresa aberta na barra superior: é dela o menu lateral que o operador está vendo.
   const empresaAberta = activeTenantName || user?.tenantName || "";
   const { setSidebarModules } = useData();
@@ -194,6 +198,26 @@ export function AdminModulesTab({ initialTenant, onTenantChange }: AdminModulesT
     toast.success(`${mensagem} em ${selectedTenant}`);
   };
 
+  // Cria os fluxos que faltam no n8n (cadastro antigo, falha anterior ou módulo escolhido pelo próprio cliente).
+  const [criandoAgentes, setCriandoAgentes] = useState(false);
+  const idSelecionado = tenantIdMap[Object.keys(tenantIdMap).find(k => k.toLowerCase() === selectedTenant.toLowerCase()) || ""];
+  const temModuloDeAgente = modulosDeAgenteLigados(getTenantModules(selectedTenant) as any).length > 0;
+  const handleCriarAgentes = async () => {
+    if (!idSelecionado) return;
+    setCriandoAgentes(true);
+    try {
+      const r = await chamarAgentes(idSelecionado);
+      if (r.status === "acionado") toast.success(`Pedido enviado: o n8n cria só os agentes que faltam para ${selectedTenant}.`);
+      else if (r.status === "aguarde") toast.info(`Houve um pedido há pouco. Tente de novo em ${r.segundos} segundos.`);
+      else if (r.status === "ignorado") toast.info(`Nada a criar: ${r.motivo}.`);
+      else toast.error(r.motivo || "Não foi possível criar os agentes.");
+    } catch (e: any) {
+      toast.error(e?.message || "Não foi possível criar os agentes.");
+    } finally {
+      setCriandoAgentes(false);
+    }
+  };
+
   const handleSwitchRole = (role: string) => {
     setSimulationRole(role);
     if (user) login({ ...user, role });
@@ -239,6 +263,17 @@ export function AdminModulesTab({ initialTenant, onTenantChange }: AdminModulesT
                 <span className="block mt-1 font-bold text-amber-600">Atenção: a empresa aberta na barra superior é {empresaAberta}; o menu lateral que você vê é dela.</span>
               )}
             </p>
+            {user?.isMaster && idSelecionado && temModuloDeAgente && (
+              <button
+                type="button"
+                onClick={handleCriarAgentes}
+                disabled={criandoAgentes}
+                title="Cria no n8n os agentes dos módulos ligados que ainda não existem. Não duplica e não envia mensagem ao cliente."
+                className="shrink-0 px-3.5 py-2 rounded-xl border border-[var(--color-primary-blue)]/30 bg-[var(--color-primary-blue)]/10 text-xs font-black text-[var(--color-primary-blue)] disabled:opacity-50"
+              >
+                {criandoAgentes ? "Enviando..." : "Criar agentes que faltam"}
+              </button>
+            )}
           </div>
         </div>
 
