@@ -16,6 +16,7 @@ import { timingSafeEqual } from "crypto";
 import { bloqueiaAcesso, type Situacao } from "../src/lib/situacaoEmpresa.js";
 import axios from "axios";
 import rateLimit from "express-rate-limit";
+import { modulosDeAgenteNovos } from "../src/lib/modulosDeAgente.js";
 
 // ── Contexto de IA por requisição (quem está gastando) ──────────────────────
 export const aiContext = new AsyncLocalStorage<{ tenantId: string }>();
@@ -30,6 +31,8 @@ type Deps = {
   createUserClient: (token: string) => SupabaseClient;
   /** Situação da empresa (aviso de atraso, desabilitada, pronta para exclusão); ver server/situacaoEmpresa.ts. */
   situacao?: (tenantId: string) => Promise<Situacao>;
+  /** Cria os agentes do n8n quando o plano liga um módulo novo; ver server/agentesImplementacao.ts. */
+  acionarAgentes?: (tenantId: string) => Promise<unknown>;
 };
 
 const BLOCKED_STATUSES = new Set(["suspended", "canceled"]);
@@ -394,7 +397,12 @@ export function createSaas(deps: Deps) {
     try {
       const planId = String(req.body?.planId || "");
       if (!planId) return res.status(400).json({ error: "Informe o plano." });
-      res.json(await provisionPlan(req.params.tenantId, planId, req.user.id));
+      const modulos = async () => (await supabaseService!.from("tenants").select("modules").eq("id", req.params.tenantId).maybeSingle()).data?.modules;
+      const antes = deps.acionarAgentes && supabaseService ? await modulos() : null;
+      const aplicado = await provisionPlan(req.params.tenantId, planId, req.user.id);
+      // Só aqui (troca de plano pelo Admin): na criação da empresa quem chama o agente é o próprio cadastro.
+      const agentes = deps.acionarAgentes && modulosDeAgenteNovos(antes, await modulos()).length ? await deps.acionarAgentes(req.params.tenantId) : undefined;
+      res.json({ ...aplicado, ...(agentes ? { agentes } : {}) });
     } catch (e: any) { res.status(400).json({ error: e?.message || "Erro ao aplicar o plano." }); }
   });
 

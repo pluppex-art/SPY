@@ -73,6 +73,7 @@ import { provisionTenantForImplementation } from "./server/implementationProvisi
 import { friendlyAuthCreateError } from "./server/authErrors.js";
 import { ensureAdminColaborador } from "./server/tenantAdminColaborador.js";
 import { agentesDoTenant } from "./server/agentesDoCliente.js";
+import { acionarAgentesDoCliente } from "./server/agentesImplementacao.js";
 import { sessoesModelo } from "./server/agenteSecretoModelo.js";
 import { validarMidiaSaida, rotuloHistorico } from "./server/chatMediaSaida.js";
 import { gravarRetratosRadar } from "./server/radarSnapshots.js";
@@ -639,7 +640,10 @@ app.use("/api/leads", aiLimiter);
 // SaaS (cobrança, teto de IA, LGPD) — ver server/saas.ts. O gate roda antes das rotas de IA:
 // tenant suspenso => 402; teto mensal de tokens estourado => 429; tokens consumidos são
 // contabilizados em ai_usage_log (Gemini via wrapper, Groq em callGroq).
+// Módulo com agente ligado numa empresa que já existe: chama o agente de implementação (ver server/agentesImplementacao.ts).
+const acionarAgentes = (tenantId: string) => acionarAgentesDoCliente({ db: supabaseService, tenantRaiz: "27ef95ee-84dd-499e-9f25-cd9baecb5fe4" }, tenantId);
 const saas = createSaas({
+  acionarAgentes,
   situacao: (tenantId: string) => situacaoEmpresa.daEmpresa(tenantId),
   requireUser, requireMaster, supabase, supabaseService, supabaseUrl, supabaseKey,
   createUserClient: (token: string) => createClient(supabaseUrl, supabaseKey, { global: { headers: { Authorization: `Bearer ${token}` } } }),
@@ -653,7 +657,7 @@ app.use("/api/billing", saas.billingRouter);
 app.use("/api/lgpd", saas.lgpdRouter);
 app.use("/api/pluggy", createPluggyRouter({ requireUser, requireMaster, resolveRequestedTenantId, supabaseService }));
 app.use("/api/checkout", createCheckoutRouter({
-  requireUser, requireMaster, supabaseService, provisionPlan: saas.provisionPlan,
+  requireUser, requireMaster, supabaseService, provisionPlan: saas.provisionPlan, acionarAgentes,
   publicAppUrl: (process.env.PUBLIC_APP_URL || "http://localhost:3002").replace(/\/+$/, ""),
 }));
 app.use("/api/ai", aiLimiter);
@@ -5526,6 +5530,13 @@ app.post("/api/admin/tenant-user/:userId/credentials", requireUser, requireMaste
  * de confirmação (que além de desnecessário aqui, saía com o link apontando
  * para a Site URL configurada no Supabase, não para o domínio do S.P.Y.).
  */
+app.post("/api/admin/tenant/:tenantId/agentes", requireUser, requireMaster, async (req: any, res) => {
+  const tenantId = String(req.params.tenantId || "");
+  if (!/^[0-9a-f-]{36}$/i.test(tenantId)) return res.status(400).json({ error: "tenantId inválido." });
+  if (!supabaseService) return res.status(503).json({ error: "Service role não configurada." });
+  res.json(await acionarAgentes(tenantId));
+});
+
 app.post("/api/admin/tenant", requireUser, requireMaster, async (req: any, res) => {
   if (!supabaseService) return res.status(503).json({ error: "SUPABASE_SERVICE_ROLE_KEY não configurada no servidor." });
 

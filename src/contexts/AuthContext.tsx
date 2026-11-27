@@ -1,4 +1,8 @@
 import { snapshotClearAll } from "../lib/tableCache";
+import { toast } from "sonner";
+import { apiFetch } from "../lib/apiClient";
+import { agendarAgentes, type RespostaAgentes } from "../lib/agendarAgentes";
+import { modulosDeAgenteNovos } from "../lib/modulosDeAgente";
 import { removePushSubscription } from "../lib/push";
 import { createContext, useContext, useState, ReactNode, useEffect, useRef } from "react";
 import { supabase, fetchTenants, fetchTenantIdMap, fetchUserProfile, updateTenantModulesInDB } from "../lib/supabase";
@@ -350,6 +354,23 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         return { ...prev, [matchedKey]: anterior };
       });
       return false;
+    }
+    // Módulo com agente recém-ligado: o agente de implementação cria o fluxo do cliente (só o master pode).
+    const nomeNoBanco = Object.keys(tenantIdMap).find(k => k.toLowerCase() === tenant.toLowerCase());
+    if (user?.isMaster && nomeNoBanco && modulosDeAgenteNovos(anterior as any, modules as any).length) {
+      agendarAgentes(
+        tenantIdMap[nomeNoBanco],
+        async (id) => {
+          const res = await apiFetch(`/api/admin/tenant/${id}/agentes`, { method: "POST" });
+          const body = await res.json().catch(() => ({}));
+          if (!res.ok) throw new Error(body?.error || `Erro ${res.status}`);
+          return body as RespostaAgentes;
+        },
+        (r) => {
+          if (r.status === "acionado") toast.success(`Criando os agentes de ${tenant} no n8n. Pode levar alguns instantes.`);
+          if (r.status === "falhou") toast.error(`O módulo foi salvo, mas o agente de ${tenant} não foi criado: ${r.motivo}`);
+        },
+      );
     }
     return true;
   };

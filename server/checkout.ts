@@ -20,6 +20,7 @@ import { agentesDoTenant } from "./agentesDoCliente.js";
 import { upsertLead, atualizarLeadPorId } from "./leadUpsert.js";
 import { notificationEmail, type NotificationKind } from "./emailTemplates.js";
 import { whatsappUrl, formatPhoneBR } from "./emailNotify.js";
+import { modulosDeAgenteNovos } from "../src/lib/modulosDeAgente.js";
 
 type Deps = {
   requireUser: (req: any, res: Response, next: NextFunction) => any;
@@ -27,6 +28,8 @@ type Deps = {
   supabaseService: SupabaseClient | null;
   provisionPlan: (tenantId: string, planId: string, by?: string) => Promise<{ planCode: string; status: string }>;
   publicAppUrl: string;
+  /** Cria os agentes do n8n quando uma renovação/troca de plano liga um módulo novo. */
+  acionarAgentes?: (tenantId: string) => Promise<unknown>;
 };
 
 // ── Pix (BR Code estatico com valor) ────────────────────────────────────────
@@ -98,7 +101,7 @@ const usuarioInativo = (u: any) => !!u && (u.active === false || !!u.deleted_at)
 /** Varios destinatarios no mesmo campo (separados por virgula, ponto e virgula ou espaco). */
 const destinatarios = (raw: unknown): string[] => [...new Set(String(raw || "").split(/[,;\s]+/).map((e) => e.trim().toLowerCase()).filter((e) => EMAIL_RE.test(e)))].slice(0, 6);
 
-export function createCheckoutRouter({ requireUser, requireMaster, supabaseService: db, provisionPlan, publicAppUrl }: Deps) {
+export function createCheckoutRouter({ requireUser, requireMaster, supabaseService: db, provisionPlan, publicAppUrl, acionarAgentes: acionarModulosNovos }: Deps) {
   const router = Router();
 
   /** Avisos internos no mesmo modelo dos avisos do S.P.Y. (financeiro/comercial). Nunca lança; espera no máximo 8s. */
@@ -314,7 +317,16 @@ export function createCheckoutRouter({ requireUser, requireMaster, supabaseServi
       if (o.plan_id) {
         const { data: sub } = await db!.from("tenant_subscriptions").select("status,plan_id,current_period_end").eq("tenant_id", tenantId).maybeSingle();
         const precisaPlano = !reuse || !sub || sub.plan_id !== o.plan_id || ["canceled", "suspended"].includes(sub.status);
-        if (precisaPlano) await provisionPlan(tenantId, o.plan_id, by || undefined);
+        if (precisaPlano) {
+          // Cliente que já existia: se o plano ligar um módulo novo, cria o agente dele (a empresa nova é tratada adiante).
+          const modulos = async () => (await db!.from("tenants").select("modules").eq("id", tenantId!).maybeSingle()).data?.modules;
+          const antes = reuse && acionarModulosNovos ? await modulos() : null;
+          await provisionPlan(tenantId, o.plan_id, by || undefined);
+          if (reuse && acionarModulosNovos && modulosDeAgenteNovos(antes, await modulos()).length) {
+            const r = await acionarModulosNovos(tenantId);
+            console.log("[checkout] agentes dos módulos novos:", JSON.stringify(r));
+          }
+        }
         const { data: jaAplicado } = await db!.from("billing_events").select("id").eq("tenant_id", tenantId).eq("type", "payment_confirmed").contains("payload", { order: o.id }).limit(1).maybeSingle();
         if (!jaAplicado) {
           const { data: plan } = await db!.from("subscription_plans").select("billing_interval").eq("id", o.plan_id).maybeSingle();
