@@ -1,6 +1,6 @@
 /**
- * Repescagem pela Aurora (Configurações › CRM › SLA). Gravado em app_settings na chave abaixo; quem chama o cliente
- * e avisa o vendedor é a automação "Repescagem Aurora" no n8n, que lê exatamente estes campos
+ * Repescagem pela Aurora (Configurações › CRM › SLA). A Aurora chama o cliente por um número só dela, que não conversa.
+ * Gravado em app_settings na chave abaixo; quem chama o cliente e avisa o vendedor é a automação "Repescagem Aurora" no n8n, que lê exatamente estes campos
  * (regras em scripts/n8n/repescagem-aurora/regras.cjs).
  */
 export const REPESCAGEM_KEY = "crm_repescagem_aurora";
@@ -13,7 +13,7 @@ export interface RepescagemAurora {
   fim: string;
   /** 1 = segunda ... 7 = domingo */
   dias: number[];
-  /** máximo de clientes chamados por dia em cada número */
+  /** máximo de clientes chamados por dia (um número só envia) */
   limiteDia: number;
   /** não chama o mesmo cliente de novo antes deste prazo */
   intervaloDias: number;
@@ -26,8 +26,11 @@ export interface RepescagemAurora {
   ativadoEm: string;
 }
 
-export const MENSAGEM_REPESCAGEM = "Oi, {cliente}! Aqui é a Aurora, assistente de {vendedor}. Nossa conversa ficou parada: ainda posso te ajudar? É só responder aqui que {vendedor} fala com você.";
+export const MENSAGEM_REPESCAGEM = "Oi, {cliente}! Aqui é a Aurora, assistente de {vendedor}. Nossa conversa ficou parada: ainda posso te ajudar? Responda aqui e {vendedor} chama você pelo WhatsApp de sempre.";
 export const COMO_SAIR = "Para não receber mais este tipo de mensagem, responda SAIR.";
+
+/** Nome da sessão do número da Aurora desta empresa (a automação usa a mesma conta). */
+export const numeroDaAurora = (tenantId: string) => "aurora-repescagem-" + tenantId.replace(/-/g, "").slice(0, 12);
 
 export const REPESCAGEM_PADRAO: RepescagemAurora = {
   ativo: false, horas: 48, inicio: "09:00", fim: "18:00", dias: [1, 2, 3, 4, 5, 6],

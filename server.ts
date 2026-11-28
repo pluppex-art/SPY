@@ -27,6 +27,7 @@ import { createCheckoutRouter } from "./server/checkout.js";
 import { createPluggyRouter, createPluggyWebhookHandler } from "./server/pluggy.js";
 import { upsertLead, acharLead } from "./server/leadUpsert.js";
 import { getWhatsAppProvider, getActiveProviderName, isWahaConfigured } from "./server/whatsappProvider.js";
+import { registrarRotasRepescagem } from "./server/repescagemNumero.js";
 import { cacheGet, cacheSet, redisHealthCheck } from "./server/redisClient.js";
 import { assertSafeHttpUrl, assertSafeSmtpTarget, ssrfSafeAgents } from "./server/ssrfGuard.js";
 import { sendTenantEmail, sendPlatformEmail } from "./server/mailer.js";
@@ -6075,6 +6076,9 @@ const isTenantAdminReq = async (req: any): Promise<boolean> => {
   const { data } = await req.supabase.from("users").select("is_master, is_tenant_admin").eq("id", req.user.id).maybeSingle();
   return !!(data?.is_master || data?.is_tenant_admin);
 };
+
+// Número próprio da repescagem pela Aurora (Configurações › CRM › SLA): conectar por QR, consultar e remover.
+registrarRotasRepescagem(app, { requireUser, limiter: whatsappLimiter, resolveTenant: resolveRequestedTenantId, ehAdmin: isTenantAdminReq });
 
 // API oficial do WhatsApp (Central de Integrações): conectar número, webhook automático e remover.
 registrarRotasWhatsAppOficial(app, {

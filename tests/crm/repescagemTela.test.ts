@@ -1,7 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { createRequire } from "node:module";
-import { COMO_SAIR, MENSAGEM_REPESCAGEM, REPESCAGEM_PADRAO as P, erroRepescagem, prepararRepescagem } from "../../src/lib/repescagemAurora";
+import { numeroDaAurora, COMO_SAIR, MENSAGEM_REPESCAGEM, REPESCAGEM_PADRAO as P, erroRepescagem, prepararRepescagem } from "../../src/lib/repescagemAurora";
 
 const R = createRequire(import.meta.url)("../../scripts/n8n/repescagem-aurora/regras.cjs");
 const ligado = { ...P, ativo: true, numeroTeste: "63999990000" };
@@ -11,6 +11,8 @@ test("a tela e a automação usam os mesmos padrões e textos", () => {
   assert.deepEqual({ ...R.PADRAO }, P);
   assert.equal(R.MENSAGEM_PADRAO, MENSAGEM_REPESCAGEM);
   assert.equal(R.COMO_SAIR, COMO_SAIR);
+  const t = "27ef95ee-84dd-499e-9f25-cd9baecb5fe4";
+  assert.equal(R.numeroDaAurora(t), numeroDaAurora(t));
 });
 
 test("não deixa salvar configuração incompleta", () => {

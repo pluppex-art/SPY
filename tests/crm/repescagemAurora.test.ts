@@ -16,7 +16,7 @@ const BASE = {
   instancias: [{ id: "i1", name: "agente-secreto-Bruno", phone: "63988880000", colaborador_id: "7", finalidade: "vendas" }],
   colaboradores: [{ id: "7", user_id: "u1", nome: "Bruno Souza", status: "Ativo", phone: "63988880000" }],
   usuarios: [{ id: "u1", name: "Bruno Souza", phone: "63988880000" }],
-  empresa: "Loja Exemplo", historico: [] as any[], resps: [] as any[], agora: AGORA, c: REAL,
+  empresa: "Loja Exemplo", historico: [] as any[], resps: [] as any[], agora: AGORA, c: REAL, tenant: "27ef95ee-84dd-499e-9f25-cd9baecb5fe4", numeroLigado: true,
 };
 
 test("vem desligada e em teste; teste só desliga de propósito", () => {
@@ -66,34 +66,54 @@ test("recusa: reconhece quem não quer, sem confundir resposta normal", () => {
   for (const t of ["quero sim", "pode falar", "para quando fica?", "vou sair agora, depois vejo", "parece bom", "não entendi o preço"]) assert.equal(R.recusa(t), false, t);
 });
 
-test("decidir: uma chamada por número a cada rodada, limite do dia, só lead aberto e nunca número interno", () => {
+test("envia pelo número da Aurora: uma por rodada, limite do dia, só lead aberto e nunca número interno", () => {
   const cands = R.candidatos([...PARADA, msg("contact", 70, "oi", "5563999990002"), msg("human", 65, "oi", "5563999990002")], [], REAL, AGORA);
   const leads = [...BASE.leads, { id: "L2", name: "Célia", status: "Novo", phone_digits: "5563999990002" }];
   const r = R.decidir({ ...BASE, leads, cands });
   assert.equal(r.acoes.length, 1);
-  assert.equal(r.acoes[0].sessao, "agente-secreto-Bruno");
+  assert.equal(r.acoes[0].sessao, "aurora-repescagem-27ef95ee84dd");
   assert.equal(r.acoes[0].destino, "5563999990001");
+  assert.match(r.acoes[0].texto, /Bruno chama você/);
+  assert.equal(R.decidir({ ...BASE, leads, cands, numeroLigado: false }).acoes.length, 0);
   const cheio = Array.from({ length: 10 }, (_, i) => reg("repescagem_chamada", 1, { f8: "0000000" + i }, "x" + i));
   assert.equal(R.decidir({ ...BASE, leads, cands, historico: cheio }).acoes.length, 0);
   assert.equal(R.decidir({ ...BASE, cands, leads: [{ ...BASE.leads[0], status: "Ganho" }] }).acoes.length, 0);
   assert.equal(R.decidir({ ...BASE, cands: cands.slice(0, 1), colaboradores: [...BASE.colaboradores, { id: "9", nome: "X", phone: "63999990001" }] }).acoes.length, 0);
 });
 
-test("resposta depois da chamada avisa o vendedor uma vez; recusa não manda WhatsApp", () => {
-  const chamada = reg("repescagem_chamada", 5, { cliente: "Marcos" });
-  const veio = [...PARADA, msg("human", 5, "Oi, aqui é a Aurora"), msg("contact", 2, "pode sim!")];
-  const resps = R.respostas(veio, [chamada], REAL, AGORA);
+const CHAMADA = reg("repescagem_chamada", 5, { cliente: "Marcos", destino: "5563999990001" });
+const noNumero = (...m: [boolean, number, string, number?][]) => ({ h1: m.map(([fromMe, horas, body, ack]) => ({ fromMe, body, ack, timestamp: Math.floor((AGORA - horas * 3600e3) / 1000) })) });
+
+test("mensagem que chegou ao cliente avisa o vendedor uma vez", () => {
+  const chegou = noNumero([true, 5, "Oi, aqui é a Aurora", 2]);
+  const resps = R.respostas(PARADA, [CHAMADA], REAL, AGORA, chegou);
+  assert.equal(resps[0].tipo, "entregue");
+  const a = R.decidir({ ...BASE, cands: [], resps }).acoes[0];
+  assert.equal(a.popups[0].title, "Aurora chamou o cliente");
+  assert.match(a.aviso.texto, /recebeu a mensagem/);
+  assert.equal(R.respostas(PARADA, [CHAMADA, reg("repescagem_entregue", 4, { chamada: "h1" }, "h2")], REAL, AGORA, chegou).length, 0);
+  assert.equal(R.respostas(PARADA, [CHAMADA], REAL, AGORA, noNumero([true, 5, "Oi", 1])).length, 0); // só saiu, ainda não chegou
+});
+
+test("resposta no número da Aurora avisa o vendedor uma vez; recusa não manda WhatsApp", () => {
+  const veio = noNumero([true, 5, "Oi", 3], [false, 2, "pode sim!"]);
+  const resps = R.respostas(PARADA, [CHAMADA], REAL, AGORA, veio);
   assert.equal(resps.length, 1);
   const a = R.decidir({ ...BASE, cands: [], resps }).acoes[0];
   assert.equal(a.tipo, "mao");
   assert.equal(a.popups[0].user_id, "u1");
   assert.equal(a.aviso.destino, "5563988880000");
-  assert.equal(R.respostas(veio, [chamada, reg("repescagem_resposta", 1, { chamada: "h1" }, "h2")], REAL, AGORA).length, 0);
-  const nao = R.respostas([...PARADA, msg("contact", 2, "SAIR")], [chamada], REAL, AGORA);
-  const b = R.decidir({ ...BASE, cands: [], resps: nao }).acoes[0];
+  assert.match(a.aviso.texto, /wa\.me\/5563999990001/);
+  assert.equal(R.respostas(PARADA, [CHAMADA, reg("repescagem_resposta", 1, { chamada: "h1" }, "h2")], REAL, AGORA, veio).length, 0);
+  const b = R.decidir({ ...BASE, cands: [], resps: R.respostas(PARADA, [CHAMADA], REAL, AGORA, noNumero([false, 2, "SAIR"])) }).acoes[0];
   assert.equal(b.tipo, "recusa");
   assert.equal(b.aviso, null);
-  assert.equal(R.respostas(PARADA, [chamada], REAL, AGORA).length, 0);
+});
+
+test("resposta pelo número do vendedor também conta", () => {
+  const r = R.respostas([...PARADA, msg("contact", 2, "oi, ainda tem?")], [CHAMADA], REAL, AGORA, {});
+  assert.equal(r[0].tipo, "mao");
+  assert.equal(R.respostas(PARADA, [CHAMADA], REAL, AGORA, {}).length, 0);
 });
 
 test("no teste o aviso do vendedor vai para o número de teste", () => {

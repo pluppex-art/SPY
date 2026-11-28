@@ -1,8 +1,9 @@
 // Regras da repescagem pela Aurora (usadas pelos nós Code do n8n e pelos testes: ver gerar-fluxo.cjs).
-// A Aurora chama o cliente que parou de responder; quando ele responde ("levanta a mão"), o vendedor é avisado.
+// A Aurora chama, por um número só dela (que não conversa), o cliente que parou de responder; o vendedor é avisado
+// quando a mensagem chega ao cliente e quando ele responde ("levanta a mão").
 const PADRAO = { ativo: false, horas: 48, inicio: '09:00', fim: '18:00', dias: [1, 2, 3, 4, 5, 6], limiteDia: 10, intervaloDias: 30,
   mensagem: '', modoTeste: true, numeroTeste: '', ativadoEm: '' };
-const MENSAGEM_PADRAO = 'Oi, {cliente}! Aqui é a Aurora, assistente de {vendedor}. Nossa conversa ficou parada: ainda posso te ajudar? É só responder aqui que {vendedor} fala com você.';
+const MENSAGEM_PADRAO = 'Oi, {cliente}! Aqui é a Aurora, assistente de {vendedor}. Nossa conversa ficou parada: ainda posso te ajudar? Responda aqui e {vendedor} chama você pelo WhatsApp de sempre.';
 const COMO_SAIR = 'Para não receber mais este tipo de mensagem, responda SAIR.';
 const FUSO = -3 * 3600e3; // horário de Brasília
 const DIA = 86400e3;
@@ -10,6 +11,8 @@ const ESPERA_TESTE_MIN = 5;      // no modo de teste a conversa conta como parad
 const PARADA_MAXIMA_DIAS = 15;   // conversa mais velha que isso não é mais chamada
 const RESPOSTA_ATE_DIAS = 7;     // resposta depois disso já não é "levantar a mão" da chamada
 const FECHADOS = ['Fechado', 'Ganho', 'Ganhou', 'Perdido', 'Desqualificado'];
+/** Nome da sessão do número da Aurora desta empresa (o servidor do app usa a mesma conta: ver tests). */
+const numeroDaAurora = (tenant) => 'aurora-repescagem-' + String(tenant || '').replace(/-/g, '').slice(0, 12);
 
 const hm = (s, d) => { const m = String(s || '').match(/^(\d{1,2}):(\d{2})$/); return m ? Number(m[1]) * 60 + Number(m[2]) : d; };
 function config(v) {
@@ -94,25 +97,32 @@ function candidatos(msgs, historico, c, agora) {
   return out.sort((a, b) => Date.parse(b.paradaDesde) - Date.parse(a.paradaDesde));
 }
 
-/** Quem respondeu depois de ser chamado e ainda não teve a resposta tratada. */
-function respostas(msgs, historico, c, agora) {
+/** Depois da chamada: a mensagem chegou ao cliente? ele respondeu? (no número da Aurora ou no do vendedor) */
+function respostas(msgs, historico, c, agora, noNumero) {
   const modo = modoDe(c);
-  const tratadas = new Set([...registros(historico, 'repescagem_resposta'), ...registros(historico, 'repescagem_recusa')].map((h) => h.details.f8 + '|' + h.details.chamada));
+  const feito = (acoes) => new Set(acoes.flatMap((a) => registros(historico, a)).map((h) => h.details.chamada));
+  const respondidas = feito(['repescagem_resposta', 'repescagem_recusa']);
+  const entregues = feito(['repescagem_entregue']);
   const por = conversas(msgs);
   const out = [];
   for (const h of registros(historico, 'repescagem_chamada')) {
     const d = h.details; const em = Date.parse(h.created_at);
-    if (d.modo !== modo || agora - em > RESPOSTA_ATE_DIAS * DIA || tratadas.has(d.f8 + '|' + h.id)) continue;
-    const novas = (por[d.f8] || []).filter((m) => m.sender === 'contact' && Date.parse(m.created_at) > em);
-    if (!novas.length) continue;
-    const nao = novas.some((m) => recusa(m.text));
-    out.push({ f8: d.f8, chamada: h.id, instancia: d.instancia, nome: d.cliente || novas[0].nome || '', fone: paraZap(novas[0].fone), texto: String(novas[0].text || '').slice(0, 200), tipo: nao ? 'recusa' : 'mao' });
+    if (d.modo !== modo || agora - em > RESPOSTA_ATE_DIAS * DIA || respondidas.has(h.id)) continue;
+    const doNumero = (noNumero && noNumero[h.id]) || [];
+    const novas = [
+      ...doNumero.filter((m) => !m.fromMe && Number(m.timestamp) * 1000 > em).map((m) => ({ em: Number(m.timestamp) * 1000, text: m.body || '[áudio ou arquivo]' })),
+      ...(por[d.f8] || []).filter((m) => m.sender === 'contact' && Date.parse(m.created_at) > em).map((m) => ({ em: Date.parse(m.created_at), text: m.text })),
+    ].sort((a, b) => a.em - b.em);
+    const base = { f8: d.f8, chamada: h.id, instancia: d.instancia, nome: d.cliente || '', fone: d.destino || '' };
+    if (novas.length) out.push({ ...base, texto: String(novas[0].text || '').slice(0, 200), tipo: novas.some((m) => recusa(m.text)) ? 'recusa' : 'mao' });
+    // 2 = chegou no aparelho, 3 = lida
+    else if (!entregues.has(h.id) && doNumero.some((m) => m.fromMe && Number(m.ack) >= 2 && Number(m.timestamp) * 1000 > em - 180e3)) out.push({ ...base, texto: '', tipo: 'entregue' });
   }
   return out;
 }
 
 /** Junta candidatos e respostas com lead, vendedor e limites, e diz o que fazer. */
-function decidir({ cands, resps, c, agora, historico, leads, instancias, colaboradores, usuarios, empresa }) {
+function decidir({ cands, resps, c, agora, historico, leads, instancias, colaboradores, usuarios, empresa, tenant, numeroLigado }) {
   const modo = modoDe(c);
   const internos = new Set([...colaboradores.map((x) => fone8(x.phone)), ...instancias.map((x) => fone8(x.phone))].filter(Boolean));
   const dono = (instancia) => {
@@ -124,23 +134,23 @@ function decidir({ cands, resps, c, agora, historico, leads, instancias, colabor
   };
   const leadAberto = (f8) => leads.find((l) => fone8(l.phone_digits) === f8 && !FECHADOS.includes(l.status)) || null;
   const acoes = [];
-  const pulados = { interno: 0, sem_lead: 0, sem_vendedor: 0, limite: 0 };
+  const pulados = { interno: 0, sem_lead: 0, sem_vendedor: 0, limite: 0, numero_desligado: 0 };
 
   const hoje = diaLocal(agora);
-  const usadas = {};
-  for (const h of registros(historico, 'repescagem_chamada')) if (h.details.modo === modo && diaLocal(Date.parse(h.created_at)) === hoje) usadas[h.details.instancia] = (usadas[h.details.instancia] || 0) + 1;
-  const jaNestaRodada = new Set(); // uma chamada por número a cada rodada, para não parecer disparo em massa
+  const usadas = registros(historico, 'repescagem_chamada').filter((h) => h.details.modo === modo && diaLocal(Date.parse(h.created_at)) === hoje).length;
+  let nestaRodada = 0; // um número só envia: uma chamada a cada rodada, para não parecer disparo em massa
   for (const x of cands) {
     if (!c.modoTeste && internos.has(x.f8)) { pulados.interno++; continue; }
     const lead = leadAberto(x.f8);
     if (!c.modoTeste && !lead) { pulados.sem_lead++; continue; }
     const v = dono(x.instancia);
     if (!v || !v.vendas) { pulados.sem_vendedor++; continue; }
-    if (jaNestaRodada.has(x.instancia) || (usadas[x.instancia] || 0) >= c.limiteDia) { pulados.limite++; continue; }
-    jaNestaRodada.add(x.instancia);
+    if (!numeroLigado) { pulados.numero_desligado++; continue; }
+    if (nestaRodada >= 1 || usadas >= c.limiteDia) { pulados.limite++; continue; }
+    nestaRodada++;
     const cliente = (lead && (lead.clientName || lead.name)) || x.nome;
     acoes.push({ tipo: 'chamada', chave: 'repesc:' + modo + ':' + x.f8, ttl: c.modoTeste ? 3600 : 86400, modo, f8: x.f8, instancia: x.instancia, cliente,
-      lead_id: lead ? lead.id : null, vendedor: v.nome, sessao: v.sessao, destino: x.fone, texto: montarMensagem(c, { cliente, vendedor: v.nome, empresa }) });
+      lead_id: lead ? lead.id : null, vendedor: v.nome, sessao: numeroDaAurora(tenant), destino: x.fone, texto: montarMensagem(c, { cliente, vendedor: v.nome, empresa }) });
   }
 
   for (const r of resps) {
@@ -150,19 +160,23 @@ function decidir({ cands, resps, c, agora, historico, leads, instancias, colabor
     const cliente = (lead && (lead.clientName || lead.name)) || r.nome || 'cliente';
     const link = lead ? '/app/crm/pipeline?leadId=' + lead.id : '/app/crm/pipeline';
     const mao = r.tipo === 'mao';
-    const titulo = mao ? 'Cliente levantou a mão' : 'Cliente pediu para não ser chamado';
-    const descricao = mao ? cliente + ' respondeu: “' + r.texto + '”. Fale agora para fazer a repescagem.' : cliente + ' respondeu: “' + r.texto + '”. A Aurora não vai chamar este cliente de novo.';
-    const zap = (mao ? '🙋 *Cliente levantou a mão*' : '✋ *Cliente não quer ser chamado*') + '\n*' + cliente + '* respondeu: "' + r.texto + '"'
-      + (mao && r.fone ? '\nFale agora: https://wa.me/' + r.fone : '') + '\n\n_Aurora · SPY_';
+    const chegou = r.tipo === 'entregue';
+    const titulo = chegou ? 'Aurora chamou o cliente' : mao ? 'Cliente levantou a mão' : 'Cliente pediu para não ser chamado';
+    const descricao = chegou ? cliente + ' recebeu a mensagem da Aurora. Se responder, você é avisado.'
+      : mao ? cliente + ' respondeu: “' + r.texto + '”. Fale agora para fazer a repescagem.'
+      : cliente + ' respondeu: “' + r.texto + '”. A Aurora não vai chamar este cliente de novo.';
+    const link2 = r.fone ? '\nhttps://wa.me/' + r.fone : '';
+    const zap = (chegou ? '📨 *Aurora chamou o cliente*\n*' + cliente + '* recebeu a mensagem. Se responder, eu aviso.' + link2
+      : '🙋 *Cliente levantou a mão*\n*' + cliente + '* respondeu: "' + r.texto + '"\nFale agora pelo seu WhatsApp:' + link2) + '\n\n_Aurora · SPY_';
     const teste = paraZap(c.numeroTeste);
     const meus = c.modoTeste ? usuarios.filter((u) => fone8(u.phone) && fone8(u.phone) === fone8(teste)).map((u) => u.id) : v.userIds;
     const destino = c.modoTeste ? teste : v.fone;
-    acoes.push({ tipo: r.tipo, chave: 'repesc:resp:' + modo + ':' + r.chamada, ttl: RESPOSTA_ATE_DIAS * 86400 + 86400, modo, f8: r.f8, chamada: r.chamada, instancia: r.instancia, cliente, lead_id: lead ? lead.id : null, vendedor: v.nome,
+    acoes.push({ tipo: r.tipo, chave: 'repesc:' + (chegou ? 'entrega:' : 'resp:') + modo + ':' + r.chamada, ttl: RESPOSTA_ATE_DIAS * 86400 + 86400, modo, f8: r.f8, chamada: r.chamada, instancia: r.instancia, cliente, lead_id: lead ? lead.id : null, vendedor: v.nome,
       popups: meus.map((id) => ({ user_id: id, title: (c.modoTeste ? '[TESTE] ' : '') + titulo, description: descricao, type: mao ? 'warning' : 'info', link_url: link, is_read: false })),
       // a recusa fica só no sistema; o WhatsApp do vendedor é para agir
-      aviso: mao && destino ? { destino, texto: (c.modoTeste ? '[TESTE] Iria para ' + v.nome + '\n' : '') + zap } : null });
+      aviso: (mao || chegou) && destino ? { destino, texto: (c.modoTeste ? '[TESTE] Iria para ' + v.nome + '\n' : '') + zap } : null });
   }
   return { acoes, pulados };
 }
 
-module.exports = { PADRAO, MENSAGEM_PADRAO, COMO_SAIR, config, noExpediente, recusa, montarMensagem, candidatos, respostas, decidir, fone8, paraZap };
+module.exports = { numeroDaAurora, PADRAO, MENSAGEM_PADRAO, COMO_SAIR, config, noExpediente, recusa, montarMensagem, candidatos, respostas, decidir, fone8, paraZap };
