@@ -48,5 +48,14 @@ calculada por IA, relatório de ruptura em PDF ou Excel, Aurora dentro do sistem
 
 ## Publicar
 
-Envie o vídeo ao YouTube (pode ser "não listado") ou Vimeo e cole o link em `VERSOES.<vídeo>.video`,
-em `src/pages/vendas/VendaVideo.tsx`.
+As páginas mostram os arquivos de `public/videos/`. Depois de gerar um vídeo novo, comprima com um **nome novo**
+(o navegador guarda o antigo por um ano), crie a capa e troque `VERSOES.<vídeo>.video` em
+`src/pages/vendas/VendaVideo.tsx`:
+
+```bash
+ffmpeg -i scripts/vsl/saida/spy-vsl-varejo.mp4 -c:v libx264 -preset slow -crf 26 -tune animation \
+  -c:a aac -b:a 128k -movflags +faststart public/videos/vsl-varejo-v2.mp4
+ffmpeg -ss 18 -i public/videos/vsl-varejo-v2.mp4 -frames:v 1 -q:v 4 public/videos/vsl-varejo-v2.jpg
+```
+
+Também vale link do YouTube (pode ser "não listado") ou do Vimeo no mesmo campo.

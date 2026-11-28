@@ -9,12 +9,12 @@ const BOTAO = "Escolher meu plano";
 type Publico = "consultiva" | "varejo";
 
 const VERSOES: Record<Publico, {
-  /** Cole aqui o link do vídeo (YouTube, Vimeo ou arquivo .mp4 em https). Vazio = mostra o quadro de espera. */
+  /** Link do vídeo (YouTube, Vimeo, .mp4 em https ou arquivo de public/videos). Vazio = mostra o quadro de espera. */
   video: string;
   titulo: string; descricao: string; antes: string; destaque: string; pilares: [string, string][];
 }> = {
   consultiva: {
-    video: "",
+    video: "/videos/vsl-consultiva-v1.mp4",
     titulo: "S.P.Y. — Assista antes de escolher o plano",
     descricao: "Veja como o S.P.Y. acompanha a venda consultiva em quatro pilares: captura, análise, repescagem e relatórios.",
     antes: "Veja as vendas que hoje passam ", destaque: "despercebidas",
@@ -26,7 +26,7 @@ const VERSOES: Record<Publico, {
     ],
   },
   varejo: {
-    video: "",
+    video: "/videos/vsl-varejo-v1.mp4",
     titulo: "S.P.Y. para o varejo — Venda sem perder conversa",
     descricao: "Para quem vende no balcão e no WhatsApp: captura, análise, repescagem e relatórios no S.P.Y.",
     antes: "Atenda no balcão sem perder a venda do ", destaque: "WhatsApp",
@@ -50,7 +50,10 @@ export default function VendaVideo({ publico = "consultiva" }: { publico?: Publi
           <h1 id="sv-h1" className="sv-h1">{v.antes}<span className="sp-grad">{v.destaque}</span></h1>
           <div className="sv-tela">
             {video?.tipo === "quadro" && <iframe src={video.url} title="Apresentação do S.P.Y." allow="autoplay; encrypted-media; picture-in-picture; fullscreen" allowFullScreen />}
-            {video?.tipo === "arquivo" && <video src={video.url} controls playsInline preload="metadata" />}
+            {video?.tipo === "arquivo" && (
+              // os vídeos do site têm a imagem de capa ao lado, com o mesmo nome
+              <video src={video.url} poster={video.url.startsWith("/videos/") ? video.url.replace(/\.\w+$/, ".jpg") : undefined} controls playsInline preload="metadata" />
+            )}
             {!video && (
               <div className="sv-tela__espera">
                 <img src="/spy-icon.png" alt="" width={96} height={96} />

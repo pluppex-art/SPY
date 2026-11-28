@@ -10,10 +10,12 @@ export function valorParado(orcamentosPorMes: number, valorMedio: number, percen
 
 export type Video = { tipo: "quadro" | "arquivo"; url: string } | null;
 
-/** Aceita link do YouTube, do Vimeo ou arquivo .mp4/.webm em https. Qualquer outra coisa não é exibida. */
+/** Aceita link do YouTube, do Vimeo, arquivo .mp4/.webm em https ou um vídeo do próprio site em /videos/. Qualquer outra coisa não é exibida. */
 export function videoDaPagina(endereco: string): Video {
+  const texto = String(endereco || "").trim();
+  if (/^\/videos\/[\w-]+\.(mp4|webm)$/i.test(texto)) return { tipo: "arquivo", url: texto };
   let u: URL;
-  try { u = new URL(String(endereco || "").trim()); } catch { return null; }
+  try { u = new URL(texto); } catch { return null; }
   if (u.protocol !== "https:") return null;
   const host = u.hostname.replace(/^(www|m)\./, "");
   if (host === "youtu.be" || host === "youtube.com") {

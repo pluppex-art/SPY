@@ -15,7 +15,7 @@ import { prepararAudio } from "./audio.mjs";
 const AQUI = path.dirname(fileURLToPath(import.meta.url));
 const SAIDA = path.join(AQUI, "saida");
 const FPS = 30;
-const PARTES = Number(process.env.VSL_PARTES || 4);
+const PARTES = Number(process.env.VSL_PARTES || 2);
 
 const [nome, ...resto] = process.argv.slice(2);
 const arquivoRoteiro = path.join(AQUI, "roteiros", `${nome}.js`);
@@ -76,7 +76,12 @@ const pedacos = await Promise.all(Array.from({ length: PARTES }, async (_, p) =>
   const fim = new Promise((ok, erro) => ff.on("close", (c) => (c === 0 ? ok() : erro(new Error(`ffmpeg saiu com ${c}`)))));
   for (let q = p * porParte; q < Math.min(quadros, (p + 1) * porParte); q++) {
     await pagina.evaluate((t) => window.desenhar(t), q / FPS);
-    const img = await pagina.screenshot({ type: "jpeg", quality: 92 });
+    // sob pouca memória uma captura pode travar: tenta de novo antes de desistir do vídeo inteiro
+    let img;
+    for (let tentativa = 1; !img; tentativa++) {
+      try { img = await pagina.screenshot({ type: "jpeg", quality: 92, timeout: 60000 }); }
+      catch (e) { if (tentativa >= 4) throw e; console.log(`  captura do quadro ${q} falhou, tentando de novo`); }
+    }
     if (!ff.stdin.write(img)) await new Promise((r) => ff.stdin.once("drain", r));
     if (++feitos % 300 === 0) console.log(`  ${feitos}/${quadros}`);
   }
