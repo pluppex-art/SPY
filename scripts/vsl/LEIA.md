@@ -20,6 +20,9 @@ Requer macOS (comando `say`), ffmpeg, o Playwright do projeto e internet (fontes
 
 ## Trocar a voz
 
+- Um áudio só por vídeo, sem pausas marcadas (o que os modelos novos do ElevenLabs devolvem):
+  `uv run --python 3.12 --with faster-whisper scripts/vsl/cortar-voz.py <vídeo> narracao.mp3`.
+  Ele transcreve no computador, grava uma fala por arquivo em `voz/<vídeo>/` e lista o que vale ouvir.
 - Voz do ElevenLabs (ou outra) em blocos: salve como `scripts/vsl/voz/<vídeo>/bloco-1.mp3`, `bloco-2.mp3`...,
   com `<break time="1.5s" />` entre as falas no texto. O gerador corta nas pausas sozinho.
 - Sua voz: grave uma fala por arquivo em `scripts/vsl/voz/<vídeo>/<cena>-<n>.m4a` (também .wav ou .mp3), começando em 0.
