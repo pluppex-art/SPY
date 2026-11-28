@@ -43,6 +43,8 @@ h2 { font: 700 70px/1.08 var(--titulo); letter-spacing: -0.025em; }
 .bolha--c { align-self: flex-start; background: #1f2c34; border-top-left-radius: 4px; }
 .bolha--v { align-self: flex-end; background: #005c4b; border-top-right-radius: 4px; }
 .bolha--a { align-self: flex-start; background: #33256b; border: 1px solid var(--roxo); border-top-left-radius: 4px; }
+.bolha--ar { align-self: flex-end; background: #33256b; border: 1px solid var(--roxo); border-top-right-radius: 4px; }
+.mao { position: absolute; font-size: 150px; line-height: 1; z-index: 9; filter: drop-shadow(0 12px 30px #000a); }
 .celular footer { display: flex; gap: 14px; padding: 14px 18px 24px; background: #0b141a; }
 .celular footer span { flex: 1; background: #1f2c34; border-radius: 40px; padding: 14px 24px; color: #8696a0; font-size: 22px; }
 .celular footer i { width: 58px; height: 58px; border-radius: 50%; background: #00a884; display: grid; place-items: center; font-style: normal; font-size: 24px; }
@@ -104,3 +106,4 @@ h2 { font: 700 70px/1.08 var(--titulo); letter-spacing: -0.025em; }
 .quatro span { display: block; font: 700 38px/1.15 var(--titulo); margin-top: 14px; }
 .botao-final { display: inline-block; background: linear-gradient(100deg, var(--laranja2), var(--laranja)); color: #170a02; border-radius: 999px; padding: 28px 60px; font: 800 46px/1 var(--titulo); box-shadow: 0 0 80px -10px #ff8126aa; }
 .digitando::after { content: "▍"; color: var(--laranja2); }
+.popup--mao { border-color: var(--verde); box-shadow: 0 0 90px -14px #34d39999, 0 30px 60px -30px #000; }

@@ -95,9 +95,9 @@
         falas: [
           "Pilar três: repescagem. Você define quanto tempo o cliente pode esperar.",
           "Passou do tempo? Salta um aviso na tela do S.P.Y.",
-          "E a Aurora chama o vendedor no WhatsApp.",
+          "A Aurora chama o cliente, ele levanta a mão, e o vendedor é avisado para fazer a repescagem.",
         ],
-        sons: [["carimbo", 0.2], ["tecla", "f0+1.6"], ["alerta", "f1+0.4"], ["ding", "f2+0.5"]],
+        sons: [["carimbo", 0.2], ["tecla", "f0+1.6"], ["alerta", "f1+0.4"], ["ding", "f2+0.3"], ["pop", "f2+2"], ["ding", "f2+3.7"]],
         cauda: 0.9,
         html: `${D.exemplo}${D.pilar(3, "Repescagem")}
           <div class="abs" style="left:110px;top:230px;width:520px;text-align:center" data-em="0.3">
@@ -106,11 +106,13 @@
             <p style="font:800 90px/1.1 var(--titulo)" class="vm"><span data-conta="10" data-de="f0+1.8" data-depois=" min">0</span></p>
             <span class="etiqueta" data-em="f0+1.4">Tempo definido pela loja: 10 min</span>
           </div>
-          <div class="abs" style="left:690px;top:230px;width:640px" data-em="0.45">${D.janela("S.P.Y.", `<div style="height:520px"><div class="colunas"><div class="coluna"><h4>Orçamento</h4><div class="cartao"><b>Marcos</b><small>Furadeira · R$ 389,00</small><br><span class="etiqueta etiqueta--vm" data-em="f1">sem resposta</span></div></div></div></div>`).replace('class="janela "', 'class="janela" style="position:relative"')}</div>
-          <div class="popup" style="left:730px;top:560px;width:580px" data-em="f1+0.4" data-fx="pop"><span class="etiqueta etiqueta--vm">⏰ Aviso do S.P.Y.</span><h4>Cliente esperando resposta</h4><p>Fale com Marcos: sem resposta há 10 min.</p></div>
-          ${D.celular({ nome: "Aurora · SPY", foto: "✨", corpo: `
-            ${D.bolha("a", "⏱️ <b>Cliente esperando sua resposta</b><br>1. <b>Marcos</b> — há 10 min<br><u style='color:#7dd3fc'>wa.me/55 00 0000-0000</u><br><br><i>Aurora · SPY</i>", "f2+0.5", "10:15")}
-            ${D.bolha("v", "Vou responder agora! 💪", "f2$+0.3", "10:16")}` }).replace('class="celular "', 'class="celular" style="left:1400px;top:60px" data-em="f2" data-fx="dir"')}`,
+          <div class="abs" style="left:690px;top:230px;width:640px" data-em="0.45">${D.janela("S.P.Y.", `<div style="height:520px"><div class="colunas"><div class="coluna"><h4>Orçamento</h4><div class="cartao"><b>Marcos</b><small>Furadeira · R$ 389,00</small><br><span class="etiqueta etiqueta--vm" data-em="f1" data-ate="f2+2.2">sem resposta</span> <span class="etiqueta etiqueta--ver" data-em="f2+2.5" data-fx="pop">levantou a mão</span></div></div></div></div>`).replace('class="janela "', 'class="janela" style="position:relative"')}</div>
+          <div class="popup" style="left:730px;top:560px;width:580px" data-em="f1+0.4" data-ate="f2+3.5" data-fx="pop"><span class="etiqueta etiqueta--vm">⏰ Aviso do S.P.Y.</span><h4>Cliente esperando resposta</h4><p>Fale com Marcos: sem resposta há 10 min.</p></div>
+          <div class="popup popup--mao" style="left:730px;top:560px;width:580px" data-em="f2+3.7" data-fx="pop"><span class="etiqueta etiqueta--ver">🙋 Marcos levantou a mão</span><h4>Hora da repescagem</h4><p>Bruno, fale com ele agora.</p></div>
+          ${D.celular({ nome: "Marcos", foto: "👷", corpo: `
+            ${D.bolha("ar", "Oi, Marcos! Aqui é a <b>Aurora</b>, da loja. Ainda posso ajudar com a furadeira?", "f2+0.3", "10:15")}
+            ${D.bolha("c", "Pode sim! Quero saber das parcelas ✋", "f2+2", "10:16")}` }).replace('class="celular "', 'class="celular" style="left:1400px;top:60px" data-em="f2" data-fx="dir"')}
+          <span class="mao" style="left:1250px;top:360px" data-em="f2+2.3" data-ate="f2+3.8" data-fx="pop">✋</span>`,
         animar: (el, t, em) => { el.querySelector(".ponteiro").setAttribute("transform", `rotate(${Math.max(0, t - em("f0+1.8")) * 130} 100 100)`); },
       },
       {

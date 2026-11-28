@@ -123,9 +123,9 @@
         falas: [
           "Você define quanto tempo um cliente pode ficar esperando.",
           "Passou do prazo? Aparece um aviso na tela do S.P.Y.",
-          "E a Aurora chama o vendedor no WhatsApp.",
+          "A Aurora chama o cliente, ele levanta a mão, e o vendedor é avisado para fazer a repescagem.",
         ],
-        sons: [["tecla", "f0+1.2"], ["alerta", "f1+0.4"], ["ding", "f2+0.5"]],
+        sons: [["tecla", "f0+1.2"], ["alerta", "f1+0.4"], ["ding", "f2+0.3"], ["pop", "f2+2"], ["ding", "f2+3.7"]],
         cauda: 1,
         html: `${D.exemplo}${D.pilar(3, "Repescagem")}
           <div class="abs" style="left:110px;top:230px;width:520px;text-align:center" data-em="0.3">
@@ -134,10 +134,12 @@
             <p style="font:800 90px/1.1 var(--titulo)" class="vm"><span data-conta="30" data-de="f0+1.2" data-depois=" min">0</span></p>
             <span class="etiqueta" data-em="f0+1">Prazo definido pela empresa: 30 min</span>
           </div>
-          <div class="popup" style="left:700px;top:420px;width:620px" data-em="f1+0.4" data-fx="pop"><span class="etiqueta etiqueta--vm">⏰ Aviso do S.P.Y.</span><h4>Cliente esperando resposta</h4><p>Fale com Ricardo: sem resposta há 30 min.</p></div>
-          ${fone({ nome: "Aurora · SPY", foto: "✨", corpo: `
-            ${D.bolha("a", "⏱️ <b>Cliente esperando sua resposta</b><br>1. <b>Ricardo</b> — há 30 min<br><u style='color:#7dd3fc'>wa.me/55 00 0000-0000</u><br><br><i>Aurora · SPY</i>", "f2+0.5", "14:30")}
-            ${D.bolha("v", "Respondendo agora! 💪", "f2$+0.2", "14:31")}` }, "left:1390px;top:60px", 'data-em="f2" data-fx="dir"')}`,
+          <div class="popup" style="left:700px;top:420px;width:620px" data-em="f1+0.4" data-ate="f2+3.5" data-fx="pop"><span class="etiqueta etiqueta--vm">⏰ Aviso do S.P.Y.</span><h4>Cliente esperando resposta</h4><p>Fale com Ricardo: sem resposta há 30 min.</p></div>
+          <div class="popup popup--mao" style="left:700px;top:420px;width:620px" data-em="f2+3.7" data-fx="pop"><span class="etiqueta etiqueta--ver">🙋 Ricardo levantou a mão</span><h4>Hora da repescagem</h4><p>Ana, fale com ele agora.</p></div>
+          ${fone({ nome: "Ricardo · Empresa Alfa", foto: "👔", corpo: `
+            ${D.bolha("ar", "Olá, Ricardo! Aqui é a <b>Aurora</b>, da equipe da Ana. Podemos seguir com a sua proposta?", "f2+0.3", "14:30")}
+            ${D.bolha("c", "Podemos! Quero falar sobre o prazo ✋", "f2+2", "14:31")}` }, "left:1390px;top:60px", 'data-em="f2" data-fx="dir"')}
+          <span class="mao" style="left:1220px;top:210px" data-em="f2+2.3" data-ate="f2+3.8" data-fx="pop">✋</span>`,
         animar: (el, t, em) => { el.querySelector(".ponteiro").setAttribute("transform", `rotate(${Math.max(0, t - em("f0+1.2")) * 130} 100 100)`); },
       },
       {

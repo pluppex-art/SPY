@@ -38,6 +38,7 @@ Só entra o que o sistema faz. Conferido no código e no n8n em 27/11/2026:
 | Agente Secreto cria o lead, registra a análise, cria tarefa e reunião | Módulo contratado e WhatsApp do vendedor conectado |
 | Preço enviado leva o negócio a Orçamento | Cliente presente na conversa |
 | Aviso na tela e pela Aurora no WhatsApp | "Cliente esperando resposta" ligado (vem desligado e em modo de teste). Avisa só o vendedor |
+| **Aurora chama o cliente, ele levanta a mão e o vendedor é avisado** (roteiro de 27/11, 2ª narração) | **Ainda não existe no sistema** (verificado em 27/11). Não publicar esse vídeo como disponível antes de a função funcionar, salvo decisão do dono |
 | Radar e Ruptura | Telas do sistema; não avisam ninguém |
 | Gestor pede o relatório de ruptura à Aurora (em texto) | Aurora completa ativa na empresa, perfil administrador. **Confirmar a ativação em cada cliente novo** |
 | Vendedor pede o resumo dele | Cargo configurado. **Confirmar a Aurora no cliente** |
