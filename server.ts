@@ -53,7 +53,7 @@ import { LIMITE_POR_DIA, naCidade, reservar, devolver, restanteHoje } from "./se
 import { registerApisBrasilRoutes } from "./server/apisBrasil.js";
 import { registerEmissaoJaRoutes } from "./server/emissaoja.js";
 import { urlWebhookInterno, temWebhookInterno, comWebhookInterno, webhooksVendas, grupoCadastradoNaEmpresa } from "./server/sessaoAgentes.js";
-import { registrarRotasLigarAgentes } from "./server/agenteSecretoLigar.js";
+import { registrarRotasLigarAgentes, agentesDaEquipe } from "./server/agenteSecretoLigar.js";
 import { isVendedorColab } from "./src/lib/sellers.js";
 import { criarSituacaoEmpresa } from "./server/situacaoEmpresa.js";
 import { registerBackupEmpresaRoutes } from "./server/backupEmpresa.js";
@@ -6049,8 +6049,8 @@ app.get("/api/agente-secreto/equipe", requireUser, whatsappLimiter, async (req: 
       .from("whatsapp_instances").select("id, name, colaborador_id, status, finalidade").not("colaborador_id", "is", null).limit(1000);
     if (!rows?.length) return res.json({ items: {} });
     const provider = getWhatsAppProvider();
-    let states: Record<string, string> = {};
-    try { states = (await provider.listSessionStates?.()) || {}; }
+    let detalhe: Record<string, { status: string; config?: Record<string, any> | null }> = {};
+    try { detalhe = (await provider.listSessionsDetalhe?.()) || {}; }
     catch (err: any) {
       console.error("[agente-secreto/equipe]", err?.message);
       return res.json({ items: {}, indisponivel: true }); // WAHA fora do ar: melhor não mostrar nada do que pintar todos de vermelho
@@ -6058,7 +6058,7 @@ app.get("/api/agente-secreto/equipe", requireUser, whatsappLimiter, async (req: 
     const items: Record<string, string> = {};
     const estadoDe = new Map<string, string>();
     for (const r of rows) {
-      const st = states[r.name] || "DISCONNECTED"; // sessão sumiu do WAHA = desconectada
+      const st = detalhe[r.name]?.status || "DISCONNECTED"; // sessão sumiu do WAHA = desconectada
       estadoDe.set(r.id, st);
       items[r.colaborador_id] = st;
     }
@@ -6071,7 +6071,8 @@ app.get("/api/agente-secreto/equipe", requireUser, whatsappLimiter, async (req: 
         supabaseService!.from("whatsapp_instances").update({ status: estadoDe.get(r.id), updated_at: new Date().toISOString() }).eq("id", r.id)
       ));
     }
-    res.json({ items });
+    const agentes = await agentesDaEquipe(rows as any[], detalhe, provider.getSessionConfig?.bind(provider));
+    res.json({ items, agentes });
   } catch (err: any) {
     console.error("[agente-secreto/equipe]", err?.message);
     res.status(500).json({ error: "Erro ao consultar o Agente Secreto da equipe." });

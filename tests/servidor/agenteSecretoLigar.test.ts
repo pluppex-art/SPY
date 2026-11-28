@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { chaveVendasDesligado, ligarOuDesligarAgente } from "../../server/agenteSecretoLigar.js";
+import { agentesDaEquipe, chaveVendasDesligado, ligarOuDesligarAgente } from "../../server/agenteSecretoLigar.js";
 import { temWebhookInterno, urlWebhookInterno, webhooksVendas } from "../../server/sessaoAgentes.js";
 
 const N8N = { url: "https://n8n.exemplo/webhook/agente", events: ["message.any"], customHeaders: [{ name: "X-A", value: "1" }] };
@@ -93,4 +93,18 @@ test("sessão sem configuração legível não é alterada", async () => {
   delete c.configs["sessao-1"];
   assert.equal((await c.pedir("vendas", false)).ok, false);
   assert.equal(c.gravacoes.length, 0);
+});
+
+test("cartões do RH: diz o que está ligado em cada pessoa e não afirma nada sem a configuração", async () => {
+  const linhas = [
+    { id: "inst-1", name: "a", colaborador_id: "c1", finalidade: "vendas" },
+    { id: "inst-2", name: "b", colaborador_id: "c2", finalidade: "vendas" },
+    { id: "inst-3", name: "c", colaborador_id: "c3", finalidade: "vendas" },
+    { id: "inst-4", name: "d", colaborador_id: "c4", finalidade: "vendas" },
+    { id: "inst-5", name: "e", colaborador_id: "c1", finalidade: "interno" },
+  ];
+  const spy2 = { url: urlWebhookInterno("https://app.exemplo.com", "inst-2", "s") };
+  const r = await agentesDaEquipe(linhas, { a: { config: base() }, b: { config: { webhooks: [spy2] } }, c: {}, e: { config: { webhooks: [] } } },
+    async (nome) => { if (nome === "c") throw new Error("fora"); return null; });
+  assert.deepEqual(r, { c1: { vendas: true, interno: true }, c2: { vendas: false, interno: true } });
 });

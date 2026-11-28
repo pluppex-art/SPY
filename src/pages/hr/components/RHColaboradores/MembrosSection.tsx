@@ -1,6 +1,7 @@
 import { isVendedorColab } from "../../../../lib/sellers";
 import { useAuth } from "../../../../contexts/AuthContext";
 import { useRef, useState, useMemo } from "react";
+import { Switch } from "../../../../components/ui/switch";
 import { Users, UserPlus, Mail, Calendar, MoreVertical, TrendingUp, UserX, Coffee, Plane, Pencil, Phone, Building2 } from "lucide-react";
 import { KpiFilterCard, FilterBar, FilterSearch, FilterSelect, FilterChips, usePeriodoIndicadores } from "../../../../components/ui/kpi-filter-card";
 import { Button } from "../../../../components/ui/button";
@@ -31,15 +32,19 @@ interface MembrosSectionProps {
   agenteStatus?: Record<string, string>;
   /** Abre os dois Agentes Secretos (Interno e Vendas) da pessoa. */
   onAbrirAgentes?: (colab: any) => void;
+  /** Agentes ligados por colaborador: alimenta a chave de liga/desliga do cartão. */
+  agentesEquipe?: Record<string, { vendas: boolean; interno: boolean }>;
+  onAlternarAgente?: (colab: any, agente: "interno" | "vendas", ligar: boolean) => Promise<void>;
 }
 
 // Ícone próprio do Agente Secreto (símbolo do S.P.Y.: chapéu de espião + mira), separado do status Ativo do
 // colaborador: verde = conectado, vermelho = desconectado, âmbar = pausado (férias/afastado), cinza = sem sessão.
 const AGENTE_COR = { ativo: "#10B981", caiu: "#F43F5E", pausado: "#F59E0B", semSessao: "#94A3B8" } as const;
 
-function AgenteSecretoBadge({ colab, status, rotulo = "Agente Secreto" }: { colab: any; status?: string; rotulo?: string }) {
+function AgenteSecretoBadge({ colab, status, ligado, rotulo = "Agente Secreto" }: { colab: any; status?: string; ligado?: boolean; rotulo?: string }) {
   let hex: string = AGENTE_COR.semSessao, texto = `${rotulo}: sem sessão`;
-  if (status) {
+  if (status && ligado === false) texto = `${rotulo} desligado`;
+  else if (status) {
     if (colab.status !== "Ativo") { hex = AGENTE_COR.pausado; texto = `${rotulo} pausado`; }
     else if (status === "CONNECTED") { hex = AGENTE_COR.ativo; texto = `${rotulo} ativo`; }
     else { hex = AGENTE_COR.caiu; texto = `${rotulo} desconectado`; }
@@ -52,16 +57,35 @@ function AgenteSecretoBadge({ colab, status, rotulo = "Agente Secreto" }: { cola
   );
 }
 
+// Uma linha por agente no cartão: situação e, para o administrador, a chave de ligar/desligar.
+function LinhaAgente({ colab, status, ligado, rotulo, onAlternar }: { colab: any; status?: string; ligado?: boolean; rotulo: string; onAlternar?: (ligar: boolean) => Promise<void> }) {
+  const [ocupado, setOcupado] = useState(false);
+  return (
+    <div className="flex items-center justify-center gap-2">
+      <AgenteSecretoBadge colab={colab} status={status} ligado={ligado} rotulo={rotulo} />
+      {onAlternar && ligado !== undefined && (
+        <Switch
+          size="sm" checked={ligado} disabled={ocupado} aria-label={`${ligado ? "Desligar" : "Ligar"} ${rotulo} de ${colab.nome}`}
+          title={`${ligado ? "Desligar" : "Ligar"} ${rotulo}`}
+          onCheckedChange={async (ligar) => { setOcupado(true); await onAlternar(ligar); setOcupado(false); }}
+        />
+      )}
+    </div>
+  );
+}
+
 export function MembrosSection({
   filtered: filteredBySearch, search, onSearchChange,
   menuOpenId, setMenuOpenId, onVerPerfil, onEditColab,
-  onChangeStatus, onDesligar, canManageSessions, podeGerenciar = true, onCriarSessao, currentUserId, onConectarAgente, onConectarColaborador, agenteStatus, onAbrirAgentes,
+  onChangeStatus, onDesligar, canManageSessions, podeGerenciar = true, onCriarSessao, currentUserId, onConectarAgente, onConectarColaborador, agenteStatus, onAbrirAgentes, agentesEquipe, onAlternarAgente,
 }: MembrosSectionProps) {
   // Cada Agente Secreto é um produto com a sua chave em Admin > Módulos: Interno (agente_interno) e Vendas (agente_secreto, só vendedor/closer).
   const { isModuleEnabled } = useAuth();
   const temInterno = isModuleEnabled("agente_interno");
   const temVendas = isModuleEnabled("agente_secreto");
-  const usaVendas = (c: any) => temVendas && (isVendedorColab(c) || agenteStatus?.[c.id] !== undefined);
+  // Quem não é de vendas só aparece com o de Vendas se a sessão estiver entregando conversas (ou se não deu para saber).
+  const usaVendas = (c: any) => temVendas && (isVendedorColab(c) || (agenteStatus?.[c.id] !== undefined && agentesEquipe?.[c.id]?.vendas !== false));
+  const alternavel = (c: any, agente: "interno" | "vendas") => canManageSessions && onAlternarAgente ? (ligar: boolean) => onAlternarAgente(c, agente, ligar) : undefined;
   const menuRef = useRef<HTMLDivElement>(null);
   const [depto, setDepto] = useState("");
   const [statusFiltro, setStatusFiltro] = useState("");
@@ -126,8 +150,8 @@ export function MembrosSection({
                     </Badge>
                   </div>
                   <div className="space-y-0.5">
-                    {temInterno && <div><AgenteSecretoBadge colab={colab} status={agenteStatus?.[colab.id]} rotulo="Agente Interno" /></div>}
-                    {usaVendas(colab) && <div><AgenteSecretoBadge colab={colab} status={agenteStatus?.[colab.id]} rotulo="Agente de Vendas" /></div>}
+                    {temInterno && <LinhaAgente colab={colab} status={agenteStatus?.[colab.id]} ligado={agentesEquipe?.[colab.id]?.interno} rotulo="Agente Interno" onAlternar={alternavel(colab, "interno")} />}
+                    {usaVendas(colab) && <LinhaAgente colab={colab} status={agenteStatus?.[colab.id]} ligado={agentesEquipe?.[colab.id]?.vendas} rotulo="Agente de Vendas" onAlternar={alternavel(colab, "vendas")} />}
                   </div>
                   <h3 className="text-sm font-bold text-[var(--color-text-primary)] truncate">{colab.nome}</h3>
                   <p className="text-[11px] text-[var(--color-text-muted)] font-medium truncate">{colab.cargo}</p>

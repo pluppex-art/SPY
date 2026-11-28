@@ -20,6 +20,7 @@ import { Modal } from "../../components/ui/modal";
 import { AgentesSecretosPainel } from "../../components/AgentesSecretosPainel";
 import { AgenteSecretoQrModal } from "../../components/AgenteSecretoQrModal";
 import { AGENTE_SECRETO_STATUS_EVENT } from "../../components/AgenteSecretoConexao";
+import { alternarAgente } from "../../components/alternarAgente";
 import { NewSquadModal } from "./components/RHColaboradores/NewSquadModal";
 import { ColaboradorPerfilModal } from "./components/RHColaboradores/ColaboradorPerfilModal";
 import { colaboradoresVisiveis, squadsVisiveis, escopoEquipe, ROTULO_ESCOPO } from "../../lib/escopoEquipe";
@@ -59,6 +60,8 @@ export default function RHColaboradores() {
   const [qrAberto, setQrAberto] = useState(false);
   const [agenteStatus, setAgenteStatus] = useState<Record<string, string>>({});
   const [agentesColab, setAgentesColab] = useState<any | null>(null);
+  // Agentes ligados por colaborador (só quem tem sessão e cuja configuração foi lida).
+  const [agentesEquipe, setAgentesEquipe] = useState<Record<string, { vendas: boolean; interno: boolean }>>({});
 
   // Bolinha verde/vermelha do Agente Secreto de cada colaborador. Atualiza a cada 30s e quando alguém conecta.
   useEffect(() => {
@@ -67,7 +70,7 @@ export default function RHColaboradores() {
       try {
         const r = await apiFetch("/api/agente-secreto/equipe");
         const d = r.ok ? await r.json().catch(() => null) : null;
-        if (!cancelled && d?.items && !d.indisponivel) setAgenteStatus(d.items);
+        if (!cancelled && d?.items && !d.indisponivel) { setAgenteStatus(d.items); setAgentesEquipe(d.agentes || {}); }
       } catch { /* sem rede: mantém o último estado */ }
     };
     carregar();
@@ -385,6 +388,8 @@ export default function RHColaboradores() {
             onConectarAgente={handleConectarMeuWhatsApp}
             onConectarColaborador={handleConectarColaborador}
             agenteStatus={agenteStatus}
+            agentesEquipe={agentesEquipe}
+            onAlternarAgente={alternarAgente}
             onAbrirAgentes={setAgentesColab}
           />
         ) : (
@@ -432,7 +437,7 @@ export default function RHColaboradores() {
       />
       <ColaboradorPerfilModal colab={perfilColab} onClose={() => setPerfilColab(null)} />
       <Modal isOpen={!!agentesColab} onClose={() => { setAgentesColab(null); window.dispatchEvent(new Event(AGENTE_SECRETO_STATUS_EVENT)); }} maxWidth="max-w-lg" title={`Agentes Secretos${agentesColab ? ` de ${agentesColab.nome}` : ""}`} description="Os dois agentes usam a mesma conexão de WhatsApp.">
-        {agentesColab && <AgentesSecretosPainel colaborador={agentesColab} propria={!!(user?.id && agentesColab.user_id === user.id)} podeGerenciar={!!(user?.isMaster || user?.isTenantAdmin)} />}
+        {agentesColab && <AgentesSecretosPainel colaborador={agentesColab} propria={!!(user?.id && agentesColab.user_id === user.id)} podeGerenciar={!!(user?.isMaster || user?.isTenantAdmin)} podeLigarDesligar={!!(user?.isMaster || user?.isTenantAdmin)} />}
       </Modal>
       <AgenteSecretoQrModal
         open={!!qrColab}

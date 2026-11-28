@@ -2,7 +2,7 @@ import { useCallback, useEffect, useState } from "react";
 import { Loader2, Phone, Users, ShoppingBag, CheckCircle2, WifiOff, PlusCircle, Power } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "./ui/button";
-import { confirmDialog } from "./ui/confirm-dialog";
+import { alternarAgente, type AgenteSecretoId } from "./alternarAgente";
 import { AgenteSecretoQrModal } from "./AgenteSecretoQrModal";
 import { apiFetch } from "../lib/apiClient";
 import { isVendedorColab } from "../lib/sellers";
@@ -15,15 +15,17 @@ interface Props {
   colaborador: { id: string; nome: string; [k: string]: any };
   /** true = a própria pessoa (usa as rotas "minha-sessao"); false = administrador olhando um colaborador. */
   propria: boolean;
-  /** Administrador pode criar a sessão, ligar e desligar os agentes e conectar o WhatsApp de outra pessoa. */
+  /** Administrador pode criar a sessão e conectar o WhatsApp de outra pessoa. */
   podeGerenciar: boolean;
+  /** Mostra Ligar/Desligar: só na tela do RH (Equipe), para administrador. */
+  podeLigarDesligar?: boolean;
 }
 
 /**
  * Os Agentes Secretos de uma pessoa usam UMA só sessão de WhatsApp. Cada agente é um produto com a sua chave em Admin > Módulos:
  * o Interno (acompanha os grupos da equipe) e o de Vendas (só vendedor/closer: acompanha as conversas de venda).
  */
-export function AgentesSecretosPainel({ colaborador, propria, podeGerenciar }: Props) {
+export function AgentesSecretosPainel({ colaborador, propria, podeGerenciar, podeLigarDesligar }: Props) {
   const { isModuleEnabled } = useAuth();
   const temInterno = isModuleEnabled("agente_interno");
   const temVendas = isVendedorColab(colaborador) && isModuleEnabled("agente_secreto");
@@ -67,17 +69,10 @@ export function AgentesSecretosPainel({ colaborador, propria, podeGerenciar }: P
   const criarSessao = () => enviar("criar", "/api/agente-secreto/sessoes", { colaboradorId: colaborador.id },
     (j) => (j.created === false ? "A sessão já existia." : "Sessão criada. Agora é só conectar o WhatsApp lendo o QR code."));
 
-  // Liga ou desliga um agente só; o WhatsApp continua conectado e o outro agente não muda.
-  async function alternar(agente: "interno" | "vendas", titulo: string, ligar: boolean) {
-    if (!ligar && !(await confirmDialog({
-      title: `Desligar o ${titulo}?`,
-      description: agente === "interno"
-        ? `Ele deixa de acompanhar os grupos pelo WhatsApp de ${colaborador.nome}. O WhatsApp continua conectado e dá para ligar de novo quando quiser.`
-        : `Ele deixa de ler as conversas de venda de ${colaborador.nome}: nada novo entra no funil por este número enquanto estiver desligado. O WhatsApp continua conectado e dá para ligar de novo quando quiser.`,
-      confirmText: "Desligar",
-    }))) return;
-    await enviar(agente, `/api/agente-secreto/sessoes/${encodeURIComponent(colaborador.id)}/agente`, { agente, ligado: ligar },
-      () => `${titulo} ${ligar ? "ligado" : "desligado"}. A sessão pode levar alguns segundos para voltar.`);
+  async function alternar(agente: AgenteSecretoId, ligar: boolean) {
+    setOcupado(agente);
+    await alternarAgente(colaborador, agente, ligar); // recarrega pelo evento de status
+    setOcupado(null);
   }
 
   if (!algum) return <p className="text-xs text-[var(--color-text-faint)] py-4">Nenhum Agente Secreto contratado para esta pessoa. O Interno e o de Vendas são módulos à parte (Admin &gt; Módulos), e o de Vendas vale só para vendedor ou closer.</p>;
@@ -137,8 +132,8 @@ export function AgentesSecretosPainel({ colaborador, propria, podeGerenciar }: P
               <span className={`text-[11px] font-bold ${ligado && conectado ? "text-emerald-600" : ligado ? "text-amber-600" : "text-[var(--color-text-faint)]"}`}>
                 {!temSessao ? "Aguardando a sessão" : ligado === undefined ? "Não foi possível confirmar" : ligado ? (conectado ? "Ativo" : "Ligado, aguardando o WhatsApp conectar") : "Desligado"}
               </span>
-              {temSessao && podeGerenciar && ligado !== undefined && (ligado || podeLigar) && (
-                <Button size="sm" variant={ligado ? "ghost" : "default"} disabled={!!ocupado} onClick={() => alternar(id as "interno" | "vendas", titulo, !ligado)} className={`h-8 text-xs gap-1.5 ${ligado ? "text-rose-500" : ""}`}>
+              {temSessao && podeLigarDesligar && ligado !== undefined && (ligado || podeLigar) && (
+                <Button size="sm" variant={ligado ? "ghost" : "default"} disabled={!!ocupado} onClick={() => alternar(id as AgenteSecretoId, !ligado)} className={`h-8 text-xs gap-1.5 ${ligado ? "text-rose-500" : ""}`}>
                   {ocupado === id ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Power className="w-3.5 h-3.5" />}{ligado ? "Desligar" : "Ligar"}
                 </Button>
               )}

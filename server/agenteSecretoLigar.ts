@@ -66,6 +66,21 @@ export async function ligarOuDesligarAgente(p: Pedido): Promise<Resultado> {
   return { ok: true, mudou: true };
 }
 
+/** Quais agentes estão ligados em cada colaborador (para os cartões do RH). Sessão cuja config não veio fica de fora: a tela não afirma nada. */
+export async function agentesDaEquipe(
+  linhas: { id: string; name: string; colaborador_id: string; finalidade?: string | null }[],
+  detalhe: Record<string, { config?: Record<string, any> | null }>,
+  lerConfig?: (sessao: string) => Promise<Record<string, any> | null>,
+): Promise<Record<string, { vendas: boolean; interno: boolean }>> {
+  const saida: Record<string, { vendas: boolean; interno: boolean }> = {};
+  await Promise.all(linhas.filter((l) => (l.finalidade ?? "vendas") === "vendas" && detalhe[l.name]).map(async (l) => {
+    let cfg = detalhe[l.name].config;
+    if (!cfg && lerConfig) cfg = await lerConfig(l.name).catch(() => null);
+    if (cfg) saida[l.colaborador_id] = { vendas: webhooksVendas(cfg).length > 0, interno: temWebhookInterno(cfg, l.id) };
+  }));
+  return saida;
+}
+
 type Deps = { requireUser: any; limiter: any; supabaseService: any; appUrl: string; provider: () => any; configurado: () => boolean; ehAdmin: (req: any) => Promise<boolean> };
 
 export function registrarRotasLigarAgentes(app: express.Express, d: Deps) {

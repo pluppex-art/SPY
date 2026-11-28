@@ -76,6 +76,8 @@ export interface WhatsAppProvider {
   updateSessionConfig?(sessionName: string, config: Record<string, any>): Promise<void>;
   /** Estado de todas as sessões numa chamada só (nome → status). Usado para mostrar quem está conectado na lista da equipe. */
   listSessionStates?(): Promise<Record<string, ProviderConnectResult["status"]>>;
+  /** Estado e config (webhooks) de todas as sessões numa chamada só. */
+  listSessionsDetalhe?(): Promise<Record<string, { status: ProviderConnectResult["status"]; config?: Record<string, any> | null }>>;
   sendTextMessage(providerInstanceId: string, phone: string, text: string): Promise<{ id: string }>;
   /** Envia imagem, áudio (nota de voz), vídeo ou documento (arquivo em base64, já validado por server/chatMediaSaida.ts). */
   sendMediaMessage(providerInstanceId: string, phone: string, media: { kind: "image" | "audio" | "video" | "document"; mimetype: string; filename: string; data: string; caption?: string }): Promise<{ id: string }>;
@@ -215,14 +217,18 @@ export class WAHAProvider implements WhatsAppProvider {
     return { status, phone };
   }
 
-  async listSessionStates(): Promise<Record<string, ProviderConnectResult["status"]>> {
+  async listSessionsDetalhe(): Promise<Record<string, { status: ProviderConnectResult["status"]; config?: Record<string, any> | null }>> {
     const { data } = await axios.get(`${WAHA_API_URL}/api/sessions?all=true`, { headers: this.headers(), timeout: 20000 });
-    const out: Record<string, ProviderConnectResult["status"]> = {};
+    const out: Record<string, { status: ProviderConnectResult["status"]; config?: Record<string, any> | null }> = {};
     for (const s of Array.isArray(data) ? data : []) {
       if (!s?.name) continue;
-      out[s.name] = s.status === "WORKING" ? "CONNECTED" : (s.status === "SCAN_QR_CODE" || s.status === "STARTING") ? "CONNECTING" : "DISCONNECTED";
+      out[s.name] = { status: s.status === "WORKING" ? "CONNECTED" : (s.status === "SCAN_QR_CODE" || s.status === "STARTING") ? "CONNECTING" : "DISCONNECTED", config: s.config };
     }
     return out;
+  }
+
+  async listSessionStates(): Promise<Record<string, ProviderConnectResult["status"]>> {
+    return Object.fromEntries(Object.entries(await this.listSessionsDetalhe()).map(([nome, s]) => [nome, s.status]));
   }
 
   async stopSession(providerInstanceId: string): Promise<void> {
