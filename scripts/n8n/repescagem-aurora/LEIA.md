@@ -23,6 +23,12 @@ conectada por QR na própria tela (`server/repescagemNumero.ts`). Sem número co
 - Uma chamada por empresa a cada 5 minutos, limite diário e intervalo mínimo de 7 dias por cliente.
 - Quem responde SAIR (ou diz que não quer) não é chamado de novo.
 
+## Testar
+
+O celular de teste **não pode** estar no cadastro de nenhum usuário ou colaborador da empresa: desde 27/11 os Agentes
+Secretos ignoram esses números antes de gravar a conversa. Por isso, no teste os avisos chegam só por WhatsApp; o
+pop-up no sistema só é visto fora do modo de teste.
+
 ## Mudar as regras
 
 Edite `regras.cjs`, rode os testes, gere com `node gerar-fluxo.cjs <pasta>` e leve o conteúdo de `decidir.js`
