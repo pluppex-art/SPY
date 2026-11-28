@@ -1633,58 +1633,12 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
     return () => clearInterval(interval);
   }, [appointments]);
 
-  // Automated background checker for cold leads (Score IA < 40)
-  const handledColdLeadsRef = React.useRef<Record<string, boolean>>({});
+  // A criação automática da tarefa "Nutrição de Reengajamento" (lead frio, Score IA < 40) foi
+  // desligada em 27/11: gravava na empresa aberta primeiro e repetia a tarefa a cada carregamento.
   const leadsRef = React.useRef(leads);
   leadsRef.current = leads;
-  const tasksRef = React.useRef(tasks);
-  tasksRef.current = tasks;
   const leadScoreTriggersRef = React.useRef(leadScoreTriggers);
   leadScoreTriggersRef.current = leadScoreTriggers;
-
-  useEffect(() => {
-    const checkColdLeads = () => {
-      leadsRef.current.forEach(lead => {
-        if (lead.id && !handledColdLeadsRef.current[lead.id] && lead.scoreIA !== undefined && lead.scoreIA < 40) {
-          const nurturingTaskTitle = `Nutrição de Reengajamento: ${lead.name}`;
-          // Sem coluna `tags` na tabela `tasks` — dedupe por lead_id + prefixo do
-          // título (ambos colunas reais), em vez da antiga tag "reengajamento".
-          const hasNurturingTask = tasksRef.current.some(t =>
-            t.lead_id === lead.id && t.title === nurturingTaskTitle
-          );
-
-          if (!hasNurturingTask) {
-            handledColdLeadsRef.current[lead.id] = true;
-            const tomorrow9am = new Date();
-            tomorrow9am.setDate(tomorrow9am.getDate() + 1);
-            tomorrow9am.setHours(9, 0, 0, 0);
-            const newTask: Omit<Task, 'id'> = {
-              title: nurturingTaskTitle,
-              description: "Tipo: E-mail — automação de reengajamento (lead frio, Score IA < 40).",
-              lead_id: lead.id,
-              due_date: tomorrow9am.toISOString(),
-              status: "Em Aberto",
-              priority: "Média",
-            };
-
-            addTask(newTask, { silent: true });
-
-            // Sem aviso no sino: a tarefa de Nutrição (com data) já aparece em Tarefas e no calendário.
-          } else {
-            handledColdLeadsRef.current[lead.id] = true;
-          }
-        }
-      });
-    };
-
-    const timer = setTimeout(checkColdLeads, 10000);
-    const interval = setInterval(checkColdLeads, 60000);
-
-    return () => {
-      clearTimeout(timer);
-      clearInterval(interval);
-    };
-  }, []);
 
   // Motor real dos Gatilhos de Lead Score IA (Configurações > CRM > Gatilhos IA):
   const movedByTriggerRef = React.useRef<Record<string, true>>({});
