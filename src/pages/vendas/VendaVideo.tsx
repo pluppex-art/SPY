@@ -14,7 +14,7 @@ const VERSOES: Record<Publico, {
   titulo: string; descricao: string; antes: string; destaque: string; pilares: [string, string][];
 }> = {
   consultiva: {
-    video: "/videos/vsl-consultiva-v1.mp4",
+    video: "/videos/vsl-consultiva-v2.mp4",
     titulo: "S.P.Y. — Assista antes de escolher o plano",
     descricao: "Veja como o S.P.Y. acompanha a venda consultiva em quatro pilares: captura, análise, repescagem e relatórios.",
     antes: "Veja as vendas que hoje passam ", destaque: "despercebidas",
@@ -26,7 +26,7 @@ const VERSOES: Record<Publico, {
     ],
   },
   varejo: {
-    video: "/videos/vsl-varejo-v1.mp4",
+    video: "/videos/vsl-varejo-v2.mp4",
     titulo: "S.P.Y. para o varejo — Venda sem perder conversa",
     descricao: "Para quem vende no balcão e no WhatsApp: captura, análise, repescagem e relatórios no S.P.Y.",
     antes: "Atenda no balcão sem perder a venda do ", destaque: "WhatsApp",
