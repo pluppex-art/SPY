@@ -7,6 +7,7 @@ import { useData } from "../../../contexts/DataContext";
 
 import { HelpTip } from "../../../components/ui/help-tip";
 import { SlaRespostaCard } from "./SettingsSLAResposta";
+import { RepescagemAuroraCard } from "./SettingsRepescagemAurora";
 interface SLARule {
   priority: "Alta" | "Média" | "Baixa";
   limitHours: number;
@@ -180,6 +181,7 @@ export function ConfigCRMSLA() {
       </div>
 
       <SlaRespostaCard />
+      <RepescagemAuroraCard />
     </div>
   );
 }
