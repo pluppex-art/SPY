@@ -24,6 +24,36 @@ export function comWebhookInterno(cfg: Cfg, url: string, instanceId: string): Re
   };
 }
 
+const ehDoSpy = (w: any) => String(w?.url || "").includes("/api/whatsapp/webhook/");
+const listaDeWebhooks = (cfg: Cfg): any[] => (Array.isArray(cfg?.webhooks) ? cfg!.webhooks : []);
+
+/** Webhooks do Agente Secreto de Vendas: todos os que não são do próprio SPY (o do n8n). */
+export const webhooksVendas = (cfg: Cfg): any[] => listaDeWebhooks(cfg).filter((w) => !ehDoSpy(w) && typeof w?.url === "string" && w.url);
+
+/** Vendas desligado: a sessão deixa de entregar ao n8n; o webhook do SPY (Interno) e o resto ficam como estavam. */
+export function semWebhookVendas(cfg: Cfg): Record<string, any> {
+  const base = cfg && typeof cfg === "object" ? cfg : {};
+  return { ...base, webhooks: listaDeWebhooks(base).filter(ehDoSpy) };
+}
+
+/** Vendas ligado: devolve os webhooks do n8n, só com o evento message.any, sem repetir URL. */
+export function comWebhookVendas(cfg: Cfg, doN8n: any[]): Record<string, any> {
+  const base = cfg && typeof cfg === "object" ? cfg : {};
+  const atuais = listaDeWebhooks(base);
+  const urls = new Set(atuais.map((w: any) => w?.url));
+  return { ...base, webhooks: [...doN8n.filter((w) => w?.url && !urls.has(w.url)).map((w) => ({ ...w, events: ["message.any"] })), ...atuais] };
+}
+
+/** Interno desligado: sai o webhook do SPY desta linha e a sessão volta a ignorar grupos; o webhook de Vendas fica. */
+export function semWebhookInterno(cfg: Cfg, instanceId: string): Record<string, any> {
+  const base = cfg && typeof cfg === "object" ? cfg : {};
+  return {
+    ...base,
+    webhooks: listaDeWebhooks(base).filter((w: any) => !String(w?.url || "").includes(`/api/whatsapp/webhook/${instanceId}`)),
+    ignore: { ...(base.ignore && typeof base.ignore === "object" ? base.ignore : {}), groups: true },
+  };
+}
+
 /**
  * Na sessão PESSOAL de alguém, só saem do SPY as mensagens de grupos que a empresa cadastrou (Agente Interno ou Radar).
  * Grupo particular da pessoa (família, amigos) é descartado aqui mesmo e nunca chega ao n8n. Na dúvida (erro na consulta), descarta.

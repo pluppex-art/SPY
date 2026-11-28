@@ -52,7 +52,8 @@ import { registerRadarCnaeRoutes } from "./server/radarCnae.js";
 import { LIMITE_POR_DIA, naCidade, reservar, devolver, restanteHoje } from "./server/radarCota.js";
 import { registerApisBrasilRoutes } from "./server/apisBrasil.js";
 import { registerEmissaoJaRoutes } from "./server/emissaoja.js";
-import { urlWebhookInterno, temWebhookInterno, comWebhookInterno, grupoCadastradoNaEmpresa } from "./server/sessaoAgentes.js";
+import { urlWebhookInterno, temWebhookInterno, comWebhookInterno, webhooksVendas, grupoCadastradoNaEmpresa } from "./server/sessaoAgentes.js";
+import { registrarRotasLigarAgentes } from "./server/agenteSecretoLigar.js";
 import { isVendedorColab } from "./src/lib/sellers.js";
 import { criarSituacaoEmpresa } from "./server/situacaoEmpresa.js";
 import { registerBackupEmpresaRoutes } from "./server/backupEmpresa.js";
@@ -5961,9 +5962,14 @@ app.post("/api/whatsapp/instances/for-user", requireUser, async (req: any, res) 
 // nunca vem do cliente: sai do colaborador ligado ao login, então ninguém consegue pedir o QR de outra pessoa.
 // Alimenta o aviso "Agente Secreto desconectado" + o botão Reconectar (QR) para o vendedor se reconectar sozinho.
 // Cada colaborador tem até duas sessões de WhatsApp: "vendas" (Agente Secreto, padrão) e "interno" (Agente Secreto Interno, lê os grupos da equipe).
-// A sessão já entrega mensagens ao webhook do Agente Interno? (consulta a config no WAHA; falha = não sabe, trata como "não")
-const internoAtivoNaSessao = async (sessionName: string, instanceId: string): Promise<boolean> => {
-  try { return temWebhookInterno(await getWhatsAppProvider().getSessionConfig?.(sessionName), instanceId); } catch { return false; }
+// Quais agentes a sessão alimenta (consulta a config no WAHA): Interno = webhook do SPY; Vendas = webhook do n8n.
+// Falha na consulta = não sabe: o Interno aparece como não ligado e o de Vendas vai sem resposta (a tela não afirma nada).
+const agentesNaSessao = async (sessionName: string, instanceId: string): Promise<{ internoAtivo: boolean; vendasAtivo?: boolean }> => {
+  try {
+    const cfg = await getWhatsAppProvider().getSessionConfig?.(sessionName);
+    if (!cfg) return { internoAtivo: false };
+    return { internoAtivo: temWebhookInterno(cfg, instanceId), vendasAtivo: webhooksVendas(cfg).length > 0 };
+  } catch { return { internoAtivo: false }; }
 };
 const finalidadeDe = (v: unknown): "vendas" | "interno" => (v === "interno" ? "interno" : "vendas");
 async function agenteSecretoSessionOf(req: any, finalidade: "vendas" | "interno" = "vendas"): Promise<{ nome: string; session: string; ativo: boolean; instanceId: string } | null> {
@@ -6002,7 +6008,7 @@ app.get("/api/agente-secreto/minha-sessao", requireUser, whatsappLimiter, async 
     try {
       const state = await getWhatsAppProvider().getConnectionState(mine.session);
       await syncInstanceStatus(mine.instanceId, state.status, state.phone);
-      return res.json({ session: mine.session, nome: mine.nome, status: state.status, phone: state.phone || null, ativo: mine.ativo, internoAtivo: await internoAtivoNaSessao(mine.session, mine.instanceId) });
+      return res.json({ session: mine.session, nome: mine.nome, status: state.status, phone: state.phone || null, ativo: mine.ativo, ...(await agentesNaSessao(mine.session, mine.instanceId)) });
     } catch (err: any) {
       console.error("[agente-secreto/minha-sessao] status", err?.message);
       return res.json({ session: mine.session, nome: mine.nome, status: "UNKNOWN", ativo: mine.ativo });
@@ -6079,6 +6085,9 @@ const isTenantAdminReq = async (req: any): Promise<boolean> => {
 
 // Número próprio da repescagem pela Aurora (Configurações › CRM › SLA): conectar por QR, consultar e remover.
 registrarRotasRepescagem(app, { requireUser, limiter: whatsappLimiter, resolveTenant: resolveRequestedTenantId, ehAdmin: isTenantAdminReq });
+
+// Liga e desliga cada Agente Secreto (Interno e Vendas) de uma pessoa, sem derrubar o login do WhatsApp.
+registrarRotasLigarAgentes(app, { requireUser, limiter: whatsappLimiter, supabaseService, appUrl: PUBLIC_APP_URL, provider: getWhatsAppProvider, configurado: isWahaConfigured, ehAdmin: isTenantAdminReq });
 
 // API oficial do WhatsApp (Central de Integrações): conectar número, webhook automático e remover.
 registrarRotasWhatsAppOficial(app, {
@@ -6171,32 +6180,6 @@ app.post("/api/agente-secreto/sessoes", requireUser, whatsappLimiter, async (req
   }
 });
 
-// Liga o Agente Interno numa sessão que já existe (criada antes do módulo): acrescenta o webhook do SPY e libera os grupos.
-// O login do WhatsApp é mantido; o WAHA reinicia a sessão ao trocar a config, o que pode levar alguns segundos.
-app.post("/api/agente-secreto/sessoes/:colaboradorId/ativar-interno", requireUser, whatsappLimiter, async (req: any, res) => {
-  const colaboradorId = String(req.params.colaboradorId || "");
-  if (!/^[\w-]{1,64}$/.test(colaboradorId)) return res.status(400).json({ error: "colaboradorId inválido." });
-  try {
-    if (!(await isTenantAdminReq(req))) return res.status(403).json({ error: "Apenas administradores." });
-    const provider = getWhatsAppProvider();
-    if (!isWahaConfigured() || !provider.getSessionConfig || !provider.updateSessionConfig) return res.status(503).json({ error: "WhatsApp (WAHA) não está configurado neste ambiente." });
-    const { data: colab } = await req.supabase.from("colaboradores").select("id, tenant_id").eq("id", colaboradorId).maybeSingle();
-    if (!colab) return res.status(404).json({ error: "Colaborador não encontrado." });
-    const { data: tenant } = await req.supabase.from("tenants").select("modules").eq("id", colab.tenant_id).maybeSingle();
-    if (tenant?.modules?.agente_interno !== true) return res.status(403).json({ error: "O Agente Secreto Interno não está contratado para esta empresa." });
-    const { data: inst } = await req.supabase.from("whatsapp_instances").select("id, name, webhook_secret").eq("colaborador_id", colab.id).eq("finalidade", "vendas").limit(1);
-    const row = inst?.[0];
-    if (!row) return res.status(404).json({ error: "Esta pessoa ainda não tem sessão de WhatsApp. Crie a sessão primeiro." });
-    const atual = await provider.getSessionConfig(row.name);
-    if (temWebhookInterno(atual, row.id)) return res.json({ applied: false, ja: true });
-    await provider.updateSessionConfig(row.name, comWebhookInterno(atual, urlWebhookInterno(PUBLIC_APP_URL, row.id, row.webhook_secret), row.id));
-    res.json({ applied: true });
-  } catch (err: any) {
-    console.error("[agente-secreto/ativar-interno]", err?.response?.status, err?.message);
-    res.status(502).json({ error: "Não foi possível ligar o Agente Interno nesta sessão agora." });
-  }
-});
-
 // Administrador conecta/reconecta o Agente Secreto de UM colaborador da empresa (a sessão vem do colaborador, nunca
 // do nome enviado pelo navegador; a RLS limita à empresa do admin). O QR é lido no celular do colaborador.
 async function sessaoDoColaborador(req: any, colaboradorId: string, finalidade: "vendas" | "interno" = "vendas"): Promise<{ nome: string; session: string; instanceId: string } | null> {
@@ -6217,7 +6200,7 @@ app.get("/api/agente-secreto/sessoes/:colaboradorId/status", requireUser, whatsa
     if (!sess) return res.json({ session: null });
     const state = await getWhatsAppProvider().getConnectionState(sess.session);
     await syncInstanceStatus(sess.instanceId, state.status, state.phone);
-    res.json({ session: sess.session, nome: sess.nome, status: state.status, phone: state.phone || null, internoAtivo: await internoAtivoNaSessao(sess.session, sess.instanceId) });
+    res.json({ session: sess.session, nome: sess.nome, status: state.status, phone: state.phone || null, ...(await agentesNaSessao(sess.session, sess.instanceId)) });
   } catch (err: any) {
     console.error("[agente-secreto/sessoes/status]", err?.message);
     res.status(502).json({ error: "Não foi possível consultar a sessão agora." });
